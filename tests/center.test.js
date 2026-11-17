@@ -124,6 +124,14 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   t.after(() => dashboard.close());
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
   assert.match(await (await fetch(base)).text(), /LIVE STUDIO/);
+  const html = await (await fetch(base)).text();
+  const script = html.match(/src="([^"]+\.js)"/)[1];
+  const asset = await fetch(base + script);
+  assert.equal(asset.status, 200);
+  assert.match(asset.headers.get('content-type'), /javascript/);
+  assert.match(asset.headers.get('cache-control'), /immutable/);
+  assert.equal((await fetch(base + '/assets/missing.js')).status, 404);
+  assert.equal((await fetch(base + '/assets/%2e%2e%2f%2e%2e%2fpackage.json')).status, 404);
   const state = await (await fetch(base + '/api/state')).json(); assert.equal(state.backend, 'node');
   const post = (action, body, headers = {}) => fetch(base + '/api/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   assert.equal((await post('settings', defaults)).status, 403);

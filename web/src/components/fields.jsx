@@ -1,0 +1,7 @@
+﻿import { Input, Switch, Textarea } from './ui';
+import { useId } from 'react';
+export function Field({ label, hint, children }) { const id = useId(); return <div className="field"><label htmlFor={id}>{label}</label>{typeof children === 'function' ? children(id) : children}{hint && <p className="help">{hint}</p>}</div>; }
+export function Setting({ name, label, settings, update, options, multiline, ...props }) {
+ return <Field label={label}>{id => options ? <select id={id} className="input" value={settings[name]} onChange={e => update(name, name === 'Speaker' ? Number(e.target.value) : e.target.value)} {...props}>{options.map(o => <option key={o.id ?? o.path} value={o.id ?? o.path}>{o.name}</option>)}</select> : multiline ? <Textarea id={id} value={Array.isArray(settings[name]) ? settings[name].join('\n') : settings[name]} onChange={e => update(name, e.target.value.split('\n'))} rows={4} {...props} /> : <Input id={id} value={settings[name]} onChange={e => update(name, props.type === 'number' ? Number(e.target.value) : e.target.value)} {...props} />}</Field>;
+}
+export function Toggle({ name, label, description, settings, update }) { const id = useId(); return <div className="toggle-row"><div><label htmlFor={id}>{label}</label>{description && <p className="help">{description}</p>}</div><Switch id={id} checked={settings[name]} onCheckedChange={value => update(name, value)} /></div>; }

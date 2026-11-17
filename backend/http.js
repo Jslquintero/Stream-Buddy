@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 
-const staticFiles = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/tts.js': ['tts.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'] };
+const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 
 export function createDashboardServer(center) {
   const token = randomBytes(32).toString('hex');
@@ -39,10 +39,17 @@ export function createDashboardServer(center) {
           res.write(`data: ${JSON.stringify(snapshot())}\n\n`);
           clients.add(res); res.on('close', () => clients.delete(res)); return;
         }
-        const file = staticFiles[url.pathname];
-        if (!file) return json(res, 404, { error: 'No encontrado' });
-        const content = await fs.readFile(path.join(center.root, 'web', file[0]));
-        res.writeHead(200, { 'Content-Type': file[1] + '; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' });
+        const publicRoot = path.resolve(center.root, 'dist');
+        const pathname = decodeURIComponent(url.pathname);
+        const file = path.resolve(publicRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
+        const relative = path.relative(publicRoot, file);
+        if (relative.startsWith('..') || path.isAbsolute(relative) || (pathname !== '/' && !pathname.startsWith('/assets/'))) return json(res, 404, { error: 'No encontrado' });
+        let content;
+        try { content = await fs.readFile(file); }
+        catch (error) { if (error.code === 'ENOENT' || error.code === 'EISDIR') return json(res, 404, { error: pathname === '/' ? 'Compila el frontend con npm run build.' : 'No encontrado' }); throw error; }
+        const mime = mimeTypes[path.extname(file)];
+        if (!mime) return json(res, 404, { error: 'No encontrado' });
+        res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': pathname === '/' ? 'no-store' : 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' });
         return res.end(content);
       }
       if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });

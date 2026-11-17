@@ -4,7 +4,7 @@ Centro local de stream para Windows. Abre **Iniciar.cmd** y conserva la consola 
 
 ## Arranque
 
-Requiere **Node.js 22 o posterior**. El lanzador detecta Node en Program Files o PATH. No requiere npm install: el backend utiliza los módulos incluidos en Node.
+Requiere **Node.js 22.12 o posterior**. El lanzador detecta Node en Program Files o PATH. El frontend utiliza React, Vite, Tailwind CSS y componentes shadcn/ui sobre Radix. La primera ejecución de Iniciar.cmd instala las dependencias con npm ci y compila el panel; requiere Internet para esa instalación. El backend utiliza los módulos incluidos en Node.
 
 ```powershell
 npm start
@@ -29,7 +29,8 @@ backend/
     ads.js                  Adaptador de AdQueue
     local-tool.js           Ciclo de vida común de herramientas externas
 modules/tts/                Motores de voz y puente TikTok existentes
-web/                        Dashboard
+web/src/                    Frontend React y componentes reutilizables
+dist/                       Frontend compilado servido por Node
 data/tts.json               Configuración del usuario
 tests/                      Pruebas Node
 ```
@@ -81,3 +82,13 @@ npm run check
 Las pruebas usan datos aislados y procesos simulados para comprobar cola, interrupción, filtros, conector, reutilización de herramientas, persistencia, protección HTTP y eventos SSE. No envían atajos ni reproducen audio. La conexión a TikTok real, audibilidad y cambios físicos de escena requieren prueba en tu sesión.
 
 APIs utilizadas: [HTTP de Node](https://nodejs.org/api/http.html) y [gestión de procesos](https://nodejs.org/api/child_process.html).
+
+## Desarrollo del frontend
+
+Instala las dependencias con `npm ci`. `npm start` compila el frontend y abre el centro. `Iniciar.cmd` también compila antes de arrancar, para evitar servir una versión anterior.
+
+Para trabajar con recarga automática, inicia `node server.js --no-browser` y, en otra terminal, `npm run dev`. Abre la URL de Vite; las peticiones `/api` y los eventos SSE se redirigen al backend en el puerto 17900. Si cambias el puerto del backend, actualiza el proxy en `vite.config.js`.
+
+Los componentes de interfaz viven en `web/src/components/ui`, los campos compartidos en `components/fields.jsx` y el acceso a la API/SSE en `hooks/use-studio.js`. `components.json` configura los alias para añadir componentes con la CLI de shadcn/ui. La integración sigue la [instalación para Vite](https://ui.shadcn.com/docs/installation/vite).
+
+`npm test` compila y verifica el backend, la API y las interacciones del frontend React en JSDOM. `npm run check` comprueba la compilación y la sintaxis del servidor. El frontend no depende de CDN ni de fuentes externas al ejecutarse.
