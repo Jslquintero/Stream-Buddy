@@ -1,0 +1,10 @@
+__pycache__/
+data/
+modules/tts/.venv/
+modules/tts/runtime/
+modules/tts/tools/
+modules/tts/voices/
+tests/scratch-*/
+tests/tmp*/
+.qa/
+node_modules/
