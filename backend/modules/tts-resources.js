@@ -33,7 +33,7 @@ export class TTSResources {
     this.models = [...found.values()];
     this.piperPath = [s.PiperExe, path.join(this.directory, 'tools', 'piper', 'piper.exe'), path.resolve(this.root, '..', 'tts', 'tools', 'piper', 'piper.exe')].find(file => file && fs.existsSync(file)) || '';
   }
-  state() { return { voices: this.voices, devices: this.devices, models: this.models, catalog: this.catalog, piperPath: this.piperPath, task: this.task, error: this.error, picked: this.picked }; }
+  state() { return { voices: this.voices, devices: this.devices, models: this.models, catalog: this.catalog, piperPath: this.piperPath, task: this.task, error: this.error, picked: this.picked, configured: this.configured }; }
   async jsonScript(name, args = []) {
     const lines = [];
     await this.processes.run('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', path.join(this.directory, name), ...args], line => lines.push(line));
@@ -43,6 +43,7 @@ export class TTSResources {
   }
   async runTask(name, operation) {
     if (this.task?.running) throw new Error('Espera a que termine la tarea actual');
+    this.batch = null;
     this.abort = new AbortController();
     this.task = { name, running: true, progress: 0, message: 'Preparando…' }; this.error = null; this.changed();
     try {
@@ -53,9 +54,9 @@ export class TTSResources {
       this.error = error.message;
       this.task = { name, running: false, progress: 0, message: error.message };
       this.log(`${name}: ${error.message}`);
-    } finally { this.changed(); }
+    } finally { this.batch = null; this.changed(); }
   }
-  progress(message, progress = 0) { this.task = { ...this.task, message, progress }; this.changed(); }
+  progress(message, progress = 0) { if (this.batch) { message = `Voz ${this.batch.current} de ${this.batch.total} / ${this.batch.id}: ${message}`; progress = Math.floor(((this.batch.current - 1) + progress / 100) / this.batch.total * 100); } this.task = { ...this.task, message, progress }; this.changed(); }
   refresh() {
     return this.runTask('Detectar voces y audio', async () => {
       this.scan();
@@ -86,25 +87,52 @@ export class TTSResources {
       this.picked = { kind, path: selected, id: Date.now() };
     });
   }
-  installPiper() {
-    return this.runTask('Instalar Piper', async () => {
-      this.progress('Descargando e instalando Piper para Windows…');
+  installPiper(language = 'all') {
+    if (typeof language !== 'string' || !/^(all|[a-z]{2,3})$/.test(language)) throw new Error('Selecciona un idioma válido');
+    return this.runTask('Preparar Piper y voces', async signal => {
+      this.progress('Consultando las voces disponibles…');
+      await this.fetchCatalog(signal);
+      const ids = this.catalog.filter(voice => language === 'all' || voice.language.split(/[_-]/)[0] === language).map(voice => voice.id).sort((a,b) => Number(!a.startsWith('es_')) - Number(!b.startsWith('es_')) || a.localeCompare(b));
+      if (!ids.length) throw new Error('No hay voces disponibles para el idioma seleccionado');
       const target = path.join(this.directory, 'tools');
-      await this.processes.run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(this.directory, 'install-piper.ps1'), '-Destination', target]);
-      this.scan(); this.picked = { kind: 'piper', path: this.piperPath, id: Date.now() };
+      const executable = path.join(target, 'piper', 'piper.exe');
+      if (!fs.existsSync(executable)) {
+        this.progress('Descargando e instalando Piper para Windows...');
+        await this.processes.run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(this.directory, 'install-piper.ps1'), '-Destination', target]);
+      }
+      signal.throwIfAborted();
+      if (!fs.statSync(executable).isFile()) throw new Error('La instalación no contiene piper.exe');
+      this.settings.save({ ...this.settings.read(), PiperExe: executable });
+      this.piperPath = executable;
+      for (let index = 0; index < ids.length; index++) {
+        signal.throwIfAborted();
+        this.batch = { current: index + 1, total: ids.length, id: ids[index] };
+        await this.transferVoice(ids[index], signal, false);
+        const current = this.settings.read();
+        if (index === 0) {
+          const model = this.models.find(m => m.path === current.Model && ids.includes(m.name)) || this.models.find(m => m.name === ids[index]);
+          if (!model) throw new Error('La voz descargada no es válida');
+          this.settings.save({ ...current, Engine: 'Piper', PiperExe: executable, Model: model.path, Speaker: model.path === current.Model ? current.Speaker : 0 });
+          this.configured = { id: Date.now(), ...this.settings.read() };
+          this.changed();
+        }
+      }
     });
   }
   loadCatalog() {
-    return this.runTask('Consultar catálogo de voces', async signal => {
+    return this.runTask('Consultar catálogo de voces', signal => this.fetchCatalog(signal));
+  }
+  async fetchCatalog(signal) {
       const response = await fetch(VOICES + 'voices.json', { signal: AbortSignal.any([signal, AbortSignal.timeout(30000)]) });
       if (!response.ok) throw new Error(`No se pudo consultar el catálogo (${response.status})`);
       this.catalogData = await response.json();
       this.catalog = Object.entries(this.catalogData).filter(([key]) => /^[a-zA-Z0-9_-]+$/.test(key)).map(([key, voice]) => ({ id: key, name: `${voice.language.name_native} · ${voice.name} · ${voice.quality}`, language: voice.language.code, size: Math.round(Object.values(voice.files).reduce((sum, file) => sum + file.size_bytes, 0) / 1048576), source: 'https://huggingface.co/rhasspy/piper-voices/tree/main/' + Object.keys(voice.files)[0].split('/').slice(0, -1).join('/') }));
-    });
   }
   downloadVoice(id) {
     if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id) || !Object.hasOwn(this.catalogData, id)) throw new Error('Consulta el catálogo y elige una voz');
-    return this.runTask('Descargar voz ' + id, async signal => {
+    return this.runTask('Descargar voz ' + id, signal => this.transferVoice(id, signal));
+  }
+  async transferVoice(id, signal, select = true) {
       const voice = this.catalogData[id];
       const folder = path.join(this.directory, 'voices'); fs.mkdirSync(folder, { recursive: true });
       const pending = [];
@@ -114,6 +142,12 @@ export class TTSResources {
           const name = path.basename(remote) === 'MODEL_CARD' ? `${id}.MODEL_CARD.txt` : path.basename(remote);
           if (![`${id}.onnx`, `${id}.onnx.json`, `${id}.MODEL_CARD.txt`].includes(name)) throw new Error('Archivo de voz inesperado en el catálogo');
           const destination = path.join(folder, name), partial = destination + '.download';
+          signal.throwIfAborted();
+          if (fs.existsSync(destination) && fs.statSync(destination).size === metadata.size_bytes) {
+            const hash = createHash('md5');
+            for await (const chunk of fs.createReadStream(destination)) { signal.throwIfAborted(); hash.update(chunk); }
+            if (hash.digest('hex') === metadata.md5_digest) continue;
+          }
           pending.push({ destination, partial });
           const response = await fetch(VOICES + remote, { signal: AbortSignal.any([signal, AbortSignal.timeout(300000)]) });
           if (!response.ok) throw new Error(`Descarga fallida (${response.status})`);
@@ -132,10 +166,9 @@ export class TTSResources {
         // Publish the ONNX last so incomplete downloads never appear in the selector.
         for (const file of pending.sort((a, b) => Number(a.destination.endsWith('.onnx')) - Number(b.destination.endsWith('.onnx')))) fs.renameSync(file.partial, file.destination);
         this.scan();
-        const model = pending.find(file => file.destination.endsWith('.onnx'));
-        if (model) this.picked = { kind: 'model', path: model.destination, id: Date.now() };
+        const model = this.models.find(model => model.name === id);
+        if (select && model) this.picked = { kind: 'model', path: model.path, id: Date.now() };
       } finally { for (const file of pending) fs.rmSync(file.partial, { force: true }); }
-    });
   }
   close() { this.abort?.abort(); }
 }

@@ -47,7 +47,7 @@ export class Center extends EventEmitter {
       case 'tts/pick': void this.tts.resources.pick(body.kind); break;
       case 'tts/install-piper':
         if (this.tts.speaker) throw new Error('Detén la voz antes de instalar Piper');
-        void this.tts.resources.installPiper(); break;
+        void this.tts.resources.installPiper(body.language); break;
       case 'test':
         if (typeof body.text !== 'string') throw new Error('El comentario debe ser texto');
         this.log(this.tts.enqueue('prueba', body.text)); break;

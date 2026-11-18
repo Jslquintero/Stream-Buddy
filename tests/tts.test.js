@@ -132,3 +132,64 @@ test('resource task failure is reported and releases busy state for retry', asyn
   resources.jsonScript = async () => ({ voices: [], devices: [], warnings: ['Sin dispositivo activo'] });
   await resources.refresh(); assert.equal(resources.task.running, false); assert.match(resources.error, /Sin dispositivo/);
 });
+
+test('Piper setup installs locally, downloads every voice, persists selection and resumes verified files', async t => {
+  const { resources, settings, processes } = fixture(t);
+  const first = voicePayload();
+  const second = JSON.parse(JSON.stringify(first).replaceAll(first.id, 'en_US-test-medium'));
+  second.voice.language.code = 'en_US';
+  const catalog = { [first.id]: first.voice, [second.id]: second.voice };
+  const files = { ...first.files, ...second.files };
+  let installs = 0, downloads = 0;
+  processes.run = async (_command, args) => {
+    installs++;
+    const folder = path.join(args.at(-1), 'piper');
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(path.join(folder, 'piper.exe'), 'test');
+  };
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (url.endsWith('voices.json')) return new Response(JSON.stringify(catalog));
+    downloads++;
+    return new Response(files[url.split('/resolve/main/')[1]]);
+  });
+  await resources.installPiper();
+  assert.equal(resources.error, null);
+  assert.equal(installs, 1);
+  assert.equal(resources.models.length, 2);
+  assert.equal(settings.read().Engine, 'Piper');
+  assert.equal(settings.read().PiperExe, path.join(resources.directory, 'tools', 'piper', 'piper.exe'));
+  assert.equal(path.basename(settings.read().Model), first.id + '.onnx');
+  assert.equal(resources.configured.Model, settings.read().Model);
+  const previous = downloads;
+  await resources.installPiper();
+  assert.equal(resources.error, null);
+  assert.equal(installs, 1);
+  assert.equal(downloads, previous);
+  fs.writeFileSync(settings.read().Model, 'bad-model!');
+  await resources.installPiper();
+  assert.equal(resources.error, null);
+  assert.equal(downloads, previous + 1);
+  const english = resources.models.find(model => model.name === second.id);
+  fs.unlinkSync(english.path);
+  await resources.installPiper('es');
+  assert.equal(resources.error, null);
+  assert.equal(downloads, previous + 1, 'Spanish setup must not download missing English voices');
+  assert.equal(path.basename(settings.read().Model), first.id + '.onnx');
+  await resources.installPiper('en');
+  assert.equal(resources.error, null);
+  assert.equal(downloads, previous + 2);
+  assert.equal(path.basename(settings.read().Model), second.id + '.onnx');
+  await resources.installPiper('zz');
+  assert.match(resources.error, /idioma seleccionado/);
+  assert.throws(() => resources.installPiper('../bad'), /idioma/);
+});
+
+test('failed Piper setup reports error and never selects a missing executable', async t => {
+  const { resources, settings, processes } = fixture(t);
+  processes.run = async () => { throw new Error('Descarga interrumpida'); };
+  await resources.installPiper();
+  assert.equal(resources.task.running, false);
+  assert.match(resources.error, /interrumpida/);
+  assert.equal(settings.read().PiperExe, '');
+  assert.equal(settings.read().Engine, 'Windows');
+});

@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { viewForPath } from '../shared/routes.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -41,15 +42,16 @@ export function createDashboardServer(center) {
         }
         const publicRoot = path.resolve(center.root, 'dist');
         const pathname = decodeURIComponent(url.pathname);
-        const file = path.resolve(publicRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
+        const isPage = viewForPath(pathname) !== null;
+        const file = path.resolve(publicRoot, '.' + (isPage ? '/index.html' : pathname));
         const relative = path.relative(publicRoot, file);
-        if (relative.startsWith('..') || path.isAbsolute(relative) || (pathname !== '/' && !pathname.startsWith('/assets/'))) return json(res, 404, { error: 'No encontrado' });
+        if (relative.startsWith('..') || path.isAbsolute(relative) || (!isPage && !pathname.startsWith('/assets/'))) return json(res, 404, { error: 'No encontrado' });
         let content;
         try { content = await fs.readFile(file); }
-        catch (error) { if (error.code === 'ENOENT' || error.code === 'EISDIR') return json(res, 404, { error: pathname === '/' ? 'Compila el frontend con npm run build.' : 'No encontrado' }); throw error; }
+        catch (error) { if (error.code === 'ENOENT' || error.code === 'EISDIR') return json(res, 404, { error: isPage ? 'Compila el frontend con npm run build.' : 'No encontrado' }); throw error; }
         const mime = mimeTypes[path.extname(file)];
         if (!mime) return json(res, 404, { error: 'No encontrado' });
-        res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': pathname === '/' ? 'no-store' : 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' });
+        res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': isPage ? 'no-store' : 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' });
         return res.end(content);
       }
       if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });

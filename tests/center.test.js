@@ -128,6 +128,13 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
   assert.match(await (await fetch(base)).text(), /LIVE STUDIO/);
   const html = await (await fetch(base)).text();
+  for (const route of ['/tts', '/layout', '/layout/', '/ads']) {
+    const page = await fetch(base + route);
+    assert.equal(page.status, 200);
+    assert.equal(await page.text(), html);
+    assert.equal(page.headers.get('cache-control'), 'no-store');
+  }
+  for (const route of ['/unknown', '/api/missing', '/package.json']) assert.equal((await fetch(base + route)).status, 404);
   const script = html.match(/src="([^"]+\.js)"/)[1];
   const asset = await fetch(base + script);
   assert.equal(asset.status, 200);

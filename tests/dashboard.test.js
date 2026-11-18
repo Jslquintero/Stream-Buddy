@@ -24,6 +24,9 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  await click('Guardar cambios');assert.equal(JSON.parse(requests.find(r=>r.url==='/api/settings').body).Speed,1.4);
  state.tools.layout.document=structuredClone(defaultLayout);stream.onmessage({data:JSON.stringify(state)});await pause();
  await click('Layout Studio');await until(()=>window.document.querySelector('.layout-inspector input'));
+ assert.equal(window.location.pathname,'/layout');
+ window.history.back();await until(()=>window.location.pathname==='/tts' && window.document.querySelector('.nav-item.active').textContent==='Voz y chat');
+ window.history.forward();await until(()=>window.location.pathname==='/layout' && window.document.querySelector('.nav-item.active').textContent==='Layout Studio');
  assert.equal(Array.from(window.document.querySelectorAll('a')).find(a=>a.textContent==='Ver salida').href,'http://127.0.0.1:17900/?layout-output=1#tiktok.studio');
  let copiedOutput='';Object.defineProperty(window.navigator,'clipboard',{value:{writeText:async text=>{copiedOutput=text;}}});
  await click('Copiar salida');assert.equal(copiedOutput,'http://127.0.0.1:17900/?layout-output=1#tiktok.studio');
@@ -154,5 +157,57 @@ test('live output has transparent window interiors in every theme, without edito
      assert.equal(content.parentElement.style.backgroundColor,'transparent',theme+' window');
    }
    assert.equal(window.document.querySelectorAll('.layout-source-placeholder,.layout-guides').length,0);
+ }
+});
+
+test('direct module routes survive a fresh mount and TikTok connects from the navbar', async t => {
+ const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
+ const asset=html.match(/src="([^"]+\.js)"/)[1];
+ const script=fs.readFileSync(new URL('../dist'+asset,import.meta.url),'utf8');
+ for(const path of ['/layout','/tts','/ads']) {
+  const dom=new JSDOM('<div id="root"></div>',{url:'http://127.0.0.1:17900'+path,runScripts:'outside-only',pretendToBeVisual:true});
+  t.after(()=>dom.window.close());const {window}=dom;let stream;const requests=[];
+  window.EventSource=class{constructor(){stream=this;}close(){}};
+  window.ResizeObserver=class{observe(){}unobserve(){}disconnect(){}};
+  window.fetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({ok:true})};};
+  window.eval(script);await until(()=>stream);
+  const state={token:'test',settings:{...defaults,Username:'nuevo'},tools:{layout:{running:false,available:true,document:structuredClone(defaultLayout)},ads:{running:false,available:true}},tts:{queued:0,connected:false,connector:true,resources:{}},events:[]};
+  stream.onmessage({data:JSON.stringify(state)});
+  await until(()=>window.document.querySelector('.tiktok-trigger')?.textContent.includes('@nuevo'));
+  assert.equal(window.location.pathname,path);
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,{'/layout':'Layout Studio','/tts':'Voz y chat','/ads':'AdQueue'}[path]);
+  assert.equal(window.document.querySelector('.connection-strip'),null);
+  if (path === '/tts') {
+   window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+   window.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new window.Event('close'));};
+   state.tts.resources.catalog=[{id:'es-test',language:'es_MX',size:50},{id:'en-test',language:'en_US',size:70}];
+   stream.onmessage({data:JSON.stringify(state)});await pause();
+   const clickSetup=async text=>{Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent===text).click();await pause();};
+   await clickSetup('Preparar Piper');
+   assert.equal(window.document.querySelector('.piper-dialog').open,true);
+   assert.equal(requests.some(r=>r.url==='/api/tts/install-piper'),false);
+   await clickSetup('Cancelar');
+   assert.equal(window.document.querySelector('.piper-dialog').open,false);
+   assert.equal(requests.some(r=>r.url==='/api/tts/install-piper'),false);
+   await clickSetup('Preparar Piper');
+   await clickSetup('Instalar selección');
+   assert.equal(requests.find(r=>r.url==='/api/tts/install-piper').body.language,'es');
+   await clickSetup('Preparar Piper');
+   window.document.querySelector('input[name="piper-scope"][value="all"]').click();await pause();
+   await clickSetup('Instalar selección');
+   assert.equal(requests.filter(r=>r.url==='/api/tts/install-piper').at(-1).body.language,'all');
+  }
+  window.document.querySelector('.tiktok-trigger').click();await pause();
+  assert.equal(window.document.querySelectorAll('#tiktok-panel').length,1);
+  window.document.querySelector('#tiktok-panel form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await pause();
+  assert.deepEqual(requests.filter(r=>r.url==='/api/settings'||r.url==='/api/connect').map(r=>r.url),['/api/settings','/api/connect']);
+  assert.equal(requests.find(r=>r.url==='/api/settings').body.Username,'nuevo');
+  assert.equal(window.location.pathname,path);
+  window.document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await pause();
+  assert.equal(window.document.querySelector('#tiktok-panel'),null);
+  assert.equal(window.document.activeElement,window.document.querySelector('.tiktok-trigger'));
+  state.settings.Username='actualizado';stream.onmessage({data:JSON.stringify(state)});await pause();
+  Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent==='Guardar cambios').click();await pause();
+  assert.equal(requests.filter(r=>r.url==='/api/settings').at(-1).body.Username,'actualizado');
  }
 });
