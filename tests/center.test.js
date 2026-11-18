@@ -10,6 +10,8 @@ import { LocalToolModule } from '../backend/modules/local-tool.js';
 import { ProcessManager } from '../backend/processes.js';
 import { Center } from '../backend/center.js';
 import { createDashboardServer } from '../backend/http.js';
+import { createLayoutModule } from '../backend/modules/layout.js';
+import { defaultLayout } from '../shared/layout.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 function scratch(t) {
@@ -119,6 +121,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const dataDir = scratch(t), processes = new FakeProcesses();
   const tools = Object.fromEntries(['layout', 'ads'].map(id => [id, { state: () => ({ running: false, available: true }), health: async () => false, start: async () => {} }]));
   const center = new Center({ root, dataDir, processes, tools, legacyFile: path.join(dataDir, 'absent') });
+  center.tools.layout=createLayoutModule({dataDir,changed:()=>center.changed(),log:()=>{}});
   const dashboard = createDashboardServer(center);
   await new Promise(resolve => dashboard.server.listen(0, '127.0.0.1', resolve));
   t.after(() => dashboard.close());
@@ -139,6 +142,12 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal((await post('settings', { ...defaults, Volume: 101 }, { 'X-Studio': state.token })).status, 400);
   assert.equal((await post('settings', { ...defaults, Volume: 33 }, { 'X-Studio': state.token })).status, 200);
   assert.equal(center.settings.read().Volume, 33);
+  const revisionBefore=center.tools.layout.state().revision;
+  const saved=await post('layout/save',{...defaultLayout,theme:'custom-http',customThemes:[{id:'custom-http',name:'HTTP theme',css:'.layout-title { color: cyan; }'}]},{'X-Studio':state.token});
+  assert.equal(saved.status,200);
+  const receipt=await saved.json();assert.ok(receipt.layoutRevision>revisionBefore);
+  assert.equal(receipt.layoutRevision,center.tools.layout.state().revision);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir,'layout.json'),'utf8')).customThemes[0].name,'HTTP theme');
   assert.equal((await post('start', { tool: 'unknown' }, { 'X-Studio': state.token })).status, 400);
   const controller = new AbortController();
   const stream = await fetch(base + '/api/events', { signal: controller.signal });

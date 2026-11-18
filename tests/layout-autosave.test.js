@@ -1,0 +1,225 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
+import { defaults } from '../backend/settings.js';
+import { defaultLayout } from '../shared/layout.js';
+
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+test('XP controls drag as one group without moving or deleting the window',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  const element=f.window.document.querySelector('.layout-stage [data-element-id="welcome"]');
+  element.getBoundingClientRect=()=>({width:907.2/2,height:134.4/2});
+  const group=element.querySelector('.xp-controls');group.setPointerCapture=()=>{};
+  const close=group.querySelector('button');
+  const pointer=(target,type,x,y)=>target.dispatchEvent(new f.window.MouseEvent(type,{bubbles:true,button:0,clientX:x,clientY:y}));
+  pointer(close,'pointerdown',400,50);pointer(group,'pointermove',300,70);pointer(group,'pointerup',300,70);
+  close.click();
+  await until(()=>requests.length>0);
+  const saved=requests.at(-1).elements[0];
+  assert.equal(saved.id,'welcome');assert.equal(saved.x,5);assert.equal(saved.y,5);
+  assert.ok(saved.xpControls.x<1&&saved.xpControls.y>0);
+  assert.equal(group.children.length,3);
+  await f.input('[aria-label="Ancho (px)"]','180');
+  await f.input('[aria-label="Alto (px)"]','96');
+  await until(()=>requests.at(-1).elements[0].w<20);
+  assert.ok(parseFloat(group.style.left)+69<=174);
+  assert.ok(parseFloat(group.style.top)+21<=93);
+  const output=await fixture(t,async()=>{},true);
+  output.state.tools.layout.document=structuredClone(requests.at(-1));output.state.tools.layout.revision++;output.send();await pause(30);
+  const preview=output.window.document.querySelector('[data-element-id="welcome"] .xp-controls');
+  assert.equal(preview.style.left,group.style.left);
+  assert.equal(preview.style.top,group.style.top);
+  const guides=[...f.window.document.querySelectorAll('label')].find(label=>label.textContent.includes('Guías de interfaz')).querySelector('input');
+  guides.click();await pause(30);
+  assert.ok(f.window.document.querySelector('.layout-stage .guide-left'));
+  assert.ok(f.window.document.querySelector('.layout-stage .guide-right'));
+  await f.click('Restablecer controles XP');
+  await until(()=>requests.at(-1).elements[0].xpControls.x===1);
+  assert.equal(requests.at(-1).elements[0].xpControls.y,0);
+  close.click();await pause(30);
+  assert.equal(f.window.document.querySelector('.layout-stage [data-element-id="welcome"]'),null);
+});
+
+test('dragging snaps in canvas pixels at preview scale and ignores accidental movement',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  const canvas=f.window.document.querySelector('.layout-stage .layout-canvas');
+  const plane=canvas.querySelector('.layout-plane');
+  plane.getBoundingClientRect=()=>({left:0,top:0,width:540,height:960});
+  const element=canvas.querySelector('[data-element-id="welcome"]');
+  element.setPointerCapture=()=>{};
+  const pointer=(target,type,x,y,extra={})=>target.dispatchEvent(new f.window.MouseEvent(type,{bubbles:true,button:0,clientX:x,clientY:y,...extra}));
+  pointer(element,'pointerdown',100,100);
+  pointer(canvas,'pointermove',101,100);await pause(30);
+  assert.equal(element.style.left,'5%');
+  pointer(canvas,'pointermove',109,100);pointer(canvas,'pointerup',109,100);
+  await until(()=>requests.length>0);
+  assert.equal(requests.at(-1).elements[0].x*1080/100,72);
+  assert.equal(requests.at(-1).elements[0].y,5);
+  assert.equal(f.window.document.querySelectorAll('.layout-grid-overlay').length,1,'Grid must only render in the editor');
+  pointer(element,'pointerdown',100,100);
+  pointer(canvas,'pointermove',105,100,{altKey:true});pointer(canvas,'pointerup',105,100);
+  await until(()=>Math.abs(requests.at(-1).elements[0].x*10.8-82)<.001);
+  canvas.dispatchEvent(new f.window.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+  await until(()=>Math.abs(requests.at(-1).elements[0].x*10.8-83)<.001);
+});
+async function until(check,timeout=3500){const start=Date.now();while(!check()&&Date.now()-start<timeout)await pause(20);assert.ok(check(),'Timed out waiting for layout update');}
+async function fixture(t,fetch,output=false){
+  const dom=new JSDOM('<div id="root"></div>',{url:'http://127.0.0.1:17900'+(output?'/?layout-output=1':''),runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
+  const {window}=dom;let stream;
+  window.EventSource=class{constructor(){stream=this;}close(){}};
+  window.ResizeObserver=class{observe(){}disconnect(){}};
+  window.fetch=fetch;
+  const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),asset=html.match(/src="([^"]+\.js)"/)[1];
+  window.eval(fs.readFileSync(new URL('../dist'+asset,import.meta.url),'utf8'));
+  await until(()=>stream);
+  const state={token:'token',settings:defaults,tools:{layout:{revision:100,document:structuredClone(defaultLayout)},ads:{}},tts:{resources:{},metrics:{}},events:[]};
+  const send=()=>stream.onmessage({data:JSON.stringify(state)});send();
+  await until(()=>window.document.querySelector(output?'.layout-canvas':'.layout-studio'));
+  const click=async text=>{const button=[...window.document.querySelectorAll('button')].find(b=>b.textContent.trim()===text);assert.ok(button,text);button.click();await pause(25);};
+  if(!output)await click('Layout Studio');
+  const input=async(selector,value)=>{const element=window.document.querySelector(selector);assert.ok(element,selector);Object.getOwnPropertyDescriptor(element.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype,'value').set.call(element,value);element.dispatchEvent(new window.Event('input',{bubbles:true}));await pause(25);};
+  return {window,state,send,click,input};
+}
+
+test('autosave serializes requests, retains newer edits and retries failures without manual saving',async t=>{
+  const requests=[];
+  const f=await fixture(t,(url,options)=>new Promise(resolve=>requests.push({url,body:JSON.parse(options.body),resolve})));
+  await f.input('.layout-inspector input','First edit');
+  await until(()=>requests.length===1);
+  await f.input('.layout-inspector input','Newer edit');
+  f.send();await pause(800);
+  assert.equal(requests.length,1,'Only one save may be in flight');
+  assert.equal(f.window.document.querySelector('.layout-inspector input').value,'Newer edit');
+  requests[0].resolve({ok:true,json:async()=>({ok:true,layoutRevision:101})});
+  await until(()=>requests.length===2);
+  assert.equal(requests[1].body.elements[0].title,'Newer edit');
+  requests[1].resolve({ok:true,json:async()=>({ok:true,layoutRevision:102})});
+  await until(()=>f.window.document.body.textContent.includes('Autoguardado · salida sincronizada'));
+  f.state.tools.layout.revision=101;f.send();await pause(40);
+  assert.equal(f.window.document.querySelector('.layout-inspector input').value,'Newer edit','An older SSE must not restore stale elements');
+  await f.input('.layout-inspector input','Retry edit');await until(()=>requests.length===3);
+  requests[2].resolve({ok:false,json:async()=>({error:'Disk unavailable'})});
+  await until(()=>f.window.document.body.textContent.includes('Se reintentará automáticamente'));
+  const unload=new f.window.Event('beforeunload',{cancelable:true});f.window.dispatchEvent(unload);assert.equal(unload.defaultPrevented,true);
+  await until(()=>requests.length===4,7000);
+  assert.equal(requests[3].body.elements[0].title,'Retry edit');
+  requests[3].resolve({ok:true,json:async()=>({ok:true,layoutRevision:103})});
+  await until(()=>f.window.document.body.textContent.includes('Autoguardado · salida sincronizada'));
+});
+
+test('custom CSS themes autosave valid code, isolate styles and retain their library across templates',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  await f.click('+ Crear tema CSS');
+  await until(()=>f.window.document.querySelector('.custom-theme-host')?.shadowRoot?.querySelector('.layout-title'));
+  await f.input('.theme-code-editor input','Mi overlay');
+  const css=':host { --accent: #ff3377; } .layout-title { color: #ff3377; } body, .sidebar { display: none; }';
+  await f.input('.css-source',css);
+  await until(()=>requests.some(r=>r.customThemes?.[0]?.css===css));
+  const saved=requests.at(-1);
+  assert.equal(saved.customThemes[0].name,'Mi overlay');assert.equal(saved.theme,saved.customThemes[0].id);
+  const shadow=f.window.document.querySelector('.custom-theme-host').shadowRoot;
+  assert.equal(shadow.querySelector('[data-custom-css]').textContent,css);
+  assert.equal(f.window.document.querySelector('style[data-custom-css]'),null,'Theme CSS must stay inside its shadow root');
+  assert.ok(f.window.document.querySelector('.sidebar'));
+  const count=requests.length;
+  await f.input('.css-source','.layout-title { color: red;');
+  await until(()=>f.window.document.querySelector('.theme-code-editor [role="alert"]'));
+  await pause(850);assert.equal(requests.length,count,'Invalid CSS must not overwrite the saved theme');
+  assert.equal(shadow.querySelector('[data-custom-css]').textContent,css);
+  await f.input('.css-source',css+'\n.layout-content { letter-spacing: 1px; }');
+  await until(()=>requests.length>count);
+  f.window.document.querySelector('.vertical-preset').click();await pause(40);
+  assert.ok(f.window.document.querySelector('.custom-theme-host'));
+  await until(()=>requests.at(-1).elements[0].title==='En directo.exe');
+  assert.equal(requests.at(-1).customThemes[0].name,'Mi overlay');
+  await f.click('Duplicar tema');await until(()=>f.window.document.querySelectorAll('.custom-theme-list button').length===2);
+  await f.click('Eliminar tema CSS');assert.equal(f.window.document.querySelectorAll('.custom-theme-list button').length,1);
+  await until(()=>requests.at(-1).customThemes?.length===1&&requests.at(-1).theme==='dark');
+});
+
+test('CSS files import without replacing existing themes and exports preserve the code',async t=>{
+  const requests=[],downloads=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  await f.click('+ Crear tema CSS');
+  await until(()=>requests.some(r=>r.customThemes?.length===1));
+  const originalId=requests.at(-1).customThemes[0].id;
+  const css=':host { --accent: #39d5dc; }\n.layout-title { background: #123456; }';
+  const upload=async(name,contents)=>{
+    const input=f.window.document.querySelector('input[aria-label="Archivo de tema CSS"]');
+    Object.defineProperty(input,'files',{configurable:true,value:[new f.window.File([contents],name,{type:'text/css'})]});
+    input.dispatchEvent(new f.window.Event('change',{bubbles:true}));await pause(50);
+  };
+  await upload('Tema océano.css','\uFEFF'+css);
+  await until(()=>requests.at(-1).customThemes?.length===2);
+  const saved=requests.at(-1),imported=saved.customThemes[1];
+  assert.equal(saved.customThemes[0].id,originalId);assert.notEqual(imported.id,originalId);
+  assert.equal(imported.name,'Tema océano');assert.equal(imported.css,css);assert.equal(saved.theme,imported.id);
+  const blobs=[];
+  f.window.URL.createObjectURL=blob=>{blobs.push(blob);return 'blob:theme-'+blobs.length;};
+  f.window.URL.revokeObjectURL=()=>{};
+  f.window.HTMLAnchorElement.prototype.click=function(){downloads.push({name:this.download,href:this.href});};
+  const readBlob=blob=>new Promise((resolve,reject)=>{const reader=new f.window.FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsText(blob);});
+  await f.click('Exportar CSS');
+  assert.equal(downloads[0].name,'overlay-Tema-oceano.css');assert.equal(await readBlob(blobs[0]),css);
+  const count=requests.length;
+  await upload('Roto.css','.layout-title { color: red;');
+  await until(()=>f.window.document.querySelector('.custom-theme-editor > [role="alert"]'));
+  await pause(800);assert.equal(requests.length,count,'Invalid imports must not change the document');
+  assert.equal(f.window.document.querySelectorAll('.custom-theme-list button').length,2);
+  await upload('No es CSS.txt',css);assert.match(f.window.document.querySelector('.custom-theme-editor > [role="alert"]').textContent,/archivo \.css/);
+  await f.click('Descargar plantilla');
+  const {baseThemeCSS}=await import('../shared/custom-themes.js');
+  assert.equal(await readBlob(blobs[1]),baseThemeCSS);
+});
+
+test('layout properties use pixels and autosave the same geometry in both orientations',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  const field=name=>f.window.document.querySelector(`[aria-label="${name} (px)"]`);
+  assert.equal(field('X').value,'54');assert.equal(field('Y').value,'96');assert.equal(field('Ancho').value,'907.2');
+  await f.input('[aria-label="Ancho (px)"]','540');
+  await f.input('[aria-label="X (px)"]','108');
+  await f.input('[aria-label="Y (px)"]','192');
+  await f.input('[aria-label="Alto (px)"]','192');
+  await until(()=>requests.length>0);
+  const element=requests.at(-1).elements[0];
+  for(const [key,expected] of Object.entries({x:10,y:10,w:50,h:10}))assert.ok(Math.abs(element[key]-expected)<.000001,key);
+  const select=[...f.window.document.querySelectorAll('label')].find(e=>e.textContent.startsWith('Formato')).querySelector('select');
+  Object.getOwnPropertyDescriptor(f.window.HTMLSelectElement.prototype,'value').set.call(select,'landscape');select.dispatchEvent(new f.window.Event('change',{bubbles:true}));await pause(40);
+  assert.equal(field('X').value,'192');assert.equal(field('Y').value,'108');assert.equal(field('Ancho').value,'960');assert.equal(field('Alto').value,'108');
+  field('Ancho').focus();await f.input('[aria-label="Ancho (px)"]','1');
+  assert.equal(field('Ancho').value,'1','Intermediate typing must not immediately clamp the input');
+  await f.input('[aria-label="Ancho (px)"]','1280');field('Ancho').blur();
+  await until(()=>requests.at(-1).format==='landscape'&&Math.abs(requests.at(-1).elements[0].w*19.2-1280)<.001);
+});
+
+test('custom canvas dimensions autosave and drive preview and pixel properties',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  const select=[...f.window.document.querySelectorAll('label')].find(e=>e.textContent.startsWith('Formato')).querySelector('select');
+  assert.equal(select.querySelector('[value="custom"]').disabled,false);
+  Object.getOwnPropertyDescriptor(f.window.HTMLSelectElement.prototype,'value').set.call(select,'custom');
+  select.dispatchEvent(new f.window.Event('change',{bubbles:true}));await pause(40);
+  assert.equal(select.value,'custom');
+  assert.equal(f.window.document.activeElement.getAttribute('aria-label'),'Ancho del lienzo (px)');
+  await f.input('[aria-label="Ancho del lienzo (px)"]','');
+  await f.input('[aria-label="Ancho del lienzo (px)"]','1');
+  assert.equal(f.window.document.activeElement.value,'1');
+  await f.input('[aria-label="Ancho del lienzo (px)"]','1440');
+  f.window.document.activeElement.blur();
+  await f.input('[aria-label="Alto del lienzo (px)"]','1440');
+  await until(()=>requests.at(-1)?.canvasHeight===1440);
+  const saved=requests.at(-1);
+  assert.equal(saved.canvasWidth,1440);
+  assert.equal(saved.elements[0].x,5);
+  assert.equal(f.window.document.querySelector('[aria-label="X (px)"]').value,'72');
+  for(const plane of f.window.document.querySelectorAll('.layout-plane')){
+    assert.equal(plane.dataset.width,'1440');assert.equal(plane.dataset.height,'1440');
+  }
+  assert.match(f.window.document.querySelector('.layout-preview > .help').textContent,/1440 × 1440/);
+});

@@ -35,6 +35,7 @@ export class Center extends EventEmitter {
     if (['tts/refresh', 'tts/catalog', 'tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.resources.task?.running) throw new Error('Espera a que termine la tarea actual');
     if (['tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.speaker) throw new Error('Detén la voz antes de modificar los archivos de Piper');
     switch (action) {
+      case 'layout/save': this.tools.layout.save(body); break;
       case 'settings': this.settings.save(body); this.log('Configuración de voz guardada'); break;
       case 'tts/preview': this.tts.preview(body.text, body.settings); break;
       case 'tts/remove': this.tts.remove(body.id); break;

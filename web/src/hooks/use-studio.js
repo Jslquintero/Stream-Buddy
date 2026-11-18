@@ -39,7 +39,7 @@ export function useStudio() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo completar la acción.');
-      return true;
+      return action==='layout/save'?result:true;
     } catch (error) {
       setNotice(error.message);
       return false;

@@ -57,14 +57,14 @@ export function createDashboardServer(center) {
       let bytes = 0; const chunks = [];
       for await (const chunk of req) {
         bytes += chunk.length;
-        if (bytes > 20000) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
+        if (bytes > (url.pathname === '/api/layout/save' ? 8000000 : 20000)) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
         chunks.push(chunk);
       }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Solicitud inválida');
       const action = url.pathname.startsWith('/api/') ? url.pathname.slice(5) : '';
       if (!await center.command(action, body)) return json(res, 404, { error: 'No encontrado' });
-      json(res, 200, { ok: true });
+      json(res, 200, { ok: true, ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
     } catch (error) {
       if (!res.headersSent) json(res, 400, { error: error.message });
       else res.end();

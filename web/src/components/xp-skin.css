@@ -1,0 +1,40 @@
+/* Window and Luna taskbar rules reused from the original XP Studio. */
+.layout-plane{position:absolute;left:50%;top:50%;transform-origin:center;container-type:inline-size;overflow:hidden}
+.layout-item{position:absolute}
+.editable .layout-item{touch-action:none;user-select:none;cursor:move}
+.editable .layout-item.selected{outline:2px solid #c9ffbb;outline-offset:5px}
+.theme-xp .xp-window{overflow:hidden}
+.theme-xp .xp-content{white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;color:white}
+.theme-xp .xp-controls{flex-shrink:0}
+.theme-xp .xp-controls i{flex-shrink:0}
+.theme-xp .layout-resize{width:28px;height:28px}
+.theme-xp .xp-window{position:absolute;border:3px solid #0751e5;border-top:0;border-radius:9px 9px 0 0;background:transparent;min-width:20px;touch-action:none}
+.theme-xp .xp-title{height:29px;background:linear-gradient(#3997ff 0%,#0865f5 15%,#0062f1 75%,#0646c0);border-radius:7px 7px 0 0;display:flex;align-items:center;color:white;font:13px Tahoma,Arial;text-shadow:1px 1px #174fa2;padding:0 4px 0 6px;gap:5px;cursor:move;white-space:nowrap;overflow:hidden}
+.theme-xp .xp-title .title-text{flex:1;overflow:hidden}
+.theme-xp .xp-controls{display:flex;gap:3px}
+.theme-xp .xp-controls i{display:inline-block;width:21px;height:21px;border:1px solid white;border-radius:3px;box-shadow:inset 1px 1px 3px #c6ddff;background:linear-gradient(130deg,#75a6fc,#0750d8);font:19px Arial;text-align:center;font-style:normal;line-height:17px}
+.theme-xp .xp-controls i:last-child{background:linear-gradient(130deg,#ffa379,#df3106)}
+.theme-xp .xp-content{height:calc(100% - 29px);background:#000;display:flex;justify-content:center;align-items:center;color:#ffffff38;font:12px Tahoma}
+.theme-xp .xp-content.clear{background:transparent}
+.theme-xp .xp-window{z-index:2}
+.theme-xp .editable-taskbar{cursor:move;touch-action:none;bottom:auto;overflow:hidden;align-items:stretch}
+.theme-xp .xp-controls .close-window{display:block;width:21px;height:21px;border:1px solid white;border-radius:3px;box-shadow:inset 1px 1px 3px #ffd5be;background:linear-gradient(130deg,#ffa379,#df3106);color:white;padding:0;font:19px/17px Arial;text-align:center;font-style:normal}
+.theme-xp .xp-taskbar-surface{position:absolute;left:0;top:0;display:flex;align-items:stretch;overflow:hidden;color:#fff;font:11px Tahoma,Arial,sans-serif;background:linear-gradient(to bottom,#3168d5 0px,#3888e9 1px,#4993e6 2px,#307be5 3px,#286add 4px,#245dd7 5px,#2359d6 6px,#2257d5 8px,#2259d7 11px,#245edc 16px,#2661dd 21px,#2663e0 25px,#2561de 26px,#235bd9 27px,#1e50c4 28px,#1941a5 29px)}
+.theme-xp .xp-taskbar-surface .start{position:relative;display:block;flex:0 0 98px;width:98px;height:30px;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;font:bold italic 18px/30px Tahoma,Arial,sans-serif;text-shadow:1px 2px 2px #234617;overflow:hidden;background-image:url('../assets/xp-taskbar-reference.png');background-size:439px 49px;background-position:0 -19px;background-repeat:no-repeat}
+.theme-xp .xp-taskbar-surface .custom-start{display:flex;align-items:center;gap:5px;padding:0 9px;flex-basis:auto;min-width:98px;width:auto;border-radius:0 11px 11px 0;background:linear-gradient(#91b58b 0px,#74a867 2px,#65a451 5px,#398832 12px,#3b8c2f 20px,#287723 27px,#1b5d19 29px);box-shadow:inset -2px 0 3px #264f23}
+.theme-xp .xp-start-flag{display:block;width:20px;height:20px;flex-shrink:0;background:url('../assets/xp-taskbar-reference.png') -9px -24px / 439px 49px no-repeat}
+.theme-xp .xp-start-label{white-space:nowrap}
+.theme-xp .xp-taskbar-surface .task-apps{position:relative;display:flex;align-items:flex-start;flex:1;min-width:0;height:30px;padding:3px 10px 2px 6px;gap:3px;overflow:hidden}
+.theme-xp .xp-taskbar-surface .task-apps:before{content:'';position:absolute;left:0;top:4px;bottom:3px;width:2px;background:linear-gradient(90deg,#1748b0,#6c9cf2);opacity:.9}
+.theme-xp .xp-taskbar-surface .task-tab{display:flex;align-items:center;gap:4px;flex:0 1 160px;min-width:24px;max-width:160px;height:25px;box-sizing:border-box;margin:0;padding:0 6px;border:1px solid #2456a8;border-top-color:#77a7f7;border-left-color:#77a7f7;border-radius:2px;background:#3c81f3;box-shadow:inset 1px 0 #5599ff,inset 0 1px #5696f6,1px 0 0 #1a4aa9,0 1px 0 #1e50c4;overflow:hidden;font:700 11px/16px Tahoma,Arial,sans-serif;letter-spacing:0;text-shadow:none;color:white}
+.theme-xp .xp-task-icon{display:block;width:16px;height:16px;flex:0 0 16px;background-image:url('../assets/xp-taskbar-reference.png');background-size:439px 49px;background-repeat:no-repeat}
+.theme-xp .xp-task-folder{background-position:-111px -26px}
+.theme-xp .xp-task-recycle{background-position:-273px -26px}
+.theme-xp .task-caption{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.theme-xp .xp-taskbar-surface .clock{display:flex;align-items:center;flex:0 0 auto;margin:0;padding:0 12px;height:30px;background:linear-gradient(#63c6f5,#139de8 4px,#0e90dd 25px,#0872b8);border-left:1px solid #1459bd;box-shadow:inset 1px 0 #38b7ed;font:11px Tahoma,Arial,sans-serif}
+.theme-xp .xp-taskbar-surface .clock[hidden]{display:none!important}
+.theme-xp .window-app-icon{position:relative;display:inline-block;width:16px;height:16px;flex:0 0 16px;line-height:16px;color:#fff}
+.theme-xp .window-app-icon:before{content:'▣';position:absolute;inset:0;text-align:center}
+.theme-xp .xp-window .xp-content{color:#fff}
+
+.theme-xp .xp-controls{position:absolute;z-index:4;width:69px;height:21px;transform-origin:top left;touch-action:none}.theme-xp .xp-title{padding-right:78px}.theme-xp .xp-controls .close-window{flex-shrink:0}.editable.theme-xp .xp-controls,.editable.theme-xp .xp-controls .close-window{cursor:move}
