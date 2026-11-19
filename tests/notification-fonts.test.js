@@ -1,0 +1,21 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {notificationFonts} from '../modules/notifications/fonts.js';
+test('Google font installation downloads local assets and survives offline restart',async t=>{
+  const directory=fs.mkdtempSync(new URL('./scratch-fonts-',import.meta.url));
+  t.after(()=>{for(const name of fs.readdirSync(directory)){const file=path.join(directory,name);if(name==='notification-fonts'){for(const asset of fs.readdirSync(file))fs.unlinkSync(path.join(file,asset));fs.rmdirSync(file);}else fs.unlinkSync(file);}fs.rmdirSync(directory);});
+  const bytes=Buffer.concat([Buffer.from('wOF2'),Buffer.alloc(40)]);let calls=0,fail=false;
+  t.mock.method(globalThis,'fetch',async url=>{calls++;if(fail)return new Response('Not found',{status:404});return new Response(String(url).startsWith('https://fonts.googleapis.com/')?"@font-face{font-family:'Montserrat';font-style:normal;font-weight:400;src:url(https://fonts.gstatic.com/s/montserrat/v1/test.woff2) format('woff2');unicode-range:U+0000-00FF;}":bytes);});
+  const fonts=notificationFonts(directory,()=>{}),font=await fonts.install('Montserrat');
+  assert.equal(calls,2);assert.equal(font.name,'Montserrat');
+  const css=fonts.read(font.id+'.css').bytes.toString();assert.match(css,/\/notification-fonts\/[a-f0-9]{64}\.woff2/);assert.doesNotMatch(css,/https:/);
+  assert.deepEqual(fonts.read(css.match(/notification-fonts\/([^')]+)/)[1]).bytes,bytes);
+  const restarted=notificationFonts(directory,()=>{});assert.equal(restarted.state().items[0].name,'Montserrat');
+  await restarted.install('montserrat');assert.equal(calls,2,'Installed fonts must not need network');
+  assert.equal(fonts.read('../notifications.json'),null);
+  await assert.rejects(fonts.install('Bad&family=Other'));
+  fail=true;
+  await assert.rejects(fonts.install('Not A Font'));assert.equal(fonts.state().installing,false);assert.equal(fonts.state().items.length,1);
+});

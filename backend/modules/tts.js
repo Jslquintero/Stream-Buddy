@@ -17,7 +17,8 @@ export function filterText(text, s) {
 }
 
 export class TTSModule {
-  constructor({ root, dataDir, settings, processes, log, changed }) {
+  constructor({ root, dataDir, settings, processes, log, changed, onLiveEvent = () => {} }) {
+    this.onLiveEvent = onLiveEvent;
     Object.assign(this, { root, dataDir, settings, processes, log, changed });
     this.queue = []; this.cooldowns = new Map(); this.paused = false;
     this.speaker = null; this.bridge = null; this.installing = false; this.connected = false; this.closing = false; this.stopping = false;
@@ -103,24 +104,39 @@ export class TTSModule {
     if (!python) throw new Error('Instala el conector primero');
     const username = this.settings.read().Username.trim().replace(/^@/, '');
     if (!/^[a-zA-Z0-9_.]{1,64}$/.test(username)) throw new Error('Guarda un usuario de TikTok válido');
+    let diagnostic = '';
     const child = this.processes.start(python, [path.join(this.moduleDir, 'bridge.py'), username], line => {
       if (this.bridge !== child) return;
       try {
         const event = JSON.parse(line);
         if (event.kind === 'comment') this.enqueue(String(event.user || 'usuario'), String(event.text || ''));
+        else if (['follow', 'gift', 'share', 'superfan', 'like'].includes(event.kind)) this.onLiveEvent(event);
         else {
           if (event.kind === 'status') this.connected = String(event.text).startsWith('Conectado al directo');
           if (event.kind === 'error') this.lastError = String(event.text || 'Error del conector');
           this.log((event.text || '') + (event.detail ? ` — ${event.detail}` : ''));
         }
-      } catch { this.log(line); }
+      } catch { if (line.trim()) { diagnostic = line.trim().slice(0,700); this.log(line); } }
       this.changed();
     });
     this.bridge = child; this.lastError = null;
-    const finish = () => { if (this.bridge === child) { this.bridge = null; this.connected = false; this.changed(); } };
+    const finish = code => {
+      if (this.bridge !== child) return;
+      if (!this.closing && !this.disconnecting && !this.lastError && code !== 0) {
+        this.lastError = /did not find executable|No module named|ENOENT/i.test(diagnostic + String(code))
+          ? 'El entorno Python del conector está incompleto o cambió de ruta. Pulsa Preparar para repararlo.'
+          : 'El conector TikTok terminó inesperadamente: ' + (diagnostic || (code instanceof Error ? code.message : `código ${code}`));
+        this.log(this.lastError);
+      }
+      this.bridge = null; this.connected = false; this.changed();
+    };
     child.once('close', finish); child.once('error', finish); this.changed();
   }
-  async disconnect() { await this.processes.stop(this.bridge); this.connected = false; this.changed(); }
+  async disconnect() {
+    this.disconnecting = true;
+    try { await this.processes.stop(this.bridge); }
+    finally { this.disconnecting = false; this.connected = false; this.changed(); }
+  }
   async install() {
     if (this.installing) return;
     if (this.bridge) throw new Error('Desconecta el LIVE antes de instalar el conector');
@@ -129,11 +145,10 @@ export class TTSModule {
       const target = path.join(this.moduleDir, '.venv');
       const ownPython = path.join(target, 'Scripts', 'python.exe');
       this.log('Preparando entorno del conector TikTok…');
-      if (!fs.existsSync(ownPython)) {
-        const existing = this.connectorPython();
-        await this.processes.run(existing || 'py.exe', [...(existing ? [] : ['-3']), '-m', 'venv', target]);
-      }
-      await this.processes.run(ownPython, ['-m', 'pip', 'install', 'TikTokLive>=6,<7']);
+      // Recreate launchers using the registered Python, never a potentially broken sibling venv.
+      await this.processes.run('py.exe', ['-3', '-m', 'venv', target]);
+      await this.processes.run(ownPython, ['-m', 'pip', 'install', 'TikTokLive>=6.6.6,<7']);
+      await this.processes.run(ownPython, ['-c', 'from TikTokLive import TikTokLiveClient; from TikTokLive.events import SuperFanEvent']);
       this.log('Conector instalado. Ya puedes conectar tu LIVE.');
     } catch (error) { this.lastError = `No se pudo instalar el conector: ${error.message}`; this.log(this.lastError); }
     finally { this.installing = false; this.changed(); }

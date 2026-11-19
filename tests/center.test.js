@@ -19,7 +19,10 @@ function scratch(t) {
   fs.mkdirSync(dir);
   t.after(() => {
     // Only known flat test files are removed; never recurse over user data.
-    for (const file of fs.readdirSync(dir)) fs.unlinkSync(path.join(dir, file));
+    for (const file of fs.readdirSync(dir)) {
+      if(file==='notification-assets'){const assets=path.join(dir,file);for(const name of fs.readdirSync(assets))fs.unlinkSync(path.join(assets,name));fs.rmdirSync(assets);}
+      else fs.unlinkSync(path.join(dir, file));
+    }
     fs.rmdirSync(dir);
   });
   return dir;
@@ -89,10 +92,13 @@ test('stop clears queued messages and prevents an unintended next speech', async
 });
 test('connector forwards chat to the queue and resets state after exit', async t => {
   const { module, processes } = ttsFixture(t, { Username: 'test' }); module.paused = true;
+  const alerts=[];module.onLiveEvent=event=>alerts.push(event);
   module.connectorPython = () => 'fake-python';
   module.connect(); const child = processes.starts[0].child;
   child.onLine(JSON.stringify({ kind: 'status', text: 'Conectado al directo @test' }));
   child.onLine(JSON.stringify({ kind: 'comment', user: 'u', text: '!hola' }));
+  for(const kind of ['follow','gift','share','superfan','like']) child.onLine(JSON.stringify({kind,user:'u',gift:'Rosa',count:3}));
+  assert.deepEqual(alerts.map(event=>event.kind),['follow','gift','share','superfan','like']);
   assert.equal(module.connected, true); assert.equal(module.queue.length, 1);
   assert.throws(() => module.connect(), /activa/);
   await module.disconnect(); assert.equal(module.connected, false); assert.equal(module.bridge, null);
@@ -104,6 +110,27 @@ test('tool reuses external instances and never takes ownership of them', async (
   await Promise.all([tool.start(), tool.start()]);
   assert.equal(processes.starts.length, 0); assert.equal(tool.state().managed, false);
   await tool.close();
+});
+
+test('connector reports missing Python and preserves explicit TikTok errors', t => {
+  const {module,processes}=ttsFixture(t,{Username:'test'});
+  module.connectorPython=()=> 'fake-python';module.connect();
+  const child=processes.starts[0].child;
+  child.onLine("did not find executable at 'old/python.exe'");child.onLine('');child.emit('close',1);
+  assert.match(module.lastError,/Preparar/);assert.equal(module.state().connecting,false);
+  module.connect();const second=processes.starts[1].child;
+  second.onLine(JSON.stringify({kind:'error',text:'Error de TikTok específico'}));second.emit('close',1);
+  assert.equal(module.lastError,'Error de TikTok específico');
+});
+
+test('connector repair uses system Python instead of a broken sibling environment and checks imports', async t => {
+  const {module,processes}=ttsFixture(t);const calls=[];
+  module.connectorPython=()=> 'broken-python';
+  processes.run=async(command,args)=>calls.push({command,args});
+  await module.install();
+  assert.equal(calls[0].command,'py.exe');assert.deepEqual(calls[0].args.slice(0,3),['-3','-m','venv']);
+  assert.equal(calls[1].args[1],'pip');assert.match(calls[2].args[1],/SuperFanEvent/);
+  assert.equal(module.lastError,null);assert.equal(module.installing,false);
 });
 test('missing tools fail before spawning a process', async () => {
   const processes = new FakeProcesses();
@@ -128,7 +155,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
   assert.match(await (await fetch(base)).text(), /LIVE STUDIO/);
   const html = await (await fetch(base)).text();
-  for (const route of ['/tts', '/layout', '/layout/', '/ads']) {
+  for (const route of ['/tts', '/layout', '/layout/', '/ads', '/notifications', '/likes']) {
     const page = await fetch(base + route);
     assert.equal(page.status, 200);
     assert.equal(await page.text(), html);
@@ -149,6 +176,30 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal((await post('settings', { ...defaults, Volume: 101 }, { 'X-Studio': state.token })).status, 400);
   assert.equal((await post('settings', { ...defaults, Volume: 33 }, { 'X-Studio': state.token })).status, 200);
   assert.equal(center.settings.read().Volume, 33);
+  const gif='R0lGODlhAQABAIAAAAAAAP///yH5BAAAAAAALAAAAAABAAEAAAIBRAA7';
+  assert.equal((await post('notifications/upload',{data:'data:image/gif;base64,'+gif})).status,403);
+  const upload=await post('notifications/upload',{data:'data:image/gif;base64,'+gif},{'X-Studio':state.token});
+  assert.equal(upload.status,200);
+  const uploaded=await upload.json();assert.match(uploaded.image,/\.gif$/);
+  const image=await fetch(base+uploaded.image);
+  assert.equal(image.headers.get('content-type'),'image/gif');
+  assert.deepEqual(Buffer.from(await image.arrayBuffer()),Buffer.from(gif,'base64'));
+  const partial=await fetch(base+uploaded.image,{headers:{Range:'bytes=2-5'}});
+  assert.equal(partial.status,206);assert.deepEqual(Buffer.from(await partial.arrayBuffer()),Buffer.from(gif,'base64').subarray(2,6));
+  assert.equal((await fetch(base+uploaded.image,{headers:{Range:'bytes=999999-'}})).status,416);
+  assert.equal((await fetch(base+'/notification-assets/not-an-image')).status,404);
+  assert.equal((await post('notifications/test', {type:'gift'}, {'X-Studio':state.token})).status,200);
+  assert.equal(center.notifications.state().current.type,'gift');
+  assert.equal((await post('notifications/clear', {}, {'X-Studio':state.token})).status,200);
+  center.tts.onLiveEvent({kind:'follow',user:'Nuevo seguidor'});
+  center.tts.onLiveEvent({kind:'like',userId:'viewer-1',user:'Ana',count:12,messageId:'like-1'});
+  assert.equal(center.likes.state().ranking[0].likes,12);
+  const likesSaved=await post('likes/save',{...center.likes.state().config,title:'Top de prueba'},{'X-Studio':state.token});
+  assert.equal(likesSaved.status,200);assert.ok((await likesSaved.json()).notificationRevision);
+  assert.equal((await post('likes/export',{})).status,403);
+  const scoreboard=await post('likes/export',{}, {'X-Studio':state.token});
+  assert.equal(scoreboard.status,200);assert.equal((await scoreboard.json()).users[0].likes,12);
+  assert.match(center.notifications.state().current.message,/Nuevo seguidor/);
   const revisionBefore=center.tools.layout.state().revision;
   const saved=await post('layout/save',{...defaultLayout,theme:'custom-http',customThemes:[{id:'custom-http',name:'HTTP theme',css:'.layout-title { color: cyan; }'}]},{'X-Studio':state.token});
   assert.equal(saved.status,200);

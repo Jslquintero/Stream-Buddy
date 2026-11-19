@@ -12,7 +12,7 @@ LOG = Path(__file__).resolve().parent / 'runtime' / 'bridge-events.jsonl'
 def emit(kind, **data):
     record = dict(kind=kind, **data)
     print(json.dumps(record, ensure_ascii=True), flush=True)
-    if kind != 'comment':
+    if kind not in ('comment', 'like'):
         try:
             LOG.parent.mkdir(exist_ok=True)
             if LOG.exists() and LOG.stat().st_size > 100_000:
@@ -39,6 +39,29 @@ def comment_data(event):
     if not isinstance(text, str) or not text.strip():
         raise ValueError('TikTok envio un comentario sin texto legible.')
     return dict(user=str(identity or 'usuario'), text=text)
+
+
+def avatar_url(user):
+    for field in ('avatar_thumb', 'avatar_medium', 'avatar_large'):
+        image = getattr(user, field, None)
+        for url in getattr(image, 'url_list', None) or []:
+            if isinstance(url, str) and url.startswith(('https://', 'http://')):
+                return url
+    return ''
+
+
+def alert_user(event):
+    candidates = [getattr(event, 'user', None)]
+    # Barrage-based SuperFan events carry the viewer in a formatted text piece.
+    for content in (getattr(event, 'content', None), getattr(event, 'common_barrage_content', None)):
+        for piece in getattr(content, 'pieces', None) or []:
+            candidates.append(getattr(getattr(piece, 'user_value', None), 'user', None))
+    for user in candidates:
+        identity = (getattr(user, 'nickname', None) or getattr(user, 'unique_id', None)
+                    or getattr(user, 'display_id', None))
+        if identity:
+            return str(identity)[:80]
+    return 'usuario'
 
 
 class BridgeLogHandler(logging.Handler):
@@ -69,7 +92,7 @@ def explain_error(exc):
 async def main():
     try:
         from TikTokLive import TikTokLiveClient
-        from TikTokLive.events import CommentEvent, ConnectEvent, DisconnectEvent, WebsocketResponseEvent
+        from TikTokLive.events import CommentEvent, ConnectEvent, DisconnectEvent, WebsocketResponseEvent, FollowEvent, GiftEvent, ShareEvent, LikeEvent
         client = TikTokLiveClient(unique_id=sys.argv[1])
         client.logger.addHandler(BridgeLogHandler())
         stats = dict(events=0, comments=0, connected=False)
@@ -100,6 +123,41 @@ async def main():
                 emit('comment', **data)
             except Exception as exc:
                 emit('diagnostic', text=f'No se pudo leer un comentario: {type(exc).__name__}: {exc}')
+
+        try:
+            from TikTokLive.events import SuperFanEvent
+        except ImportError:
+            emit('diagnostic', text='Actualiza el conector desde Preparar para recibir alertas Super Fan (TikTokLive 6.6.6 o superior).')
+        else:
+            @client.on(SuperFanEvent)
+            async def superfan(event):
+                emit('superfan', user=alert_user(event))
+
+        @client.on(FollowEvent)
+        async def followed(event):
+            emit('follow', user=alert_user(event))
+
+        @client.on(ShareEvent)
+        async def shared(event):
+            emit('share', user=alert_user(event))
+
+        @client.on(LikeEvent)
+        async def liked(event):
+            user = getattr(event, 'user', None)
+            identity = getattr(user, 'id', None) or getattr(user, 'unique_id', None)
+            count = getattr(event, 'count', 0)
+            if identity and isinstance(count, int) and count > 0:
+                message_id = getattr(getattr(event, 'common', None), 'msg_id', None)
+                emit('like', userId=str(identity), user=alert_user(event), count=count, avatar=avatar_url(user),
+                     messageId=str(message_id) if message_id else '')
+
+        @client.on(GiftEvent)
+        async def gifted(event):
+            if getattr(event, 'streaking', False):
+                return
+            gift = getattr(event, 'gift', None)
+            emit('gift', user=alert_user(event), gift=str(getattr(gift, 'name', None) or 'Regalo')[:80],
+                 count=max(1, int(getattr(event, 'repeat_count', 1) or 1)))
 
         async def monitor():
             while True:

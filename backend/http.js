@@ -33,6 +33,25 @@ export function createDashboardServer(center) {
     try {
       const url = new URL(req.url, origin);
       if (req.method === 'GET') {
+        if(url.pathname.startsWith('/notification-fonts/')){
+          const font=center.notifications.fonts.read(url.pathname.slice('/notification-fonts/'.length));
+          if(!font)return json(res,404,{error:'Fuente no encontrada'});
+          res.writeHead(200,{'Content-Type':font.mime,'Cache-Control':'public, max-age=31536000, immutable','X-Content-Type-Options':'nosniff'});return res.end(font.bytes);
+        }
+        if (url.pathname.startsWith('/notification-assets/')) {
+          const asset = center.notifications.assets.read(url.pathname.slice('/notification-assets/'.length));
+          if (!asset) return json(res,404,{error:'Imagen no encontrada'});
+          const headers={'Content-Type':asset.mime,'Content-Length':asset.bytes.length,'Cache-Control':'public, max-age=31536000, immutable','X-Content-Type-Options':'nosniff','Accept-Ranges':'bytes'};
+          if(req.headers.range){
+            const match=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+            const start=match?(match[1]?Number(match[1]):Math.max(0,asset.bytes.length-Number(match[2]))):NaN;
+            const end=match?(match[1]&&match[2]?Math.min(Number(match[2]),asset.bytes.length-1):asset.bytes.length-1):NaN;
+            if(!match||(!match[1]&&!match[2])||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||start>=asset.bytes.length){res.writeHead(416,{'Content-Range':`bytes */${asset.bytes.length}`});return res.end();}
+            res.writeHead(206,{...headers,'Content-Length':end-start+1,'Content-Range':`bytes ${start}-${end}/${asset.bytes.length}`});return res.end(asset.bytes.subarray(start,end+1));
+          }
+          res.writeHead(200, headers);
+          return res.end(asset.bytes);
+        }
         if (url.pathname === '/api/state') return json(res, 200, snapshot());
         if (url.pathname === '/api/events') {
           if (clients.size >= 20) return json(res, 503, { error: 'Demasiadas conexiones' });
@@ -51,7 +70,7 @@ export function createDashboardServer(center) {
         catch (error) { if (error.code === 'ENOENT' || error.code === 'EISDIR') return json(res, 404, { error: isPage ? 'Compila el frontend con npm run build.' : 'No encontrado' }); throw error; }
         const mime = mimeTypes[path.extname(file)];
         if (!mime) return json(res, 404, { error: 'No encontrado' });
-        res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': isPage ? 'no-store' : 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' });
+        res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': isPage ? 'no-store' : 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
         return res.end(content);
       }
       if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });
@@ -59,14 +78,15 @@ export function createDashboardServer(center) {
       let bytes = 0; const chunks = [];
       for await (const chunk of req) {
         bytes += chunk.length;
-        if (bytes > (url.pathname === '/api/layout/save' ? 8000000 : 20000)) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
+        if (bytes > (url.pathname==='/api/notifications/upload'?43000000:url.pathname==='/api/layout/save'?8000000:20000)) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
         chunks.push(chunk);
       }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Solicitud inválida');
       const action = url.pathname.startsWith('/api/') ? url.pathname.slice(5) : '';
-      if (!await center.command(action, body)) return json(res, 404, { error: 'No encontrado' });
-      json(res, 200, { ok: true, ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
+      const result = await center.command(action, body);
+      if (!result) return json(res, 404, { error: 'No encontrado' });
+      json(res, 200, { ok: true, ...(['notifications/upload','notifications/fonts/install','likes/save','likes/export'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
     } catch (error) {
       if (!res.headersSent) json(res, 400, { error: error.message });
       else res.end();

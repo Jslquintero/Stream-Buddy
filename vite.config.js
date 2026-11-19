@@ -10,6 +10,8 @@ export default defineConfig({
   build: { outDir: '../dist', emptyOutDir: true },
   server: {
     proxy: {
+      '/notification-fonts': { target: backend, changeOrigin: true },
+      '/notification-assets': { target: backend, changeOrigin: true },
       '/api': {
         target: backend,
         changeOrigin: true,

@@ -1,0 +1,26 @@
+# Notificaciones
+
+Módulo integrado de alertas para seguidores, regalos y compartidos.
+
+- `index.js`: persistencia, validación y cola de reproducción compartida entre las salidas.
+- `config.js`: valores iniciales, plantillas y opciones visuales.
+- La configuración del usuario se guarda en `data/notifications.json`.
+- El editor guarda automáticamente tras una pausa de escritura, serializa las solicitudes y reintenta los fallos. Cada cambio pendiente tiene una copia inmediata en el navegador para recuperarse al recargar antes de completar el guardado. El servidor devuelve una revisión para que una actualización antigua no reemplace los cambios nuevos. `notifications.json.bak` conserva una copia válida y los formatos anteriores se migran al cargar.
+- El borde tiene opacidad independiente (0 % es transparente). Las animaciones incluyen entradas desde cuatro direcciones, desvanecimiento, zoom, rebote, giro, rodar e impulso, con duración configurable; se respeta la preferencia de movimiento reducido.
+- Se pueden usar fuentes del sistema e instalar familias por nombre desde [Google Fonts](https://developers.google.com/fonts/docs/css2). Los archivos y su CSS se almacenan en `data/notification-fonts/`, con un registro en `data/notification-fonts.json`. La instalación requiere Internet; la reproducción posterior usa únicamente archivos locales. No se instalan fuentes en Windows. Los grosores que no incluya la descarga pueden ser sintetizados por el navegador.
+- Las imágenes PNG, JPG, WebP y GIF (hasta 20 MB cada una) se guardan en `data/notification-assets/`. Se detecta el formato por la firma del archivo, incluso si el navegador no indica un MIME. Los GIF conservan sus bytes y su animación. Elegir una imagen desactiva el video anterior para que no la oculte. Los eventos y la configuración solo transportan la URL local del archivo.
+- Cada evento admite audio MP3, WAV u OGG (5 MB), volumen y escucha local antes de guardar. El audio se reproduce una vez en la salida y se detiene al finalizar, saltar o limpiar la alerta. Si el navegador bloquea el sonido automático, la salida ofrece un botón para habilitarlo.
+- Los videos MP4 y WebM admiten archivos de hasta 30 MB. El editor permite seleccionar y previsualizar un tramo de hasta la duración de la alerta (máximo 30 segundos). El corte es de reproducción: se guarda el archivo original junto con los tiempos de inicio y fin, sin recodificar ni exportar otro archivo. La salida permite búsquedas por rangos HTTP y solo reproduce el fragmento seleccionado.
+- El video tiene prioridad sobre la imagen. Su sonido se puede habilitar; un audio personalizado sustituye al sonido del video para evitar dos pistas simultáneas.
+- Los selectores de imagen/GIF y video también aceptan URLs directas HTTP o HTTPS. El navegador verifica que puede abrir el recurso antes de aplicarlo. El enlace se guarda sin descargar una copia al servidor; debe continuar disponible y permitir su reproducción desde la fuente de navegador. Los videos por URL conservan los controles de recorte.
+- Para páginas de video se admiten YouTube (watch, youtu.be, Shorts y enlaces embed) y Vimeo. Se utilizan sus reproductores oficiales, con volumen, silencio, inicio y fin; no se extrae ni descarga el video. Otros sitios necesitan una integración específica o una URL de archivo. Las restricciones del propietario, disponibilidad y reproducción automática siguen dependiendo de la plataforma. En enlaces de sitio la duración completa no se inventa ni se muestra; se configura el tramo por sus tiempos.
+- Referencias de integración: [YouTube IFrame API](https://developers.google.com/youtube/iframe_api_reference) y [Vimeo Player SDK](https://github.com/vimeo/player.js).
+- La salida y la vista previa de la alerta solicitan los reproductores sin controles y ocultan el reproductor mientras carga, está pausado o termina. El editor del fragmento conserva los controles. YouTube puede mostrar su título, marca u otros elementos propios: sus parámetros `showinfo` y `modestbranding` ya no eliminan estos elementos. Para una presentación sin interfaz de terceros, usa un archivo local o una URL directa de video.
+- Cada evento tiene su propia imagen y puede heredar el diseño general o guardar un diseño independiente. Se puede ajustar distribución, tipografía, ancho, espaciado, transparencia, bordes, sombra, duración y animación.
+- Editor: `/notifications`. Salida transparente: `/?notifications-output=1#tiktok.studio`.
+
+Los eventos automáticos utilizan la conexión de TikTok del navbar. Los regalos en racha se notifican al terminar la racha. Las pruebas no necesitan conexión. La cola es temporal, admite 30 pendientes y no se recupera al reiniciar. El editor permite previsualizar cambios sin guardarlos y enviar una prueba explícita a la salida.
+
+El conector usa los eventos de [TikTokLive](https://github.com/isaackogan/TikTokLive) y omite los regalos con `event.streaking` activo.
+
+Validación: `npm test` cubre servidor, persistencia, cola, editor y salida. `py -3 tests/notifications_bridge_test.py` prueba los eventos del conector con un cliente simulado, sin iniciar sesión ni conectarse a un LIVE.

@@ -135,3 +135,14 @@ En Lienzo puedes editar ancho y alto en píxeles (entre 240 y 7680 por lado). La
 El editor ajusta el movimiento y el tamaño a una cuadrícula de 8 px por defecto. Puedes desactivarla o cambiar el paso entre 1 y 128 px encima del lienzo. Mantén Alt para mover libremente y Shift para bloquear el movimiento a un eje. Con el lienzo enfocado, las flechas mueven el elemento seleccionado 1 px; Shift + flechas lo mueve 10 px. La cuadrícula no aparece en la salida.
 
 Las guías de interfaz reservan el mismo margen lateral a izquierda y derecha. En Windows XP puedes arrastrar los tres controles de ventana juntos dentro de su ventana. Su posición se guarda y se adapta al redimensionar, manteniendo el grupo visible; «Restablecer controles XP» lo devuelve arriba a la derecha. Un clic en la X elimina la ventana; arrastrarla mueve el grupo sin eliminarla.
+
+
+### Top usuarios por likes
+
+El m?dulo `/likes` recibe `LikeEvent` del conector TikTok. Suma el `count` de cada evento por ID estable del usuario, no el total global del LIVE. Los mensajes con un mismo ID se cuentan una sola vez (ventana de los ?ltimos 2000 IDs). Solo incluye likes que el conector recibe mientras est? conectado; no reconstruye el historial anterior.
+
+Puedes elegir de 1 a 20 puestos, t?tulo, tama?o, colores, opacidad de fondo y borde, posici?n y total visible. El dise?o se guarda autom?ticamente; los cambios pendientes se recuperan desde el navegador. La vista de ejemplo es local al editor y no a?ade likes a la clasificaci?n real.
+
+La salida `/?likes-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/likes.json` conserva dise?o y conteo, con escritura at?mica, copia `.bak` y guardado del conteo agrupado cada segundo. Reconectar el mismo canal conserva el ranking. ?Reiniciar conteo? pide confirmaci?n y conserva el dise?o; los primeros likes de un canal distinto inician un conteo nuevo. Ocultar la clasificaci?n no detiene el conteo. Reinicia Live Studio y reconecta TikTok tras instalar el m?dulo para cargar el nuevo evento del conector.
+
+El scoreboard de likes conserva tambi?n la URL de la foto de perfil y muestra la foto junto al nombre en el editor y la salida. Si no hay foto o falla su carga, muestra la inicial. Las fotos se actualizan al recibir nuevos likes y requieren acceso a la URL de TikTok; el conteo y los nombres permanecen locales. El panel indica la hora del ?ltimo like y del ?ltimo guardado. ?Descargar scoreboard? exporta todos los participantes a JSON, aunque la salida est? limitada a menos puestos.

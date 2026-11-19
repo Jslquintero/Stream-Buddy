@@ -186,6 +186,7 @@ test('Piper setup installs locally, downloads every voice, persists selection an
 
 test('failed Piper setup reports error and never selects a missing executable', async t => {
   const { resources, settings, processes } = fixture(t);
+  resources.fetchCatalog=async()=>{resources.catalog=[{id:'es_MX-test-medium',language:'es_MX'}];};
   processes.run = async () => { throw new Error('Descarga interrumpida'); };
   await resources.installPiper();
   assert.equal(resources.task.running, false);

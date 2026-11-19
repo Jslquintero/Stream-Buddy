@@ -5,6 +5,8 @@ import { ProcessManager } from './processes.js';
 import { TTSModule } from './modules/tts.js';
 import { createLayoutModule } from './modules/layout.js';
 import { createAdsModule } from './modules/ads.js';
+import { createNotificationsModule } from '../modules/notifications/index.js';
+import { createLikesModule } from '../modules/likes/index.js';
 
 export class Center extends EventEmitter {
   constructor({ root, dataDir = path.join(root, 'data'), processes, tools, legacyFile } = {}) {
@@ -12,8 +14,10 @@ export class Center extends EventEmitter {
     this.settings = new SettingsStore(dataDir, legacyFile ?? path.resolve(root, '..', 'tts', 'settings.json'));
     this.processes = processes || new ProcessManager(text => this.log(text));
     const context = { root, dataDir, settings: this.settings, processes: this.processes, log: text => this.log(text), changed: () => this.changed() };
-    this.tts = new TTSModule(context);
-    this.tools = tools || { layout: createLayoutModule(context), ads: createAdsModule(context) };
+    this.notifications = createNotificationsModule(context);
+    this.likes = createLikesModule(context);
+    this.tts = new TTSModule({ ...context, onLiveEvent: event => event.kind==='like'?this.likes.receive(event,this.settings.read().Username):this.notifications.enqueue(event.kind, event) });
+    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes };
   }
   log(text) {
     this.events.push({ time: new Date().toLocaleTimeString('es-PA', { hour12: false }), text: String(text).slice(0, 1500) });
@@ -35,6 +39,17 @@ export class Center extends EventEmitter {
     if (['tts/refresh', 'tts/catalog', 'tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.resources.task?.running) throw new Error('Espera a que termine la tarea actual');
     if (['tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.speaker) throw new Error('Detén la voz antes de modificar los archivos de Piper');
     switch (action) {
+      case 'likes/save': this.likes.save(body);return {notificationRevision:this.likes.state().revision};
+      case 'likes/export': return this.likes.scoreboard();
+      case 'likes/reset': this.likes.reset();break;
+      case 'notifications/fonts/install': return await this.notifications.fonts.install(body.name);
+      case 'notifications/upload': return this.notifications.assets.upload(body);
+      case 'notifications/save': this.notifications.save(body); break;
+      case 'notifications/test':
+        if (!this.notifications.enqueue(body.type, { user: 'Usuario de prueba', gift: 'Rosa', count: 3 }, body.config)) throw new Error('Activa esta notificación o libera espacio en la cola');
+        break;
+      case 'notifications/clear': this.notifications.clear(); break;
+      case 'notifications/skip': this.notifications.skip(); break;
       case 'layout/save': this.tools.layout.save(body); break;
       case 'settings': this.settings.save(body); this.log('Configuración de voz guardada'); break;
       case 'tts/preview': this.tts.preview(body.text, body.settings); break;
@@ -70,6 +85,8 @@ export class Center extends EventEmitter {
   }
   async close() {
     this.closing = true;
+    this.notifications.close();
+    this.likes.close();
     await this.tts.close();
     await this.processes.close();
     this.removeAllListeners();

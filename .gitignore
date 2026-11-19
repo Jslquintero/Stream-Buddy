@@ -7,5 +7,6 @@ modules/tts/voices/
 tests/scratch-*/
 tests/tmp*/
 .qa/
+.tmp/
 node_modules/
 dist/

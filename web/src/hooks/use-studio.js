@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useStudio() {
   const [state, setState] = useState(null);
@@ -29,7 +29,7 @@ export function useStudio() {
     return () => stream.close();
   }, []);
 
-  const api = useCallback(async (action, body = {}) => {
+  const api = useCallback(async (action, body = {}, options = {}) => {
     try {
       if (!current.current) throw new Error('Espera a que el centro termine de conectar.');
       const response = await fetch('/api/' + action, {
@@ -39,9 +39,10 @@ export function useStudio() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo completar la acción.');
-      return action==='layout/save'?result:true;
+      return ['likes/export','likes/save','layout/save','notifications/upload','notifications/save','notifications/fonts/install'].includes(action)?result:true;
     } catch (error) {
       setNotice(error.message);
+      if(options.throwOnError)throw error;
       return false;
     }
   }, []);
