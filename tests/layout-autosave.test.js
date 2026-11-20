@@ -7,6 +7,80 @@ import { defaultLayout } from '../shared/layout.js';
 
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
+test('layout JSON export and import create a portable copy without replacing the current draft',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({ok:true,compositionId:'imported'})};});
+  let blob,filename;
+  f.window.URL.createObjectURL=value=>{blob=value;return 'blob:test';};f.window.URL.revokeObjectURL=()=>{};
+  f.window.HTMLAnchorElement.prototype.click=function(){filename=this.download;};
+  await f.input('.library-save input','Compartida');
+  await f.click('Exportar layout');
+  assert.equal(filename,'Compartida.json');
+  const text=await new Promise(resolve=>{const reader=new f.window.FileReader();reader.onload=()=>resolve(reader.result);reader.readAsText(blob);});
+  const exported=JSON.parse(text);assert.equal(exported.name,'Compartida');assert.deepEqual(exported.document,defaultLayout);
+  const input=f.window.document.querySelector('.layout-library input[type="file"]');
+  Object.defineProperty(input,'files',{configurable:true,value:[new f.window.File([text],'Compartida.json',{type:'application/json'})]});
+  input.dispatchEvent(new f.window.Event('change',{bubbles:true}));
+  await until(()=>requests.length===1);
+  assert.equal(requests[0].url,'/api/layout/create');assert.equal(requests[0].body.name,'Compartida');
+  assert.deepEqual(requests[0].body.document,defaultLayout);
+  Object.defineProperty(input,'files',{configurable:true,value:[new f.window.File(['{}'],'invalido.json')]});
+  input.dispatchEvent(new f.window.Event('change',{bubbles:true}));await pause(50);
+  assert.equal(requests.length,1,'Invalid imports never reach the save API');
+  assert.equal(f.window.document.querySelector('.layout-inspector input').value,defaultLayout.elements[0].title);
+});
+
+test('composition submenus retain separate drafts and save to independent outputs',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({ok:true,compositionId:'scene-a',layoutRevision:200+requests.length})};});
+  await f.input('.library-save input','Gaming');
+  await f.click('Guardar composición actual');
+  assert.equal(requests[0].url,'/api/layout/create');
+  assert.equal(requests[0].body.name,'Gaming');
+  f.state.tools.layout.compositions=[{id:'scene-a',name:'Gaming',document:structuredClone(defaultLayout),revision:100},{id:'scene-b',name:'Charla',document:structuredClone(defaultLayout),revision:100}];
+  f.send();await pause(30);
+  assert.equal(f.window.document.querySelectorAll('.library-grid .library-thumbnail .layout-canvas').length,3);
+  assert.equal(f.window.document.querySelectorAll('.library-thumbnail .editable, .library-thumbnail button').length,0,'Previews are read-only');
+  await f.click('Gaming');
+  assert.equal(f.window.location.pathname,'/layout/scene-a');
+  await f.input('div:not([hidden]) > .layout-studio .layout-inspector input','Título A');
+  assert.equal(f.window.document.querySelector('div:not([hidden]) > .layout-studio .library-composition.is-active .title-text').textContent,'Título A','Active preview follows the draft');
+  await f.click('Charla');
+  await f.input('div:not([hidden]) > .layout-studio .layout-inspector input','Título B');
+  await f.click('Gaming');
+  assert.equal(f.window.document.querySelector('div:not([hidden]) > .layout-studio .layout-inspector input').value,'Título A');
+  await until(()=>requests.filter(r=>r.url==='/api/layout/save-composition').length===2);
+  assert.equal(requests.find(r=>r.body.id==='scene-a').body.document.elements[0].title,'Título A');
+  assert.equal(requests.find(r=>r.body.id==='scene-b').body.document.elements[0].title,'Título B');
+  const output=await fixture(t,async()=>{},'scene-b');
+  output.state.tools.layout.compositions=f.state.tools.layout.compositions.map(item=>({...item,document:requests.find(r=>r.body.id===item.id).body.document}));output.send();
+  await until(()=>output.window.document.querySelector('.title-text')?.textContent==='Título B');
+  output.state.tools.layout.compositions=[];output.send();await pause(30);
+  assert.equal(output.window.document.querySelector('.layout-canvas'),null,'Missing output must not show the principal layout');
+});
+
+test('XP control size autosaves and survives position changes and dragging',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  await f.input('[aria-label="Tamaño de controles (%)"]','200');
+  await until(()=>requests.at(-1)?.elements[0].xpControls?.scale===2);
+  const element=f.window.document.querySelector('.layout-stage [data-element-id="welcome"]');
+  const group=element.querySelector('.xp-controls');
+  assert.equal(group.style.transform,'scale(2)');
+  await f.input('[aria-label="Controles X (px)"]','40');
+  element.getBoundingClientRect=()=>({width:907.2/2,height:134.4/2});
+  group.setPointerCapture=()=>{};
+  for(const [type,x,y] of [['pointerdown',100,50],['pointermove',110,60],['pointerup',110,60]])group.dispatchEvent(new f.window.MouseEvent(type,{bubbles:true,button:0,clientX:x,clientY:y}));
+  await until(()=>requests.at(-1)?.elements[0].xpControls?.y>0);
+  assert.equal(requests.at(-1).elements[0].xpControls.scale,2);
+  const output=await fixture(t,async()=>{},true);
+  output.state.tools.layout.document=structuredClone(requests.at(-1));output.state.tools.layout.revision++;output.send();await pause(30);
+  assert.equal(output.window.document.querySelector('[data-element-id="welcome"] .xp-controls').style.transform,'scale(2)');
+  await f.click('Restablecer controles XP');
+  await until(()=>requests.at(-1).elements[0].xpControls.scale===undefined);
+  assert.equal(group.style.transform,'scale(1)');
+});
+
 test('XP controls drag as one group without moving or deleting the window',async t=>{
   const requests=[];
   const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
@@ -22,6 +96,13 @@ test('XP controls drag as one group without moving or deleting the window',async
   assert.equal(saved.id,'welcome');assert.equal(saved.x,5);assert.equal(saved.y,5);
   assert.ok(saved.xpControls.x<1&&saved.xpControls.y>0);
   assert.equal(group.children.length,3);
+  await f.input('[aria-label="Controles X (px)"]','40');
+  await f.input('[aria-label="Controles Y (px)"]','30');
+  await until(()=>Math.abs(requests.at(-1).elements[0].xpControls.y-(30-4)/(134.4-3-8-21))<.00001);
+  assert.equal(parseFloat(group.style.left),40);
+  assert.equal(parseFloat(group.style.top),30);
+  assert.equal(requests.at(-1).elements[0].x,5);
+  assert.equal(requests.at(-1).elements[0].y,5);
   await f.input('[aria-label="Ancho (px)"]','180');
   await f.input('[aria-label="Alto (px)"]','96');
   await until(()=>requests.at(-1).elements[0].w<20);
@@ -68,7 +149,7 @@ test('dragging snaps in canvas pixels at preview scale and ignores accidental mo
 });
 async function until(check,timeout=3500){const start=Date.now();while(!check()&&Date.now()-start<timeout)await pause(20);assert.ok(check(),'Timed out waiting for layout update');}
 async function fixture(t,fetch,output=false){
-  const dom=new JSDOM('<div id="root"></div>',{url:'http://127.0.0.1:17900'+(output?'/?layout-output=1':''),runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
+  const dom=new JSDOM('<div id="root"></div>',{url:'http://127.0.0.1:17900'+(output?'/?layout-output=1'+(typeof output==='string'?'&composition='+output:''):''),runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
   const {window}=dom;let stream;
   window.EventSource=class{constructor(){stream=this;}close(){}};
   window.ResizeObserver=class{observe(){}disconnect(){}};
@@ -78,6 +159,7 @@ async function fixture(t,fetch,output=false){
   await until(()=>stream);
   const state={token:'token',settings:defaults,tools:{layout:{revision:100,document:structuredClone(defaultLayout)},ads:{}},tts:{resources:{},metrics:{}},events:[]};
   const send=()=>stream.onmessage({data:JSON.stringify(state)});send();
+  if(typeof output==='string'){state.tools.layout.compositions=[{id:output,name:'Salida',document:structuredClone(defaultLayout),revision:100}];send();}
   await until(()=>window.document.querySelector(output?'.layout-canvas':'.layout-studio'));
   const click=async text=>{const button=[...window.document.querySelectorAll('button')].find(b=>b.textContent.trim()===text);assert.ok(button,text);button.click();await pause(25);};
   if(!output)await click('Layout Studio');

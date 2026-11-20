@@ -67,6 +67,10 @@ export function validateLayout(input) {
     if(e.xpControls!==undefined){
       if(!e.xpControls||!['text','frame'].includes(e.kind)||!['x','y'].every(key=>Number.isFinite(e.xpControls[key])&&e.xpControls[key]>=0&&e.xpControls[key]<=1))throw new Error('Posición de controles XP inválida');
       result.xpControls={x:e.xpControls.x,y:e.xpControls.y};
+      if(e.xpControls.scale!==undefined){
+        if(!Number.isFinite(e.xpControls.scale)||e.xpControls.scale<0.5||e.xpControls.scale>4)throw new Error('Tamaño de controles XP inválido');
+        result.xpControls.scale=e.xpControls.scale;
+      }
     }
     if(e.kind==='icons'){
       if(!Array.isArray(e.icons)||e.icons.length<1||e.icons.length>12||!Number.isFinite(e.gap)||e.gap<0||e.gap>120||!['start','center','end'].includes(e.align))throw new Error('Fila de iconos inválida');

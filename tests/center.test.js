@@ -206,6 +206,17 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const receipt=await saved.json();assert.ok(receipt.layoutRevision>revisionBefore);
   assert.equal(receipt.layoutRevision,center.tools.layout.state().revision);
   assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir,'layout.json'),'utf8')).customThemes[0].name,'HTTP theme');
+  const portable={...defaultLayout,backgroundImage:'data:image/png;base64,'+'AAAA'.repeat(6000)};
+  assert.equal((await post('layout/create',{name:'Privada',document:portable})).status,403);
+  const created=await post('layout/create',{name:'Mi composición',document:portable},{'X-Studio':state.token});
+  assert.equal(created.status,200,'Composition images may exceed the generic 20 KB request limit');
+  const {compositionId}=await created.json();assert.ok(compositionId);
+  assert.equal((await fetch(base+'/layout/'+compositionId)).status,200);
+  const updated=await post('layout/save-composition',{id:compositionId,document:portable},{'X-Studio':state.token});
+  assert.equal(updated.status,200);assert.ok((await updated.json()).layoutRevision);
+  assert.equal((await post('layout/rename',{id:compositionId,name:'Nuevo nombre'},{'X-Studio':state.token})).status,200);
+  assert.equal(center.tools.layout.state().compositions[0].name,'Nuevo nombre');
+  assert.equal(center.tools.layout.state().document.theme,'custom-http');
   assert.equal((await post('start', { tool: 'unknown' }, { 'X-Studio': state.token })).status, 400);
   const controller = new AbortController();
   const stream = await fetch(base + '/api/events', { signal: controller.signal });

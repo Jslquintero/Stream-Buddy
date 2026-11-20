@@ -9,8 +9,9 @@ export function useRoute() {
     return () => window.removeEventListener('popstate', restore);
   }, []);
   const navigate = id => {
-    if (!routes[id]) return;
-    if (window.location.pathname !== routes[id]) window.history.pushState(null, '', routes[id]);
+    const target=routes[id]||(/^layout:[a-zA-Z0-9-]{1,80}$/.test(id)?'/layout/'+id.slice(7):null);
+    if (!target) return;
+    if (window.location.pathname !== target) window.history.pushState(null, '', target);
     setView(id);
   };
   return [view, navigate];

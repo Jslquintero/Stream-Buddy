@@ -1,8 +1,7 @@
 export function commandHelpMessages(config) {
   if (!config.enabled) throw new Error('Activa los comandos antes de enviar la lista');
   const entries = config.commands.filter(row => row.enabled).map(row => {
-    const description = row.description || (row.image ? 'Muestra una imagen o GIF' : row.audio ? 'Reproduce un sonido' : 'Muestra una notificación');
-    return row.command + ': ' + description;
+    return row.command + (row.description ? ': ' + row.description : '');
   });
   if (!entries.length) return ['No hay comandos activos por ahora.'];
   const messages = []; let current = 'Comandos: ';

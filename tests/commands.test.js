@@ -9,6 +9,22 @@ import { validateCommands } from '../modules/commands/config.js';
 import { Center } from '../backend/center.js';
 
 const row = (id, extra = {}) => ({ id, command: '!' + id, enabled: true, image: '', audio: '', text: id, duration: 1, volume: 80, ...extra });
+test('list accepts existing page numbers with the configured keyword', t => {
+  const { module } = fixture(t);
+  module.save({ enabled: true, listCommand: '!ayuda', listCooldown: 0, commands: Array.from({ length: 13 }, (_, i) => row('c' + i)) });
+  assert.equal(module.receive({ kind: 'comment', text: ' !AYUDA  2 ' }), true);
+  assert.equal(module.state().list.page, 2);
+  assert.equal(module.state().list.expiresAt - module.state().list.startedAt, 12000);
+  module.receive({ kind: 'comment', text: '!ayuda 3' });
+  assert.equal(module.state().list.page, 3);
+  const previous = module.state().list;
+  for (const text of ['!ayuda 0', '!ayuda 4', '!ayuda 99999999999999999999', '!ayuda 2 extra', '!ayuda 1.5']) {
+    module.receive({ kind: 'comment', text });
+    assert.equal(module.state().list, previous);
+  }
+  module.receive({ kind: 'comment', text: '!ayuda' });
+  assert.equal(module.state().list.page, null);
+});
 test('help displays enabled descriptions and preserves audio without sending chat messages', async t => {
   const { module, replies } = fixture(t);
   module.save({ enabled: true, commands: [row('a', { description: 'Mi sonido', audio: 'https://example.com/a.mp3' }), row('b', { enabled: false })] });
@@ -22,6 +38,71 @@ test('help displays enabled descriptions and preserves audio without sending cha
   module.clear(); assert.equal(module.state().list, null);
   module.save({ enabled: true, commands: [] }); await module.test('!comandos'); assert.deepEqual(module.state().list.help, []);
   module.save({ enabled: false, commands: [] }); assert.equal(module.receive({ kind: 'comment', text: '!comandos' }), false);
+});
+test('help cooldown is per user, lasts twenty seconds and does not extend on rejected attempts', t => {
+  const { module } = fixture(t);
+  let now = 100000;
+  t.mock.method(Date, 'now', () => now);
+  module.save({ enabled: true, commands: [row('a')] });
+  const send = (userId, user = 'Same display name') => module.receive({ kind: 'comment', text: ' !COMANDOS ', userId, user });
+  assert.equal(send('1'), true);
+  const first = module.state().list;
+  now += 19999;
+  assert.equal(send('1', 'Changed name'), true);
+  assert.equal(module.state().list, first);
+  assert.equal(send('2'), true);
+  assert.notEqual(module.state().list, first);
+  const second = module.state().list;
+  now += 1;
+  assert.equal(send('1'), true);
+  assert.notEqual(module.state().list, second);
+  module.clear();
+  assert.equal(send('1'), true);
+  assert.equal(module.state().list, null);
+  module.test('!comandos');
+  assert.ok(module.state().list);
+  module.receive({ kind: 'comment', userId: '1', text: '!a' });
+  assert.equal(module.state().visual.text, 'a');
+});
+test('custom list keyword and per-command cooldowns persist and remain independent', t => {
+  const { module, options } = fixture(t);
+  let now = 100000;
+  t.mock.method(Date, 'now', () => now);
+  module.save({ enabled: true, listCommand: '!ayuda', listCooldown: 3, commands: [row('Faker', { cooldown: 10 }), row('b', { cooldown: 0 }), row('comandos')] });
+  const restored = createCommandsModule(options); t.after(() => restored.close());
+  assert.deepEqual(restored.state().config, module.state().config);
+  const send = (text, user = 'Ana') => module.receive({ kind: 'comment', text, user });
+  send('!AYUDA'); const list = module.state().list;
+  send('!ayuda'); assert.equal(module.state().list, list);
+  send('!Faker'); const first = module.state().visual;
+  send('!Faker'); assert.equal(module.state().visual, first);
+  send('!Faker', 'Luis'); assert.notEqual(module.state().visual, first);
+  send('!b'); const second = module.state().visual;
+  send('!b'); assert.notEqual(module.state().visual, second);
+  now += 3000; send('!ayuda'); assert.notEqual(module.state().list, list);
+  const before = module.state().visual;
+  send('!Faker'); assert.equal(module.state().visual, before);
+  now += 7000; send('!Faker'); assert.equal(module.state().visual.text, 'Faker');
+  send('!comandos'); assert.equal(module.state().visual.text, 'comandos');
+  for (const settings of [{ listCommand: '!b' }, { listCommand: '' }, { listCooldown: -1 }, { listCooldown: '20' }, { commands: [row('a', { cooldown: 3601 })] }]) {
+    assert.throws(() => validateCommands({ ...module.state().config, ...settings }));
+  }
+});
+test('video-only commands persist, replace visual and audio, and enforce short clips', t => {
+  const { module, options } = fixture(t);
+  const video = '/notification-assets/' + 'a'.repeat(64) + '.mp4';
+  module.save({ enabled: true, commands: [row('clip', { text: '', video, duration: 30 }), row('sound', { audio: 'https://example.com/a.mp3' })] });
+  module.test('sound'); const previous = module.state().audio;
+  module.test('clip');
+  assert.equal(module.state().visual.video, video);
+  assert.notEqual(module.state().audio.id, previous.id);
+  assert.equal(module.state().audio.src, '');
+  assert.equal(module.state().audio.id, module.state().visual.id);
+  const restored = createCommandsModule(options); t.after(() => restored.close());
+  assert.equal(restored.state().config.commands[0].video, video);
+  for (const extra of [{ duration: 31 }, { video: 'javascript:alert(1)' }]) {
+    assert.throws(() => validateCommands({ enabled: true, commands: [row('clip', { video, ...extra })] }));
+  }
 });
 test('descriptions migrate old settings and reserve the built-in command', () => {
   assert.equal(validateCommands({ enabled: true, commands: [row('a')] }).commands[0].description, '');

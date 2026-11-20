@@ -59,6 +59,9 @@ export class Center extends EventEmitter {
       case 'notifications/clear': this.notifications.clear(); break;
       case 'notifications/skip': this.notifications.skip(); break;
       case 'layout/save': this.tools.layout.save(body); break;
+      case 'layout/create': return this.tools.layout.create(body);
+      case 'layout/save-composition': return this.tools.layout.saveComposition(body);
+      case 'layout/rename': return this.tools.layout.rename(body);
       case 'settings': this.settings.save(body); this.log('Configuración de voz guardada'); break;
       case 'tts/preview': this.tts.preview(body.text, body.settings); break;
       case 'tts/remove': this.tts.remove(body.id); break;

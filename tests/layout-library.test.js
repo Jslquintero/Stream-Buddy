@@ -1,0 +1,50 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {createLayoutModule} from '../backend/modules/layout.js';
+import {defaultLayout,createIconRow} from '../shared/layout.js';
+import {serializeLayoutFile,parseLayoutFile} from '../shared/layout-file.js';
+import {layoutOutputURL} from '../shared/layout-url.js';
+import {viewForPath} from '../shared/routes.js';
+
+test('named compositions persist independently without replacing the legacy layout',t=>{
+  const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'studio-library-'));
+  t.after(()=>fs.rmSync(dataDir,{recursive:true,force:true}));
+  const context={dataDir,changed(){}};
+  const library=createLayoutModule(context);
+  library.save(defaultLayout);
+  const original=fs.readFileSync(path.join(dataDir,'layout.json'),'utf8');
+  const a=library.create({name:' Gaming ',document:defaultLayout}).compositionId;
+  const b=library.create({name:'Charlando',document:defaultLayout}).compositionId;
+  const changed=structuredClone(defaultLayout);changed.elements[0].title='Solo gaming';
+  const before=library.state().compositions[0].revision;
+  assert.ok(library.saveComposition({id:a,document:changed}).layoutRevision>before);
+  library.rename({id:a,name:'Gaming nuevo'});
+  const state=createLayoutModule(context).state();
+  assert.equal(state.compositions[0].name,'Gaming nuevo');
+  assert.equal(state.compositions[0].document.elements[0].title,'Solo gaming');
+  assert.deepEqual(state.compositions[1].document,defaultLayout);
+  assert.equal(fs.readFileSync(path.join(dataDir,'layout.json'),'utf8'),original);
+  assert.notEqual(layoutOutputURL('http://localhost:17900',a),layoutOutputURL('http://localhost:17900',b));
+  assert.equal(viewForPath('/layout/'+a),'layout:'+a);
+  assert.equal(new URL(layoutOutputURL('http://localhost:17900',a)).searchParams.get('composition'),a);
+  const saved=fs.readFileSync(path.join(dataDir,'layout-compositions.json'),'utf8');
+  assert.throws(()=>library.saveComposition({id:a,document:{}}));
+  assert.throws(()=>library.saveComposition({id:'missing',document:defaultLayout}));
+  assert.throws(()=>library.create({name:' ',document:defaultLayout}));
+  assert.equal(fs.readFileSync(path.join(dataDir,'layout-compositions.json'),'utf8'),saved);
+});
+
+test('portable layout files preserve embedded media and control geometry and reject bad imports',()=>{
+  const document=structuredClone(defaultLayout);
+  document.elements[0].xpControls={x:.2,y:.3,scale:2};
+  const row=createIconRow('icons');row.icons[0].image='data:image/png;base64,YQ==';document.elements.push(row);
+  const parsed=parseLayoutFile(serializeLayoutFile('Mi escena',document));
+  assert.deepEqual(parsed,{name:'Mi escena',document});
+  assert.deepEqual(parseLayoutFile(JSON.stringify(document)).document,document);
+  assert.throws(()=>parseLayoutFile('{'));
+  assert.throws(()=>parseLayoutFile('{"type":"live-studio-layout","version":2}'),/Versión/);
+  assert.throws(()=>parseLayoutFile('{"theme":"xp"}'));
+});

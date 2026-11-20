@@ -18,7 +18,7 @@ export function XpControls({element,document,update,select,remove}) {
     if(!suppressClick.current&&Math.hypot(event.clientX-d.x,event.clientY-d.y)<3)return;
     suppressClick.current=true;
     const b=d.bounds,clamp=value=>Math.min(1,Math.max(0,value));
-    update(element.id,{xpControls:{x:b.rangeX?clamp((b.left-b.padding+(event.clientX-d.x)/d.zoom)/b.rangeX):1,y:b.rangeY?clamp((b.top-b.padding+(event.clientY-d.y)/d.zoom)/b.rangeY):0}});
+    update(element.id,{xpControls:{...element.xpControls,x:b.rangeX?clamp((b.left-b.padding+(event.clientX-d.x)/d.zoom)/b.rangeX):1,y:b.rangeY?clamp((b.top-b.padding+(event.clientY-d.y)/d.zoom)/b.rangeY):0}});
   };
   return <span className="xp-controls" aria-label={update?'Mover controles de ventana':undefined} title={update?'Arrastra los tres controles como un grupo':undefined}
     style={{left:bounds.left,top:bounds.top,transform:`scale(${bounds.scale})`}}

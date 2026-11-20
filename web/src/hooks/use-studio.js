@@ -39,7 +39,7 @@ export function useStudio() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo completar la acción.');
-      return ['likes/export','likes/save','layout/save','notifications/upload','notifications/save','notifications/fonts/install'].includes(action)?result:true;
+      return ['likes/export','likes/save','layout/create','layout/save-composition','layout/rename','layout/save','notifications/upload','notifications/save','notifications/fonts/install'].includes(action)?result:true;
     } catch (error) {
       setNotice(error.message);
       if(options.throwOnError)throw error;

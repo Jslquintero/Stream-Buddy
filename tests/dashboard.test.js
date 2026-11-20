@@ -1,4 +1,4 @@
-﻿import { test } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { JSDOM } from 'jsdom';
@@ -30,10 +30,10 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  assert.equal(Array.from(window.document.querySelectorAll('a')).find(a=>a.textContent==='Ver salida').href,'http://127.0.0.1:17900/?layout-output=1#tiktok.studio');
  let copiedOutput='';Object.defineProperty(window.navigator,'clipboard',{value:{writeText:async text=>{copiedOutput=text;}}});
  await click('Copiar salida');assert.equal(copiedOutput,'http://127.0.0.1:17900/?layout-output=1#tiktok.studio');
- assert.equal(window.document.querySelectorAll('.xp-window').length,3);
- assert.equal(window.document.querySelectorAll('.xp-window .xp-controls i').length,6);
+ assert.equal(window.document.querySelectorAll('.layout-stage .xp-window').length,3);
+ assert.equal(window.document.querySelectorAll('.layout-stage .xp-window .xp-controls i').length,6);
  assert.equal(window.document.querySelectorAll('.xp-window .close-window').length,3);
- await click('+ Barra de tareas');assert.equal(window.document.querySelectorAll('.xp-taskbar-surface .task-tab').length,3);
+ await click('+ Barra de tareas');assert.equal(window.document.querySelectorAll('.layout-stage .xp-taskbar-surface .task-tab').length,3);
  assert.ok(window.document.querySelector('.reference-start'));
  await click('Eliminar');await click('Mi directo');
  const title=window.document.querySelector('.layout-inspector input');
@@ -67,7 +67,7 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  assert.equal(window.document.querySelectorAll('.layout-layer-select').length,5);
  assert.equal(window.document.querySelectorAll('.layout-source-placeholder').length,2);
  assert.ok(window.document.querySelector('.layout-stage.portrait'));
- const windows=Array.from(window.document.querySelectorAll('.xp-window'));
+ const windows=Array.from(window.document.querySelectorAll('.layout-stage .xp-window'));
  assert.equal(windows.find(e=>e.querySelector('.title-text').textContent==='Cámara.exe').querySelector('.xp-content').style.backgroundColor,'transparent');
  assert.equal(windows.find(e=>e.querySelector('.title-text').textContent==='Juego.exe').querySelector('.xp-content').style.backgroundColor,'transparent');
  assert.equal(windows.filter(e=>e.querySelector('.xp-content.clear')).length,4);
@@ -94,7 +94,7 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  assert.equal(savedBackground.backgroundMode,'image');assert.equal(savedBackground.backgroundImage,sampleImage);
  await click('Quitar imagen');assert.equal(window.document.querySelector('.layout-background image'),null);
  await click('+ Fila de iconos');
- assert.equal(window.document.querySelectorAll('.row-shortcut').length,6);
+ assert.equal(window.document.querySelectorAll('.layout-stage .row-shortcut').length,6);
  const setIconField=async(label,value)=>{const field=Array.from(window.document.querySelectorAll('.icon-row-editor label')).find(e=>e.textContent.startsWith(label)).querySelector('input,select');Object.getOwnPropertyDescriptor(field.tagName==='SELECT'?window.HTMLSelectElement.prototype:window.HTMLInputElement.prototype,'value').set.call(field,value);field.dispatchEvent(new window.Event(field.tagName==='SELECT'?'change':'input',{bubbles:true}));await pause();};
  await setIconField('Nombre del icono','Mi juego');
  await setIconField('Tamaño del icono (px)','96');
@@ -102,16 +102,16 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  await setIconField('Estilo del icono','xp');
  const iconFile=window.document.querySelector('.icon-row-editor input[type="file"]');
  Object.defineProperty(iconFile,'files',{configurable:true,value:[new window.File(['test'],'icon.png',{type:'image/png'})]});iconFile.dispatchEvent(new window.Event('change',{bubbles:true}));await pause();
- const firstIcon=window.document.querySelector('.row-shortcut');
+ const firstIcon=window.document.querySelector('.layout-stage .row-shortcut');
  assert.equal(firstIcon.querySelector('img').getAttribute('src'),sampleImage);
  assert.equal(firstIcon.style.flexDirection,'column-reverse');assert.equal(firstIcon.querySelector('.row-icon-picture').style.width,'96px');assert.ok(firstIcon.querySelector('.row-shortcut-arrow'));
  stream.onmessage({data:JSON.stringify(state)});await pause();assert.equal(window.document.querySelector('.row-icon-name').textContent,'Mi juego');
  await click('Guardar layout');
  const savedRow=JSON.parse(requests.filter(r=>r.url==='/api/layout/save').at(-1).body).elements.find(e=>e.kind==='icons');
  assert.equal(savedRow.icons[0].name,'Mi juego');assert.equal(savedRow.icons[0].image,sampleImage);assert.equal(savedRow.icons[0].labelPosition,'top');assert.equal(savedRow.icons[0].size,96);
- window.document.querySelector('[aria-label="Mover icono a la derecha"]').click();await pause();assert.equal(window.document.querySelectorAll('.row-icon-name')[1].textContent,'Mi juego');
- await click('Eliminar icono');assert.equal(window.document.querySelectorAll('.row-shortcut').length,5);
- await click('+ Añadir icono');assert.equal(window.document.querySelectorAll('.row-shortcut').length,6);
+ window.document.querySelector('[aria-label="Mover icono a la derecha"]').click();await pause();assert.equal(window.document.querySelectorAll('.layout-stage .row-icon-name')[1].textContent,'Mi juego');
+ await click('Eliminar icono');assert.equal(window.document.querySelectorAll('.layout-stage .row-shortcut').length,5);
+ await click('+ Añadir icono');assert.equal(window.document.querySelectorAll('.layout-stage .row-shortcut').length,6);
  stream.onerror();await until(()=>window.document.body.textContent.includes('Sin conexión con Live Studio'));
 });
 
@@ -139,7 +139,7 @@ test('live output has transparent window interiors in every theme, without edito
    const background=plane.querySelector('.layout-background');assert.ok(background);
    assert.equal(background.querySelector('image').getAttribute('preserveAspectRatio'),'xMidYMid meet');
    assert.equal(background.querySelectorAll('mask rect[fill="black"]').length,4,'Background keeps every window opening transparent');
-   assert.equal(window.document.querySelectorAll('.row-shortcut').length,6);
+   assert.equal(window.document.querySelectorAll('.layout-stage .row-shortcut').length,6);
    assert.equal(window.document.querySelectorAll('.row-shortcut-arrow').length,theme==='xp'?6:0);
    assert.equal(window.document.querySelector('.layout-icon-row .xp-title,.layout-icon-row .layout-title'),null);
    if(theme==='xp')assert.equal(window.document.querySelectorAll('.task-tab').length,4,'Icon rows are not windows on the taskbar');

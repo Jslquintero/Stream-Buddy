@@ -78,7 +78,7 @@ export function createDashboardServer(center) {
       let bytes = 0; const chunks = [];
       for await (const chunk of req) {
         bytes += chunk.length;
-        if (bytes > (url.pathname==='/api/notifications/upload'?43000000:url.pathname==='/api/layout/save'?8000000:url.pathname==='/api/commands/save'?600000:20000)) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
+        if (bytes > (url.pathname==='/api/notifications/upload'?43000000:['/api/layout/save','/api/layout/create','/api/layout/save-composition'].includes(url.pathname)?8000000:url.pathname==='/api/commands/save'?600000:20000)) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
         chunks.push(chunk);
       }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
@@ -86,7 +86,7 @@ export function createDashboardServer(center) {
       const action = url.pathname.startsWith('/api/') ? url.pathname.slice(5) : '';
       const result = await center.command(action, body);
       if (!result) return json(res, 404, { error: 'No encontrado' });
-      json(res, 200, { ok: true, ...(['notifications/upload','notifications/fonts/install','likes/save','likes/export'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
+      json(res, 200, { ok: true, ...(['notifications/upload','notifications/fonts/install','likes/save','likes/export','layout/create','layout/save-composition','layout/rename'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
     } catch (error) {
       if (!res.headersSent) json(res, 400, { error: error.message });
       else res.end();
