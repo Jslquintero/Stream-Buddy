@@ -21,6 +21,6 @@ Módulo integrado de alertas para seguidores, regalos y compartidos.
 
 Los eventos automáticos utilizan la conexión de TikTok del navbar. Los regalos en racha se notifican al terminar la racha. Las pruebas no necesitan conexión. La cola es temporal, admite 30 pendientes y no se recupera al reiniciar. El editor permite previsualizar cambios sin guardarlos y enviar una prueba explícita a la salida.
 
-El conector usa los eventos de [TikTokLive](https://github.com/isaackogan/TikTokLive) y omite los regalos con `event.streaking` activo.
+El conector propio en `modules/tiktok` observa los eventos Webcast del navegador local. Los regalos en racha se emiten al recibir su cierre (`repeatEnd`), evitando alertas intermedias. No utiliza TikTokLive ni servicios de firma externos.
 
 Validación: `npm test` cubre servidor, persistencia, cola, editor y salida. `py -3 tests/notifications_bridge_test.py` prueba los eventos del conector con un cliente simulado, sin iniciar sesión ni conectarse a un LIVE.

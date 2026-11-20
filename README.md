@@ -28,7 +28,8 @@ backend/
     layout.js               Editor nativo de Layout Studio y persistencia
     ads.js                  Adaptador de AdQueue
     local-tool.js           Ciclo de vida común de herramientas externas
-modules/tts/                Motores de voz y puente TikTok existentes
+modules/tts/                Motores de voz Windows/Piper
+modules/tiktok/             Conector propio de navegador y lector Webcast local
 web/src/                    Frontend React y componentes reutilizables
 dist/                       Frontend compilado servido por Node
 data/tts.json               Configuración del usuario
@@ -37,7 +38,7 @@ tests/                      Pruebas Node
 
 El dashboard recibe estados mediante Server-Sent Events (SSE), con reconexión automática. Varias pestañas comparten estado. Los cambios de estado no sobrescriben un formulario que estés editando.
 
-El servidor HTTP, configuración, filtros, cola, instalación y administración de procesos del centro ya funcionan en Node. **Layout Studio está integrado en React y Node**, con edición y salida propias. AdQueue conserva su servidor e interfaz incrustada. Python queda como dependencia opcional del conector TikTok; PowerShell se conserva para las voces Windows/Piper.
+El servidor HTTP, configuración, filtros, cola, instalación y administración de procesos del centro funcionan en Node. **Layout Studio está integrado en React y Node**, con edición y salida propias. AdQueue conserva su servidor e interfaz incrustada. TikTok usa Edge/Chrome local, sin Python, TikTokLive ni servicios de firma; PowerShell se conserva para las voces Windows/Piper.
 
 ## Migración y datos
 
@@ -64,7 +65,11 @@ Algunas voces como davefx y sharvard incluyen grupos vocálicos de varios caract
 
 Configura la voz, guarda y envía un comentario de prueba. Los filtros, comando, espera por usuario y cola de hasta 50 mensajes funcionan en Node. Los ajustes se aplican a los mensajes que se añadan después de guardar. Pausar retiene los mensajes siguientes; Saltar interrumpe el actual; Detener todo vacía la cola e interrumpe la voz.
 
-Para conectar un LIVE público, guarda el usuario y pulsa Conectar. Se reutiliza el Python existente de `../tts/.venv` si está disponible. **Instalar conector** prepara `modules/tts/.venv` e instala TikTokLive. Requiere Internet y Python compatible, disponible a través del entorno existente o `py -3`. Los errores aparecen en Actividad. El conector no pide contraseñas y no reconecta automáticamente tras terminar la sesión.
+Para conectar, guarda el usuario y pulsa **Conectar**. Se abre una ventana de Edge/Chrome con un perfil exclusivo en `data/tiktok-browser`. Puedes iniciar sesión allí o usar **Cargar sesión desde mi navegador** en el panel de TikTok: copia `sessionid` y `tt-target-idc` de las cookies de tiktok.com en tu navegador habitual y pulsa **Cargar sesión y conectar**. Los valores viajan al servidor local y por la tubería privada al perfil del navegador; no se guardan en ajustes, logs ni snapshots del dashboard. Los campos se vacían al terminar. Las cookies importadas se conservan en el perfil hasta 30 días, aunque TikTok puede invalidarlas antes. **Comprobar navegador** verifica la instalación sin descargar dependencias. Mantén la ventana abierta; **Desconectar** la cierra y conserva el perfil.
+
+El conector propio observa las tramas Webcast recibidas por la página de TikTok y las decodifica localmente para comentarios, likes, seguidores, compartidos, regalos y Super Fans. El navegador realiza la conexión normal de TikTok; no se solicitan firmas a Euler ni se instala el antiguo cliente. La automatización usa tuberías privadas de Chrome DevTools, sin abrir un puerto de depuración. No hay una cuota de peticiones de un intermediario; siguen aplicando las restricciones, permisos, verificaciones y límites de TikTok. La lectura depende de los eventos que TikTok entregue al navegador y puede requerir mantenimiento si cambia su protocolo.
+
+El panel muestra sesión iniciada, disponibilidad de envío y contador de eventos recibidos. Para responder, se escribe en el cuadro de chat de esa misma página y se confirma la respuesta HTTP de TikTok. Si hay un borrador se conserva y no se envía. Los envíos se serializan; un fallo interrumpe la lista y no se reintenta automáticamente para evitar duplicados. No se registran cookies, firmas ni cuerpos de respuestas. Si TikTok solicita una verificación, complétala manualmente en su ventana.
 
 El dashboard, editor y voces locales no necesitan Internet; TikTok y las instalaciones sí. El audio se reproduce en la salida elegida en el dashboard (por defecto, la predeterminada de Windows) y debe capturarse en LIVE Studio.
 
@@ -146,3 +151,19 @@ Puedes elegir de 1 a 20 puestos, t?tulo, tama?o, colores, opacidad de fondo y bo
 La salida `/?likes-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/likes.json` conserva dise?o y conteo, con escritura at?mica, copia `.bak` y guardado del conteo agrupado cada segundo. Reconectar el mismo canal conserva el ranking. ?Reiniciar conteo? pide confirmaci?n y conserva el dise?o; los primeros likes de un canal distinto inician un conteo nuevo. Ocultar la clasificaci?n no detiene el conteo. Reinicia Live Studio y reconecta TikTok tras instalar el m?dulo para cargar el nuevo evento del conector.
 
 El scoreboard de likes conserva tambi?n la URL de la foto de perfil y muestra la foto junto al nombre en el editor y la salida. Si no hay foto o falla su carga, muestra la inicial. Las fotos se actualizan al recibir nuevos likes y requieren acceso a la URL de TikTok; el conteo y los nombres permanecen locales. El panel indica la hora del ?ltimo like y del ?ltimo guardado. ?Descargar scoreboard? exporta todos los participantes a JSON, aunque la salida est? limitada a menos puestos.
+# Comandos de chat
+
+`!comandos` muestra los comandos activos y sus descripciones cortas en una salida independiente: `/commands?commands-list-output=1#tiktok.studio`. La lista cambia de página cada ocho segundos cuando hay más de seis comandos. Es un comando reservado y respeta el interruptor general del módulo. **Probar !comandos** abre esta salida y muestra la lista sin necesitar conexión a TikTok. No publica mensajes en el chat ni interrumpe las imágenes o los audios.
+
+El dashboard permite alternar las tarjetas entre **Lista** y **Cuadrícula**. La elección se conserva en ese navegador y no modifica la salida del directo.
+
+En **Comandos de chat** puedes añadir, editar, activar y eliminar hasta 100 comandos. Asigna una imagen/GIF, un texto, un audio o una combinación, y pulsa **Guardar comandos**. Se admiten archivos locales (imágenes hasta 20 MB; MP3/WAV/OGG hasta 5 MB) y enlaces HTTP/HTTPS directos. Los ejemplos `!Aatrox` y `!Sion` vienen desactivados para que les asignes tus propios recursos.
+
+Conecta TikTok desde el panel y añade dos fuentes de navegador: **Copiar lista** para `!comandos` y **Copiar notificaciones** para los GIF, textos y sonidos (`/commands?commands-output=1#tiktok.studio`). Habilita el audio solo en la fuente de notificaciones. **Probar en salida** permite comprobar los recursos sin conectar TikTok. Evita abrir varias fuentes de notificaciones con audio a la vez.
+
+La salida visual está centrada y dura los segundos configurados. Cada comando visual reemplaza al anterior; cada audio interrumpe al anterior y se reproduce hasta terminar (máximo 120 segundos). Ambos canales son independientes: un comando solo de sonido conserva la imagen vigente. No hay cola. **Detener salida** limpia ambos canales; guardar también detiene la salida actual.
+
+Los mensajes deben coincidir con el comando completo, sin distinguir mayúsculas y permitiendo espacios al principio/final. Los comandos reconocidos no se leen por TTS y funcionan aunque la voz esté desactivada. La configuración se guarda en `data/commands.json`; los recursos subidos usan el almacén local de medios compartido con notificaciones.
+# Estado actual de la conexión TikTok
+
+Se restauró el conector Python/TikTokLive con firma de Euler para leer el LIVE por nombre de usuario. La conexión activa ya no usa el navegador local ni la importación de cookies descritos más abajo (implementación experimental retirada del flujo activo). Los comandos visuales y de audio se conservan. El envío de `!comandos` al chat no está disponible con este conector de lectura.

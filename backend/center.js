@@ -7,6 +7,9 @@ import { createLayoutModule } from './modules/layout.js';
 import { createAdsModule } from './modules/ads.js';
 import { createNotificationsModule } from '../modules/notifications/index.js';
 import { createLikesModule } from '../modules/likes/index.js';
+import { createCommandsModule } from '../modules/commands/index.js';
+import { resolveCommandImages } from '../modules/commands/tenor.js';
+import { validateCommands } from '../modules/commands/config.js';
 
 export class Center extends EventEmitter {
   constructor({ root, dataDir = path.join(root, 'data'), processes, tools, legacyFile } = {}) {
@@ -16,8 +19,9 @@ export class Center extends EventEmitter {
     const context = { root, dataDir, settings: this.settings, processes: this.processes, log: text => this.log(text), changed: () => this.changed() };
     this.notifications = createNotificationsModule(context);
     this.likes = createLikesModule(context);
-    this.tts = new TTSModule({ ...context, onLiveEvent: event => event.kind==='like'?this.likes.receive(event,this.settings.read().Username):this.notifications.enqueue(event.kind, event) });
-    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes };
+    this.commands = createCommandsModule({ ...context, reply: messages => this.tts.sendChat(messages) });
+    this.tts = new TTSModule({ ...context, onComment: event => this.commands.receive(event), onLiveEvent: event => event.kind==='like'?this.likes.receive(event,this.settings.read().Username):this.notifications.enqueue(event.kind, event) });
+    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes, commands:this.commands };
   }
   log(text) {
     this.events.push({ time: new Date().toLocaleTimeString('es-PA', { hour12: false }), text: String(text).slice(0, 1500) });
@@ -39,6 +43,10 @@ export class Center extends EventEmitter {
     if (['tts/refresh', 'tts/catalog', 'tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.resources.task?.running) throw new Error('Espera a que termine la tarea actual');
     if (['tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.speaker) throw new Error('Detén la voz antes de modificar los archivos de Piper');
     switch (action) {
+      case 'tiktok/session': await this.tts.applySession(body); break;
+      case 'commands/save': this.commands.save(await resolveCommandImages(validateCommands(body))); break;
+      case 'commands/test': await this.commands.test(body.id); break;
+      case 'commands/clear': this.commands.clear(); break;
       case 'likes/save': this.likes.save(body);return {notificationRevision:this.likes.state().revision};
       case 'likes/export': return this.likes.scoreboard();
       case 'likes/reset': this.likes.reset();break;
@@ -87,6 +95,7 @@ export class Center extends EventEmitter {
     this.closing = true;
     this.notifications.close();
     this.likes.close();
+    this.commands.close();
     await this.tts.close();
     await this.processes.close();
     this.removeAllListeners();

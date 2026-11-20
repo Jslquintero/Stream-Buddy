@@ -7,5 +7,6 @@ import './components/xp-skin.css';
 import { LayoutOutput } from './components/layout-studio';
 import { NotificationsOutput } from './components/notifications-studio';
 import { LikesOutput } from './components/likes-studio';
+import { CommandsOutput } from './components/commands-studio';
 const query = new URLSearchParams(location.search);
-createRoot(document.getElementById('root')).render(<React.StrictMode>{query.has('likes-output')?<LikesOutput/>:query.has('notifications-output')?<NotificationsOutput/>:query.has('layout-output')?<LayoutOutput/>:<App />}</React.StrictMode>);
+createRoot(document.getElementById('root')).render(<React.StrictMode>{query.has('commands-list-output')?<CommandsOutput listOnly/>:query.has('commands-output')?<CommandsOutput/>:query.has('likes-output')?<LikesOutput/>:query.has('notifications-output')?<NotificationsOutput/>:query.has('layout-output')?<LayoutOutput/>:<App />}</React.StrictMode>);

@@ -17,8 +17,9 @@ export function filterText(text, s) {
 }
 
 export class TTSModule {
-  constructor({ root, dataDir, settings, processes, log, changed, onLiveEvent = () => {} }) {
+  constructor({ root, dataDir, settings, processes, log, changed, onLiveEvent = () => {}, onComment = () => false }) {
     this.onLiveEvent = onLiveEvent;
+    this.onComment = onComment;
     Object.assign(this, { root, dataDir, settings, processes, log, changed });
     this.queue = []; this.cooldowns = new Map(); this.paused = false;
     this.speaker = null; this.bridge = null; this.installing = false; this.connected = false; this.closing = false; this.stopping = false;
@@ -29,7 +30,7 @@ export class TTSModule {
   connectorPython() {
     return [path.join(this.moduleDir, '.venv', 'Scripts', 'python.exe'), path.join(this.root, '..', 'tts', '.venv', 'Scripts', 'python.exe')].find(file => fs.existsSync(file)) || null;
   }
-  state() { return { queued: this.queue.length, paused: this.paused, speaking: !!this.speaker, connected: this.connected, connecting: !!this.bridge && !this.connected, connector: !!this.connectorPython(), installing: this.installing, items: this.queue.map(job => ({ id: job.id, user: job.user, text: job.Text, preview: !!job.preview })), current: this.current, lastError: this.lastError, metrics: { ...this.metrics }, resources: this.resources.state() }; }
+  state() { return { connectorMode: 'euler', queued: this.queue.length, paused: this.paused, speaking: !!this.speaker, connected: this.connected, connecting: !!this.bridge && !this.connected, connector: !!this.connectorPython(), installing: this.installing, items: this.queue.map(job => ({ id: job.id, user: job.user, text: job.Text, preview: !!job.preview })), current: this.current, lastError: this.lastError, metrics: { ...this.metrics }, resources: this.resources.state() }; }
   enqueue(user, raw) {
     const s = this.settings.read();
     if (!s.Enabled) return 'TTS desactivado';
@@ -109,7 +110,7 @@ export class TTSModule {
       if (this.bridge !== child) return;
       try {
         const event = JSON.parse(line);
-        if (event.kind === 'comment') this.enqueue(String(event.user || 'usuario'), String(event.text || ''));
+        if (event.kind === 'comment' && !this.onComment(event)) this.enqueue(String(event.user || 'usuario'), String(event.text || ''));
         else if (['follow', 'gift', 'share', 'superfan', 'like'].includes(event.kind)) this.onLiveEvent(event);
         else {
           if (event.kind === 'status') this.connected = String(event.text).startsWith('Conectado al directo');
@@ -153,5 +154,7 @@ export class TTSModule {
     } catch (error) { this.lastError = `No se pudo instalar el conector: ${error.message}`; this.log(this.lastError); }
     finally { this.installing = false; this.changed(); }
   }
+  async sendChat() { throw new Error('El conector restaurado solo lee el chat; el envio automatico no esta disponible.'); }
+  async applySession() { throw new Error('La lectura con Euler no necesita importar cookies.'); }
   async close() { this.closing = true; this.resources.close(); this.queue.length = 0; await Promise.all([this.disconnect(), this.stop()]); }
 }
