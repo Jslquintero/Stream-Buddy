@@ -33,6 +33,11 @@ export function createDashboardServer(center) {
     try {
       const url = new URL(req.url, origin);
       if (req.method === 'GET') {
+        if (url.pathname === '/api/spotify/callback') {
+          await center.spotify.callback(url.searchParams);
+          res.writeHead(303, { Location: '/spotify', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+          return res.end();
+        }
         if(url.pathname.startsWith('/notification-fonts/')){
           const font=center.notifications.fonts.read(url.pathname.slice('/notification-fonts/'.length));
           if(!font)return json(res,404,{error:'Fuente no encontrada'});
@@ -84,9 +89,9 @@ export function createDashboardServer(center) {
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Solicitud inválida');
       const action = url.pathname.startsWith('/api/') ? url.pathname.slice(5) : '';
-      const result = await center.command(action, body);
+      const result = await center.command(action, body, { origin });
       if (!result) return json(res, 404, { error: 'No encontrado' });
-      json(res, 200, { ok: true, ...(['notifications/upload','notifications/fonts/install','likes/save','likes/export','layout/create','layout/save-composition','layout/rename'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
+      json(res, 200, { ok: true, ...(['spotify/connect','notifications/upload','notifications/fonts/install','likes/save','likes/export','layout/create','layout/save-composition','layout/rename'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
     } catch (error) {
       if (!res.headersSent) json(res, 400, { error: error.message });
       else res.end();

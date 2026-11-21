@@ -73,6 +73,24 @@ El panel muestra sesión iniciada, disponibilidad de envío y contador de evento
 
 El dashboard, editor y voces locales no necesitan Internet; TikTok y las instalaciones sí. El audio se reproduce en la salida elegida en el dashboard (por defecto, la predeterminada de Windows) y debe capturarse en LIVE Studio.
 
+## Spotify · Ahora escuchando
+
+El módulo **Spotify** muestra carátula, título, artista y progreso de la canción. Incluye vista previa, estilos claro/oscuro y una salida transparente de **600 × 160 px** para una fuente de navegador en LIVE Studio u OBS: `http://127.0.0.1:17900/?spotify-output=1#tiktok.studio`. También admite episodios de podcast. Solo muestra información; el audio permanece en Spotify.
+
+**Modo local de Windows (predeterminado, sin Premium):** abre Spotify de escritorio en este PC y reproduce una canción. Live Studio consulta la sesión multimedia de Windows automáticamente, sin Client ID, credenciales ni peticiones a la API de Spotify. Usa **Activar lectura local** para reanudar y **Detener lectura local** para detenerla; esta preferencia se conserva al reiniciar. La carátula y el progreso aparecen si Spotify los proporciona. Requiere Windows 10 1809 o posterior. No lee Spotify Web ni la música que se reproduce únicamente en otro dispositivo. Si Windows no publica la canción, el widget queda vacío; los anuncios pueden aparecer con los metadatos que entregue la aplicación.
+
+**API oficial (opcional):** selecciona Cuenta de Spotify para consultar la reproducción en otros dispositivos:
+
+1. Abre [Spotify for Developers](https://developer.spotify.com/dashboard), crea una app con Web API y añade `http://127.0.0.1:17900/api/spotify/callback` en Redirect URIs. Si cambias el puerto, copia el enlace que muestra el panel.
+2. Pega el **Client ID** en el módulo y pulsa **Conectar Spotify**. Autoriza tu cuenta y volverás al panel. No se necesita Client Secret.
+3. Reproduce música en Spotify y pulsa **Copiar salida de Spotify** para añadirla al directo. Guarda los ajustes para aplicar el estilo o cambiar si se oculta al pausar.
+
+Solo para el modo API, Spotify [exige Premium al propietario de una app en modo desarrollo](https://developer.spotify.com/documentation/web-api/concepts/quota-modes); las cuentas adicionales deben estar autorizadas en Usuarios y acceso. Esta opción usa [Authorization Code con PKCE](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow) y el permiso `user-read-currently-playing`.
+
+La sesión se renueva automáticamente y se guarda en `data/spotify.json`, excluido de Git. Este archivo contiene credenciales de sesión: no lo compartas. Los tokens no se envían al panel ni a las salidas. **Desconectar Spotify** borra la sesión local; puedes revocar el acceso también desde tu cuenta de Spotify.
+
+El servidor consulta la canción cada cinco segundos, compartiendo una sola consulta entre las pestañas y salidas. Respeta los tiempos de espera de Spotify y oculta la canción ante errores, sesiones privadas o ausencia de reproducción. La salida también se oculta al perder conexión con Live Studio. Las pruebas usan respuestas simuladas; la autorización y reproducción reales requieren tu cuenta.
+
 ## Cierre
 
 Cerrar la pestaña no detiene el centro. **Ctrl+C en la consola** cierra el backend y los procesos que inició. Las herramientas que ya estaban abiertas se reutilizan sin tomar posesión de ellas y permanecen abiertas. Mantén la consola abierta durante el directo.

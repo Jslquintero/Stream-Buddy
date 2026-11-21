@@ -10,6 +10,7 @@ import { createLikesModule } from '../modules/likes/index.js';
 import { createCommandsModule } from '../modules/commands/index.js';
 import { resolveCommandImages } from '../modules/commands/tenor.js';
 import { validateCommands } from '../modules/commands/config.js';
+import { createSpotifyModule } from './modules/spotify.js';
 
 export class Center extends EventEmitter {
   constructor({ root, dataDir = path.join(root, 'data'), processes, tools, legacyFile } = {}) {
@@ -18,10 +19,11 @@ export class Center extends EventEmitter {
     this.processes = processes || new ProcessManager(text => this.log(text));
     const context = { root, dataDir, settings: this.settings, processes: this.processes, log: text => this.log(text), changed: () => this.changed() };
     this.notifications = createNotificationsModule(context);
+    this.spotify = createSpotifyModule(context);
     this.likes = createLikesModule(context);
     this.commands = createCommandsModule({ ...context, reply: messages => this.tts.sendChat(messages) });
     this.tts = new TTSModule({ ...context, onComment: event => this.commands.receive(event), onLiveEvent: event => event.kind==='like'?this.likes.receive(event,this.settings.read().Username):this.notifications.enqueue(event.kind, event) });
-    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes, commands:this.commands };
+    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes, commands:this.commands, spotify: this.spotify };
   }
   log(text) {
     this.events.push({ time: new Date().toLocaleTimeString('es-PA', { hour12: false }), text: String(text).slice(0, 1500) });
@@ -38,11 +40,14 @@ export class Center extends EventEmitter {
     try { await Promise.all(Object.values(this.tools).map(tool => tool.health())); this.changed(); }
     finally { this.polling = false; }
   }
-  async command(action, body) {
+  async command(action, body, { origin } = {}) {
     if (this.closing) throw new Error('El centro se está cerrando');
     if (['tts/refresh', 'tts/catalog', 'tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.resources.task?.running) throw new Error('Espera a que termine la tarea actual');
     if (['tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.speaker) throw new Error('Detén la voz antes de modificar los archivos de Piper');
     switch (action) {
+      case 'spotify/save': this.spotify.save(body); break;
+      case 'spotify/connect': return this.spotify.connect(origin);
+      case 'spotify/disconnect': this.spotify.disconnect(); break;
       case 'tiktok/session': await this.tts.applySession(body); break;
       case 'commands/save': this.commands.save(await resolveCommandImages(validateCommands(body))); break;
       case 'commands/test': await this.commands.test(body.id); break;
@@ -96,6 +101,7 @@ export class Center extends EventEmitter {
   }
   async close() {
     this.closing = true;
+    this.spotify.close();
     this.notifications.close();
     this.likes.close();
     this.commands.close();

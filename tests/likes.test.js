@@ -3,7 +3,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createLikesModule} from '../modules/likes/index.js';
-import {defaultLikes} from '../modules/likes/config.js';
+import {defaultLikes,validateLikes} from '../modules/likes/config.js';
+test('likes migrate old designs and validate custom styles and CSS',()=>{
+  const {style,showTitle,customCss,rgbNames,animateNames,pulseHearts,...old}=defaultLikes;
+  assert.deepEqual(validateLikes(old),defaultLikes);
+  const custom={...defaultLikes,style:'medals',position:'bottom-left',showTitle:false,customCss:'.likes-name { color: red; }'};
+  assert.deepEqual(validateLikes(custom),custom);
+  assert.throws(()=>validateLikes({...custom,customCss:'.likes-name {'}));
+  assert.throws(()=>validateLikes({...custom,style:'unknown'}));
+  assert.throws(()=>validateLikes({...custom,pulseHearts:'true'}));
+});
 test('likes update immediately, autosave the full scoreboard and restore avatar URLs after restart',t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:10000});
   const dataDir=fs.mkdtempSync(path.resolve('tests/scratch-likes-'));let changes=0;
@@ -30,10 +39,11 @@ test('likes rank stable user identities, deduplicate events and persist settings
   module.receive({userId:'1',user:'Ana nueva',count:15,messageId:'c'},'test');
   assert.deepEqual(module.state().ranking.map(u=>u.likes),[25,20]);assert.equal(module.state().ranking[0].name,'Ana nueva');
   assert.equal(module.receive({userId:'3',count:-1},'test'),false);
-  module.save({...defaultLikes,title:'Mis likes',limit:1,opacity:0});module.close();
+  module.save({...defaultLikes,title:'Mis likes',limit:1,opacity:0,rgbNames:true,animateNames:true,pulseHearts:true});module.close();
   const reopened=createLikesModule(context);t.after(()=>reopened.close());
   assert.equal(reopened.state().total,45);assert.equal(reopened.state().participants,2);assert.equal(reopened.state().ranking.length,1);
   assert.equal(reopened.state().config.title,'Mis likes');
+  for(const key of ['rgbNames','animateNames','pulseHearts'])assert.equal(reopened.state().config[key],true);
   assert.equal(reopened.receive({userId:'1',count:15,messageId:'c'},'test'),false);
   assert.throws(()=>reopened.save({...defaultLikes,limit:200}));assert.equal(reopened.state().config.title,'Mis likes');
   reopened.receive({userId:'3',user:'Luis',count:3},'another');assert.equal(reopened.state().total,3);

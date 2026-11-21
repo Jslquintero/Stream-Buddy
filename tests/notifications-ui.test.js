@@ -7,6 +7,24 @@ import { defaultNotifications } from '../modules/notifications/config.js';
 import { defaultLikes } from '../modules/likes/config.js';
 import { defaultCommands } from '../modules/commands/config.js';
 const pause = () => new Promise(resolve => setTimeout(resolve,30));
+test('Top likes applies custom CSS inside an isolated output and changes sides live',async t=>{
+  const {window,publish}=await mount(t,'/?likes-output=1');
+  const config={...defaultLikes,style:'medals',width:380,position:'top-left',showTitle:false,customCss:'.likes-name { color: red; }'};
+  const state={tools:{likes:{config,ranking:[{id:'1',name:'Ana',likes:10}],total:10}}};
+  publish(state);
+  await until(()=>window.document.querySelector('.likes-css-surface')?.shadowRoot?.querySelector('.likes-name'));
+  const root=window.document.querySelector('.likes-css-surface').shadowRoot;
+  assert.equal(root.querySelector('.likes-name').textContent,'Ana');
+  assert.equal(root.querySelector('.likes-board header'),null);
+  assert.equal(root.querySelector('.likes-rank').textContent,'🥇');
+  assert.equal(root.querySelectorAll('style')[1].textContent,config.customCss);
+  assert.ok(window.document.querySelector('.likes-stage.top-left'));
+  config.position='bottom-right';publish(state);
+  await until(()=>window.document.querySelector('.likes-stage.bottom-right'));
+  config.customCss='';publish(state);
+  await until(()=>window.document.querySelector('.likes-board'));
+  assert.equal(window.document.querySelector('.likes-css-surface'),null);
+});
 test('command dashboard preserves the chosen view and saves public descriptions', async t => {
   const {window,publish,requests}=await mount(t,'/commands');
   window.localStorage.setItem('studio.commands.view','list');
