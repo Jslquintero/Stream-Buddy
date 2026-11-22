@@ -21,6 +21,8 @@ export function SpotifyStudio({ tool, api, notice, online }) {
   const [previewKey, setPreviewKey] = useState(0), [previewVisible, setPreviewVisible] = useState(true);
   const dimensions = spotifySize(draft.playerStyle, draft);
   const local = (draft.mode || 'local') === 'local';
+  const player = tool.playback?.source === 'aimp' ? 'AIMP' : 'Spotify';
+  const localStatus = tool.playback ? `${player} detectado` : 'Reproductor detectado';
   const output = new URL(tool.url, window.location.origin).href;
   const redirect = window.location.origin + '/api/spotify/callback';
   const connect = async () => {
@@ -29,14 +31,14 @@ export function SpotifyStudio({ tool, api, notice, online }) {
       if (!await save()) return;
       const result = await api('spotify/connect');
       if (result?.authorizationUrl) window.location.assign(result.authorizationUrl);
-      else if (result) notice('Lectura local activada. Abre Spotify de escritorio y reproduce una canción.');
+      else if (result) notice('Lectura local activada. Reproduce una canción en Spotify de escritorio o AIMP.');
     } finally { setBusy(false); }
   };
   return <div className="spotify-studio">
     <Card className="spotify-settings">
-      <div className="section-heading"><h2>Spotify</h2><Badge className={tool.connected ? 'success' : ''}>{tool.connecting ? 'Esperando autorización' : tool.connected ? tool.config.mode === 'local' ? 'Spotify detectado' : 'Cuenta conectada' : tool.config.mode === 'local' ? tool.config.enabled ? 'Esperando Spotify' : 'Lectura detenida' : 'Sin conectar'}</Badge></div>
-      <label>Cómo obtener la canción<Select value={draft.mode || 'local'} onChange={e => setDraft({ ...draft, mode: e.target.value, enabled: true })}><option value="local">Desde Windows · sin Premium</option><option value="api">Cuenta de Spotify · API oficial</option></Select></label>
-      {local ? <div className="spotify-local-help"><h3>Escucha en este PC</h3><p className="muted">Abre la aplicación de escritorio de Spotify y reproduce una canción. Live Studio lee automáticamente la información que Spotify comparte con Windows.</p><p className="help">No necesitas Premium, Client ID ni iniciar sesión aquí. Mantén Spotify abierto en este equipo. Este modo no lee Spotify Web ni la reproducción únicamente en tu móvil. La carátula y el progreso dependen de lo que entregue Spotify a Windows.</p></div> : <>
+      <div className="section-heading"><h2>Spotify</h2><Badge className={tool.connected ? 'success' : ''}>{tool.connecting ? 'Esperando autorización' : tool.connected ? tool.config.mode === 'local' ? localStatus : 'Cuenta conectada' : tool.config.mode === 'local' ? tool.config.enabled ? 'Esperando Spotify o AIMP' : 'Lectura detenida' : 'Sin conectar'}</Badge></div>
+      <label>Cómo obtener la canción<Select value={draft.mode || 'local'} onChange={e => setDraft({ ...draft, mode: e.target.value, enabled: true })}><option value="local">Desde Windows · Spotify o AIMP</option><option value="api">Cuenta de Spotify · API oficial</option></Select></label>
+      {local ? <div className="spotify-local-help"><h3>Escucha en este PC</h3><p className="muted">Abre Spotify de escritorio o AIMP y reproduce una canción. Live Studio detecta la reproducción automáticamente. Si los dos están sonando, muestra Spotify.</p><p className="help">No necesitas Premium, Client ID ni complementos. La carátula y el progreso aparecen cuando el reproductor los proporciona.</p></div> : <>
       <p className="muted">Muestra lo que escuchas en Spotify desde cualquier dispositivo de tu cuenta.</p>
       <details open={!tool.connected}>
         <summary>Configuración inicial</summary>
@@ -69,7 +71,7 @@ export function SpotifyStudio({ tool, api, notice, online }) {
       <p className="muted">Añade una fuente de navegador en LIVE Studio u OBS de <strong>{dimensions[0]} × {dimensions[1]} px</strong> y pega este enlace. El fondo es transparente.</p>
       <code>{output}</code>
       <div className="actions"><OutputLinks url={output} notice={notice} copyLabel="Copiar salida de Spotify" openLabel="Ver salida de Spotify" iconSize={15}/></div>
-      <p className="help">Muestra la información de la canción; el audio sigue reproduciéndose en Spotify.</p>
+      <p className="help">La salida muestra los datos de la canción. El audio sigue en el reproductor.</p>
     </Card>
   </div>;
 }

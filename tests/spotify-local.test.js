@@ -23,7 +23,8 @@ test('local Spotify defaults to Windows without credentials and tracks absence, 
   assert.equal(f.module.state().connected, true); assert.equal(f.module.state().playback.title, song.title);
   assert.equal(f.module.state().playback.image, song.image);
   await f.module.health(); assert.equal(f.reads(), 2, 'Polling is shared and throttled');
-  f.set({ available: true, playback: { ...song, playing: false } }); f.advance(); await f.module.health();
+  f.set({ available: true, playback: { ...song, source: 'aimp', playing: false } }); f.advance(); await f.module.health();
+  assert.equal(f.module.state().playback.source, 'aimp');
   assert.equal(f.module.state().playback.playing, false);
   f.set({ available: false }); f.advance(); await f.module.health(); assert.equal(f.module.state().playback, null);
 });

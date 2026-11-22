@@ -45,6 +45,11 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
     return () => { active = false; };
   },[c.magicColors,playback?.image]);
   if (!playback) return null;
+  const fromAimp = playback.source === 'aimp';
+  const player = fromAimp ? 'AIMP' : 'Spotify';
+  const title = fromAimp
+    ? <span className="spotify-title">{playback.title}</span>
+    : <a className="spotify-title" href={playback.url || 'https://open.spotify.com'} target="_blank" rel="noopener noreferrer">{playback.title}</a>;
   const progress = Math.min(playback.duration, playback.progress + (playback.playing ? Math.max(0,now-playback.updatedAt) : 0));
   const time = value => `${Math.floor(value / 60000)}:${String(Math.floor(value / 1000) % 60).padStart(2,'0')}`;
   const artwork = c.coverStyle === 'canvas' && c.canvasUrl && failedVideo !== c.canvasUrl ? <video key={c.canvasUrl} className="spotify-cover" src={c.canvasUrl} poster={playback.image || undefined} autoPlay muted loop playsInline onError={() => setFailedVideo(c.canvasUrl)}/> : playback.image ? <img className="spotify-cover" src={playback.image} alt="Carátula del álbum"/> : <div className="spotify-cover spotify-placeholder"><Music2 size={38}/></div>;
@@ -53,8 +58,8 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
     const filled = Math.min(32,Math.max(0,Math.round(playback.duration ? progress / playback.duration * 32 : 0)));
     return <article className={`spotify-now spotify-${playerTheme} player-shell spotify-terminal player-${c.playerStyle}`} style={{'--spotify-accent':color || c.tintColor}}>
       <header className="spotify-terminal-header"><span>root@livestudio</span><span className="spotify-terminal-controls" aria-hidden="true">− ▫ <b>×</b></span></header>
-      <div className="spotify-terminal-body"><div className="spotify-terminal-command"><span>root@livestudio&gt;</span> ./spotify <span>--nowPlaying</span></div>
-        <div className="spotify-terminal-line"><strong>Title:</strong> <a className="spotify-title" href={playback.url || 'https://open.spotify.com'} target="_blank" rel="noopener noreferrer">{playback.title}</a></div>
+      <div className="spotify-terminal-body"><div className="spotify-terminal-command"><span>root@livestudio&gt;</span> ./{player.toLowerCase()} <span>--nowPlaying</span></div>
+        <div className="spotify-terminal-line"><strong>Title:</strong> {title}</div>
         <div className="spotify-terminal-line"><strong>Artist:</strong> <span className="spotify-artist">{playback.artist}</span></div>
         <div className="spotify-progress spotify-terminal-progress" role="progressbar" aria-label="Progreso de la canción" aria-valuemin={0} aria-valuemax={playback.duration} aria-valuenow={progress}>[<span>{'#'.repeat(filled)}</span>{'-'.repeat(32-filled)}]</div>
         <div className="spotify-time">{time(progress)} - {time(playback.duration)}</div>
@@ -65,9 +70,9 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
     {c.coverBlur && playback.image && <img className="spotify-blur" src={playback.image} alt=""/>}
     {c.playerStyle === 'macos' && <div className="spotify-window-dots"><i/><i/><i/><span>Ahora escuchando</span></div>}
     {['xp','wmp','winamp'].includes(c.playerStyle) && <div className="player-caption">{labels[c.playerStyle]}</div>}
-    {c.playerStyle === 'discord' && <div className="spotify-shell-header">ESCUCHANDO SPOTIFY</div>}
+    {c.playerStyle === 'discord' && <div className="spotify-shell-header">ESCUCHANDO {player.toUpperCase()}</div>}
     {c.coverStyle !== 'none' && <div className="spotify-art">{c.coverStyle === 'vinyl' ? <div className="spotify-vinyl-disc">{artwork}</div> : artwork}</div>}
-    <div className="spotify-track"><span className="spotify-brand">Spotify <span>{playback.idle ? 'SIN REPRODUCCIÓN' : playback.playing ? 'ESCUCHANDO AHORA' : 'EN PAUSA'}</span><span className="spotify-equalizer" aria-hidden="true"><i/><i/><i/></span></span><div className="spotify-info"><a className="spotify-title" href={playback.url || 'https://open.spotify.com'} target="_blank" rel="noopener noreferrer">{playback.title}</a><p className="spotify-artist">{playback.artist}</p></div><div className="spotify-progress" role="progressbar" aria-label="Progreso de la canción" aria-valuemin={0} aria-valuemax={playback.duration} aria-valuenow={progress}><span style={{width:`${playback.duration ? progress / playback.duration * 100 : 0}%`}}/></div><div className="spotify-time"><span>{time(progress)}</span>{c.playerStyle === 'compact' && <span className="spotify-waveform" aria-hidden="true">{Array.from({length:25},(_,i)=><i key={i} style={{height:`${30 + ((i * 17 + 11) % 65)}%`,animationDelay:`${-i * .13}s`}}/>)}</span>}<span>{time(playback.duration)}</span></div></div>
+    <div className="spotify-track"><span className="spotify-brand">{player} <span>{playback.idle ? 'SIN REPRODUCCIÓN' : playback.playing ? 'ESCUCHANDO AHORA' : 'EN PAUSA'}</span><span className="spotify-equalizer" aria-hidden="true"><i/><i/><i/></span></span><div className="spotify-info">{title}<p className="spotify-artist">{playback.artist}</p></div><div className="spotify-progress" role="progressbar" aria-label="Progreso de la canción" aria-valuemin={0} aria-valuemax={playback.duration} aria-valuenow={progress}><span style={{width:`${playback.duration ? progress / playback.duration * 100 : 0}%`}}/></div><div className="spotify-time"><span>{time(progress)}</span>{c.playerStyle === 'compact' && <span className="spotify-waveform" aria-hidden="true">{Array.from({length:25},(_,i)=><i key={i} style={{height:`${30 + ((i * 17 + 11) % 65)}%`,animationDelay:`${-i * .13}s`}}/>)}</span>}<span>{time(playback.duration)}</span></div></div>
   </article>;
 }
 export function SpotifyPresence({ playback, config }) {

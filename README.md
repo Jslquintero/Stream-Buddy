@@ -75,9 +75,9 @@ El dashboard, editor y voces locales no necesitan Internet; TikTok y las instala
 
 ## Spotify · Ahora escuchando
 
-El módulo **Spotify** muestra carátula, título, artista y progreso de la canción. Incluye vista previa, estilos claro/oscuro y una salida transparente de **600 × 160 px** para una fuente de navegador en LIVE Studio u OBS: `http://127.0.0.1:17900/?spotify-output=1#tiktok.studio`. También admite episodios de podcast. Solo muestra información; el audio permanece en Spotify.
+El módulo **Spotify** muestra carátula, título, artista y progreso de lo que escuchas en Spotify o AIMP. Incluye vista previa, estilos claro/oscuro y una salida transparente de **600 × 160 px** para una fuente de navegador en LIVE Studio u OBS: `http://127.0.0.1:17900/?spotify-output=1#tiktok.studio`. También admite episodios de podcast. El audio sigue en el reproductor.
 
-**Modo local de Windows (predeterminado, sin Premium):** abre Spotify de escritorio en este PC y reproduce una canción. Live Studio consulta la sesión multimedia de Windows automáticamente, sin Client ID, credenciales ni peticiones a la API de Spotify. Usa **Activar lectura local** para reanudar y **Detener lectura local** para detenerla; esta preferencia se conserva al reiniciar. La carátula y el progreso aparecen si Spotify los proporciona. Requiere Windows 10 1809 o posterior. No lee Spotify Web ni la música que se reproduce únicamente en otro dispositivo. Si Windows no publica la canción, el widget queda vacío; los anuncios pueden aparecer con los metadatos que entregue la aplicación.
+**Modo local de Windows (predeterminado, sin Premium):** abre Spotify de escritorio o AIMP en este PC y reproduce una canción. Live Studio detecta automáticamente el reproductor que está sonando y da prioridad a Spotify si ambos están reproduciendo. AIMP funciona sin complementos. Usa **Activar lectura local** para reanudar y **Detener lectura local** para detenerla. Esta preferencia se conserva al reiniciar. La carátula y el progreso aparecen si el reproductor los proporciona. Requiere Windows 10 1809 o posterior. Para Spotify Web o reproducción en otro dispositivo, usa el modo de cuenta.
 
 **API oficial (opcional):** selecciona Cuenta de Spotify para consultar la reproducción en otros dispositivos:
 
