@@ -1,16 +1,4 @@
-﻿function Assert-SpeechSettings {
-    param($Settings)
-    if ($Settings.Engine -eq 'Piper') {
-        if ([string]::IsNullOrWhiteSpace($Settings.PiperExe) -or [string]::IsNullOrWhiteSpace($Settings.Model)) {
-            throw 'Piper necesita la ruta de piper.exe y del modelo .onnx. Configura ambas o selecciona Windows para usar las voces instaladas.'
-        }
-        if (-not (Test-Path -LiteralPath $Settings.PiperExe -PathType Leaf) -or -not (Test-Path -LiteralPath $Settings.Model -PathType Leaf)) {
-            throw 'No se encuentran el ejecutable o el modelo de Piper. Revisa ambas rutas o selecciona Windows.'
-        }
-    }
-}
-
-function Get-MessageText {
+﻿function Get-MessageText {
     param([string]$Text, [string]$Command, [bool]$ReadAll, [int]$MaxLength, [string[]]$Blocked)
     $value = $Text.Trim()
     $matched = $false
@@ -29,12 +17,34 @@ function Get-MessageText {
     return $value
 }
 
-function Get-PiperText {
-    param([string]$Text)
-    $value = $Text.Trim()
-    # A complete sentence gives Piper an end-of-phrase cue, especially for isolated words.
-    if ($value -and $value -notmatch '[.!?…:;][\p{Pe}\p{Pf}"'']*$') { $value += '.' }
-    return $value
+function Quote-NativeArgument([string]$Value) {
+    # Windows native arguments escape quotes and double trailing backslashes.
+    '"' + ($Value -replace '(\\*)"', '$1$1\"' -replace '(\\+)$', '$1$1') + '"'
+}
+
+function Invoke-PocketSpeech {
+    param([string]$Executable, [string]$Voice = 'lola', [string]$Text, [string]$Wav)
+    if (Test-Path -LiteralPath $Wav) { Remove-Item -LiteralPath $Wav -Force }
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = $Executable
+    $info.Arguments = 'generate --quiet --language spanish ' +
+        (Quote-NativeArgument "--voice=$Voice") + ' ' +
+        (Quote-NativeArgument "--text=$Text") + ' ' +
+        (Quote-NativeArgument "--output-path=$Wav")
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardError = $true
+    $info.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
+    $process = [Diagnostics.Process]::Start($info)
+    try {
+        $errorTask = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Pocket TTS excedio el tiempo de generacion.' }
+        if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $Wav -PathType Leaf)) {
+            throw "Pocket TTS no pudo generar audio: $($errorTask.Result)"
+        }
+    } finally {
+        $process.Dispose()
+    }
 }
 
 function Add-WavPlaybackPadding {
@@ -56,7 +66,7 @@ function Add-WavPlaybackPadding {
         if ($tag -eq 'data') { $dataOffset=$offset; $dataLength=[int]$length; break }
         $offset += 8 + $length + ($length % 2)
     }
-    if ($dataOffset -lt 0 -or $format -ne 1 -or $bits -ne 16 -or $alignment -le 0) { throw 'Se esperaba un WAV PCM de 16 bits de Piper.' }
+    if ($dataOffset -lt 0 -or $format -ne 1 -or $bits -ne 16 -or $alignment -le 0) { throw 'Se esperaba un WAV PCM de 16 bits.' }
     $gain = [Math]::Max(0, [Math]::Min(100, $Volume)) / 100.0
     if ($gain -lt 1) {
         for ($i = $dataOffset + 8; $i + 1 -lt $dataOffset + 8 + $dataLength; $i += 2) {

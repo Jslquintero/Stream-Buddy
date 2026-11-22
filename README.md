@@ -28,7 +28,7 @@ backend/
     layout.js               Editor nativo de Layout Studio y persistencia
     ads.js                  Adaptador de AdQueue
     local-tool.js           Ciclo de vida común de herramientas externas
-modules/tts/                Motores de voz Windows/Piper
+modules/tts/                Motores de voz Windows y Pocket TTS
 modules/tiktok/             Conector propio de navegador y lector Webcast local
 web/src/                    Frontend React y componentes reutilizables
 dist/                       Frontend compilado servido por Node
@@ -38,12 +38,12 @@ tests/                      Pruebas Node
 
 El dashboard recibe estados mediante Server-Sent Events (SSE), con reconexión automática. Varias pestañas comparten estado. Los cambios de estado no sobrescriben un formulario que estés editando.
 
-El servidor HTTP, configuración, filtros, cola, instalación y administración de procesos del centro funcionan en Node. **Layout Studio está integrado en React y Node**, con edición y salida propias. AdQueue conserva su servidor e interfaz incrustada. TikTok usa Edge/Chrome local, sin Python, TikTokLive ni servicios de firma; PowerShell se conserva para las voces Windows/Piper.
+El servidor HTTP, configuración, filtros, cola, instalación y administración de procesos del centro funcionan en Node. **Layout Studio está integrado en React y Node**, con edición y salida propias. AdQueue conserva su servidor e interfaz incrustada. TikTok usa Edge/Chrome local, sin Python, TikTokLive ni servicios de firma; PowerShell se conserva para las voces Windows y Pocket TTS.
 
 ## Migración y datos
 
 - Se conserva `data/tts.json` sin reescribirlo al iniciar. Si falta, se importa `../tts/settings.json`; si tampoco existe, se generan ajustes de voz Windows.
-- Las voces y ejecutable Piper conservan sus rutas actuales. No se copian ni descargan modelos.
+- Los ajustes guardados con Piper se cargan con Pocket TTS y conservan la salida, el volumen y los filtros.
 - El nuevo Layout guarda en `data/layout.json`. Los datos del editor anterior permanecen intactos; no se importan automáticamente.
 - AdQueue conserva configuración y archivos en sus ubicaciones actuales.
 - La nueva salida de Layout es `http://127.0.0.1:17900/?layout-output=1#tiktok.studio` (o el puerto configurado). Sustituye la URL anterior en tu fuente de navegador. La salida de anuncios sigue en `http://127.0.0.1:17843/output#tiktok.studio`.
@@ -53,15 +53,13 @@ Los archivos originales de las tres herramientas no se modifican. El servidor an
 
 ## Texto a voz y TikTok
 
-El módulo TTS tiene cuatro secciones en el dashboard: **Voz y audio**, **Lectura y filtros**, **TikTok LIVE** y **Biblioteca**. Detecta voces Windows y salidas de audio; permite elegir modelos y hablantes Piper, instalar el motor, importar modelos con un selector de archivos y descargar voces desde el catálogo oficial. Las descargas comprueban tamaño y hash y conservan la ficha de licencia. Todo se inicia desde el panel; instalar voces nuevas del sistema abre la configuración de Windows.
+El panel de voz detecta las voces de Windows y las salidas de audio. **Preparar Pocket TTS** descarga y verifica el ejecutable oficial para Windows, carga el modelo en español y comprueba la voz guardada antes de activar el motor. Puedes elegir otra voz y probarla en **Voz y audio**. La primera vez que usas otra voz puede necesitar conexión para descargarla. [Versión oficial de Kyutai](https://github.com/kyutai-labs/pocket-tts/releases/tag/v4.0.1)
 
 **Probar estos ajustes** usa el formulario sin guardarlo y omite filtros y esperas del chat. La prueba comparte la cola, por lo que debes reanudarla si está pausada. **Simular comentario** usa las reglas guardadas. Puedes ver y quitar mensajes pendientes, vaciar la cola sin interrumpir el mensaje actual, bloquear usuarios, permitir o bloquear enlaces, desactivar la lectura y configurar el límite de cola entre 1 y 200 mensajes.
 
-La biblioteca permite exportar e importar ajustes JSON desde el navegador. Los archivos antiguos reciben valores predeterminados compatibles para las nuevas opciones, sin reescribirse hasta guardar. Los modelos nuevos se guardan en `modules/tts/voices` y Piper en `modules/tts/tools`; los recursos existentes continúan disponibles.
+La biblioteca permite exportar e importar ajustes JSON desde el navegador. Los archivos antiguos reciben valores compatibles al cargarse y se actualizan al guardar. El ejecutable se instala en `modules/tts/tools/pocket-tts` y el modelo y las voces se guardan en la caché local de Hugging Face.
 
-El selector de audio utiliza los dispositivos expuestos por Windows mediante [SAPI AudioOutput](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723596(v=vs.85)); la reproducción de WAV Piper utiliza [SpeakStream](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723611(v=vs.85)). El catálogo procede de [Piper Voices](https://huggingface.co/rhasspy/piper-voices) y el instalador usa el paquete CLI Windows `2023.11.14-2` compatible con el motor existente.
-
-Algunas voces como davefx y sharvard incluyen grupos vocálicos de varios caracteres que el [CLI C++ de Piper](https://github.com/rhasspy/piper/blob/master/src/cpp/piper.cpp) rechaza al cargar. El centro genera una configuración de compatibilidad en `data/piper-config-*.json`, conservando las entradas individuales y sus IDs para la pronunciación por caracteres del motor Windows. No modifica el ONNX ni su JSON original. Los grupos no declarados o sin componentes individuales se rechazan con un error explícito. La prueba manual `tests/verify-piper.ps1` permite comparar generación WAV con ambas configuraciones sin reproducir audio.
+El selector de audio utiliza los dispositivos expuestos por Windows mediante [SAPI AudioOutput](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723596(v=vs.85)). Pocket TTS genera un WAV que se reproduce en el dispositivo elegido mediante [SpeakStream](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723611(v=vs.85)).
 
 Configura la voz, guarda y envía un comentario de prueba. Los filtros, comando, espera por usuario y cola de hasta 50 mensajes funcionan en Node. Los ajustes se aplican a los mensajes que se añadan después de guardar. Pausar retiene los mensajes siguientes; Saltar interrumpe el actual; Detener todo vacía la cola e interrumpe la voz.
 

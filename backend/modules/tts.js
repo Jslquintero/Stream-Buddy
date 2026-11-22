@@ -3,7 +3,6 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateSettings } from '../settings.js';
 import { TTSResources } from './tts-resources.js';
-import { preparePiperConfig } from './piper-config.js';
 
 export function filterText(text, s) {
   text = text.trim();
@@ -62,10 +61,9 @@ export class TTSModule {
     this.current = { id: job.id, user: job.user, text: job.Text, preview: !!job.preview }; this.lastError = null;
     const file = path.join(this.dataDir, 'speech.json');
     try {
-      if (job.Engine === 'Piper') {
-        const config = preparePiperConfig(job.Model, this.dataDir);
-        job.PiperConfig = config.path;
-        if (config.adapted) this.log('Compatibilidad Piper Windows aplicada a ' + path.basename(job.Model));
+      if (job.Engine === 'PocketTTS') {
+        job.PocketExe = this.resources.pocketPath();
+        if (!job.PocketExe) throw new Error('Pulsa Preparar Pocket TTS para instalar el motor de voz.');
       }
       fs.writeFileSync(file, JSON.stringify(job), 'utf8');
       fs.rmSync(file + '.error', { force: true });

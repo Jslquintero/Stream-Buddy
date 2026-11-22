@@ -52,8 +52,8 @@ test('filters preserve named command boundaries, symbols, blocked words and link
   assert.equal(filterText('!hola', { ...s, Command: '!' }), 'hola');
   assert.equal(filterText('hola', { ...s, ReadAll: true }), 'hola');
 });
-test('settings reject invalid ranges, missing Piper files, booleans and noninteger cooldowns', () => {
-  for (const value of [{ Speed: NaN }, { Volume: 101 }, { Volume: true }, { Cooldown: .5 }, { ReadAll: 'true' }, { Engine: 'Piper' }, { Blocked: [1] }]) {
+test('settings reject invalid ranges, unsupported engines and voices, booleans and noninteger cooldowns', () => {
+  for (const value of [{ Speed: NaN }, { Volume: 101 }, { Volume: true }, { Cooldown: .5 }, { ReadAll: 'true' }, { Engine: 'other' }, { PocketVoice: 'other' }, { Blocked: [1] }]) {
     assert.throws(() => validateSettings({ ...defaults, ...value }));
   }
 });
@@ -63,6 +63,7 @@ test('existing UTF-8 BOM configuration is loaded without rewriting; saves are at
   fs.writeFileSync(file, original);
   const settings = new SettingsStore(dir);
   assert.equal(settings.read().Username, 'usuario');
+  assert.equal(settings.read().Engine, 'PocketTTS');
   assert.equal(fs.readFileSync(file, 'utf8'), original);
   settings.save({ ...settings.read(), Engine: 'Windows', Volume: 55 });
   assert.equal(new SettingsStore(dir).read().Volume, 55);

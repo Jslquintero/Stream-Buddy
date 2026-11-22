@@ -42,8 +42,7 @@ export class Center extends EventEmitter {
   }
   async command(action, body, { origin } = {}) {
     if (this.closing) throw new Error('El centro se está cerrando');
-    if (['tts/refresh', 'tts/catalog', 'tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.resources.task?.running) throw new Error('Espera a que termine la tarea actual');
-    if (['tts/download', 'tts/pick', 'tts/install-piper'].includes(action) && this.tts.speaker) throw new Error('Detén la voz antes de modificar los archivos de Piper');
+    if (['tts/refresh', 'tts/install-pocket'].includes(action) && this.tts.resources.task?.running) throw new Error('Espera a que termine la tarea actual');
     switch (action) {
       case 'spotify/save': this.spotify.save(body); break;
       case 'spotify/connect': return this.spotify.connect(origin);
@@ -73,12 +72,9 @@ export class Center extends EventEmitter {
       case 'tts/clear': this.tts.queue.length = 0; break;
       case 'tts/windows-voices': this.processes.start('explorer.exe', ['ms-settings:speech']); break;
       case 'tts/refresh': void this.tts.resources.refresh(); break;
-      case 'tts/catalog': void this.tts.resources.loadCatalog(); break;
-      case 'tts/download': void this.tts.resources.downloadVoice(body.id); break;
-      case 'tts/pick': void this.tts.resources.pick(body.kind); break;
-      case 'tts/install-piper':
-        if (this.tts.speaker) throw new Error('Detén la voz antes de instalar Piper');
-        void this.tts.resources.installPiper(body.language); break;
+      case 'tts/install-pocket':
+        if (this.tts.speaker) throw new Error('Espera a que termine la lectura antes de preparar Pocket TTS');
+        void this.tts.resources.installPocket(); break;
       case 'test':
         if (typeof body.text !== 'string') throw new Error('El comentario debe ser texto');
         this.log(this.tts.enqueue('prueba', body.text)); break;
