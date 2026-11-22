@@ -1,6 +1,7 @@
+import { CopyLinkButton, OutputLinks } from './output-controls';
 import { useEffect, useRef, useState } from 'react';
-import { Copy, ExternalLink, Music2 } from 'lucide-react';
-import { Badge, Button, Card, Input } from './ui';
+import {ExternalLink, Music2 } from 'lucide-react';
+import { Badge, Button, Card, Input, Select } from './ui';
 import { useStudio } from '../hooks/use-studio';
 import './spotify.css';
 import './spotify-editor.css';
@@ -31,18 +32,17 @@ export function SpotifyStudio({ tool, api, notice, online }) {
       else if (result) notice('Lectura local activada. Abre Spotify de escritorio y reproduce una canción.');
     } finally { setBusy(false); }
   };
-  const copy = async text => { try { await navigator.clipboard.writeText(text); notice('Enlace copiado.'); } catch { notice('Enlace: ' + text); } };
   return <div className="spotify-studio">
     <Card className="spotify-settings">
       <div className="section-heading"><h2>Spotify</h2><Badge className={tool.connected ? 'success' : ''}>{tool.connecting ? 'Esperando autorización' : tool.connected ? tool.config.mode === 'local' ? 'Spotify detectado' : 'Cuenta conectada' : tool.config.mode === 'local' ? tool.config.enabled ? 'Esperando Spotify' : 'Lectura detenida' : 'Sin conectar'}</Badge></div>
-      <label>Cómo obtener la canción<select className="input" value={draft.mode || 'local'} onChange={e => setDraft({ ...draft, mode: e.target.value, enabled: true })}><option value="local">Desde Windows · sin Premium</option><option value="api">Cuenta de Spotify · API oficial</option></select></label>
+      <label>Cómo obtener la canción<Select value={draft.mode || 'local'} onChange={e => setDraft({ ...draft, mode: e.target.value, enabled: true })}><option value="local">Desde Windows · sin Premium</option><option value="api">Cuenta de Spotify · API oficial</option></Select></label>
       {local ? <div className="spotify-local-help"><h3>Escucha en este PC</h3><p className="muted">Abre la aplicación de escritorio de Spotify y reproduce una canción. Live Studio lee automáticamente la información que Spotify comparte con Windows.</p><p className="help">No necesitas Premium, Client ID ni iniciar sesión aquí. Mantén Spotify abierto en este equipo. Este modo no lee Spotify Web ni la reproducción únicamente en tu móvil. La carátula y el progreso dependen de lo que entregue Spotify a Windows.</p></div> : <>
       <p className="muted">Muestra lo que escuchas en Spotify desde cualquier dispositivo de tu cuenta.</p>
       <details open={!tool.connected}>
         <summary>Configuración inicial</summary>
         <ol>
           <li>Abre <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">Spotify for Developers <ExternalLink size={12}/></a> y crea una app con Web API.</li>
-          <li>En Redirect URIs, añade exactamente este enlace:<code>{redirect}</code><Button variant="outline" size="sm" onClick={() => copy(redirect)}>Copiar Redirect URI</Button></li>
+          <li>En Redirect URIs, añade exactamente este enlace:<code>{redirect}</code><CopyLinkButton url={redirect} notice={notice} size="sm">Copiar Redirect URI</CopyLinkButton></li>
           <li>Copia el Client ID, pégalo abajo y pulsa Conectar Spotify. Autoriza la lectura de lo que estás escuchando.</li>
         </ol>
         <p className="help">Spotify exige Premium al propietario de una app en modo desarrollo. Si usas otra cuenta, añádela en Usuarios y acceso de la app. <a href="https://developer.spotify.com/documentation/web-api/concepts/quota-modes" target="_blank" rel="noopener noreferrer">Ver requisitos de Spotify</a>.</p>
@@ -68,7 +68,7 @@ export function SpotifyStudio({ tool, api, notice, online }) {
       <h3>En tu directo</h3>
       <p className="muted">Añade una fuente de navegador en LIVE Studio u OBS de <strong>{dimensions[0]} × {dimensions[1]} px</strong> y pega este enlace. El fondo es transparente.</p>
       <code>{output}</code>
-      <div className="actions"><Button variant="outline" onClick={() => copy(output)}><Copy size={15}/>Copiar salida de Spotify</Button><Button variant="outline" asChild><a href={output} target="_blank" rel="noopener noreferrer">Ver salida de Spotify<ExternalLink size={15}/></a></Button></div>
+      <div className="actions"><OutputLinks url={output} notice={notice} copyLabel="Copiar salida de Spotify" openLabel="Ver salida de Spotify" iconSize={15}/></div>
       <p className="help">Muestra la información de la canción; el audio sigue reproduciéndose en Spotify.</p>
     </Card>
   </div>;

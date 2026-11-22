@@ -1,8 +1,12 @@
 export const eventNames = { follow: 'Nuevo seguidor', gift: 'Regalo', share: 'Compartido', superfan: 'Super Fan' };
 export const notificationAnimations = { none:'Sin animación', slide:'Deslizar desde abajo', 'slide-down':'Deslizar desde arriba', 'slide-left':'Entrar desde la izquierda', 'slide-right':'Entrar desde la derecha', fade:'Desvanecer', zoom:'Zoom', bounce:'Rebote', flip:'Giro', roll:'Rodar', pop:'Aparecer con impulso' };
-export function isRemoteMediaURL(value) {
-  if(typeof value!=='string'||!/^https?:\/\//i.test(value)||value.length>2048||/[\s\u0000-\u001f]/u.test(value))return false;
-  try { const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!!url.hostname&&!url.username&&!url.password; } catch { return false; }
+const localMedia = {
+  image: /^\/notification-assets\/[a-f0-9]{64}\.(png|gif|jpg|webp)$/,
+  video: /^\/notification-assets\/[a-f0-9]{64}\.(mp4|webm)$/,
+  audio: /^\/notification-assets\/[a-f0-9]{64}\.(mp3|wav|ogg)$/,
+};
+export function isLocalNotificationAsset(kind, path) {
+  return typeof path === 'string' && localMedia[kind].test(path);
 }
 export const designExtras = { layout: 'left', imageSize: 96, imageRadius: 0, imageFit: 'contain', width: 680, padding: 24, backgroundOpacity: 100, borderOpacity:100, animationSpeed:500, borderWidth: 2, shadow: true, fontFamily: 'sans', textAlign: 'left', fontWeight: '700' };
 export const defaultNotifications = {
@@ -27,6 +31,18 @@ export function migrateNotifications(value) {
   const merged={...defaultNotifications,...value,events:{}};
   for(const type of Object.keys(eventNames)){
     merged.events[type]={...defaultNotifications.events[type],...value?.events?.[type]};
+    const event = merged.events[type];
+    for (const kind of ['image', 'video']) {
+      if (/^https?:\/\//i.test(event[kind])) {
+        event[kind] = '';
+        event[kind + 'Name'] = '';
+      }
+    }
+    // Older configurations displayed the video when both visual assets were present.
+    if (merged.events[type].video) {
+      merged.events[type].image = '';
+      merged.events[type].imageName = '';
+    }
     if(merged.events[type].appearance)merged.events[type].appearance={...notificationDesign(merged),...merged.events[type].appearance};
   }
   return validateNotifications(merged);
@@ -41,15 +57,16 @@ export function validateNotifications(value) {
     const event = value.events?.[type];
     if (!event || typeof event.enabled !== 'boolean' || typeof event.title !== 'string' || !event.title.trim() || event.title.length > 100 || typeof event.message !== 'string' || event.message.length > 300) throw new Error('Revisa los textos de ' + eventNames[type]);
     const image = event.image ?? '';
-    if (typeof image !== 'string' || (image && !isRemoteMediaURL(image) && !/^\/notification-assets\/[a-f0-9]{64}\.(png|gif|jpg|webp)$/.test(image))) throw new Error('Imagen de alerta inválida');
+    if (typeof image !== 'string' || (image && !isLocalNotificationAsset('image', image))) throw new Error('Imagen de alerta inválida');
     const audio = event.audio ?? '', volume = event.volume ?? 80;
-    if (typeof audio !== 'string' || (audio && !/^\/notification-assets\/[a-f0-9]{64}\.(mp3|wav|ogg)$/.test(audio))) throw new Error('Audio de alerta inválido');
+    if (typeof audio !== 'string' || (audio && !isLocalNotificationAsset('audio', audio))) throw new Error('Audio de alerta inválido');
     if (!Number.isFinite(volume) || volume<0 || volume>100) throw new Error('Volumen inválido');
     const imageName = event.imageName ?? '', audioName = event.audioName ?? '';
     if ([imageName,audioName].some(name=>typeof name!=='string'||name.length>180)) throw new Error('Nombre de archivo inválido');
     result.events[type] = { enabled: event.enabled, title: event.title, message: event.message, image, audio, volume, imageName, audioName, appearance: event.appearance == null ? null : validateDesign(event.appearance) };
     const video=event.video??'',videoName=event.videoName??'',videoStart=event.videoStart??0,videoEnd=event.videoEnd??6,videoDuration=event.videoDuration??6,videoMuted=event.videoMuted??true;
-    if(typeof video!=='string'||(video&&!isRemoteMediaURL(video)&&!/^\/notification-assets\/[a-f0-9]{64}\.(mp4|webm)$/.test(video)))throw new Error('Video inválido');
+    if(typeof video!=='string'||(video&&!isLocalNotificationAsset('video', video)))throw new Error('Video inválido');
+    if (video && image) throw new Error('Elige una imagen o un video para ' + eventNames[type]);
     if(typeof videoName!=='string'||videoName.length>180||typeof videoMuted!=='boolean')throw new Error('Opciones de video inválidas');
     if(![videoStart,videoEnd,videoDuration].every(Number.isFinite)||videoStart<0||videoEnd<=videoStart||videoEnd-videoStart>30.001||videoEnd>videoDuration||videoDuration>86400)throw new Error('Elige un fragmento de video de hasta 30 segundos dentro del archivo');
     Object.assign(result.events[type],{video,videoName,videoStart,videoEnd,videoDuration,videoMuted});

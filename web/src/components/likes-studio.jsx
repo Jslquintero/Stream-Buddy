@@ -1,14 +1,20 @@
+import { downloadFile } from '../lib/download-file';
+import { DownloadButton } from './ui/download-button';
+import { OutputLinks, OutputToolbar } from './output-controls';
 import {createPortal} from 'react-dom';
 import boardCSS from './likes.css?raw';
 import {validateThemeCSS} from '../../../shared/custom-themes';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Heart,Copy,ExternalLink,RotateCcw,Crown} from 'lucide-react';
-import {Button,Card,Input,Badge} from './ui';
-import {Field,Toggle} from './fields';
+import {Heart,RotateCcw,Crown} from 'lucide-react';
+import { Button, Card, Input, Badge, Select, Textarea } from './ui';
+import { Field, NumberSettings, OverlayColors, Toggle } from './fields';
 import {useStudio} from '../hooks/use-studio';
 import {useNotificationSettings} from '../hooks/use-notification-settings';
 import {defaultLikes,validateLikes,likesOutputPath,safeAvatar,likesStyles,likesPresets} from '../../../modules/likes/config';
 import './likes.css';
+import { EditorViewSwitch } from './editor-view-switch';
+import './editor-workspace.css';
+import './likes-editor.css';
 import {LikesCount,useLikesMotion,useLikesDemo} from './likes-motion';
 const storage={key:'live-studio.likes.pending.v1',validate:validateLikes,migrate:validateLikes,action:'likes/save'};
 const sample=[{id:'a',name:'María',likes:2500},{id:'b',name:'Carlos',likes:1800},{id:'c',name:'Ana',likes:950},{id:'d',name:'José',likes:830},{id:'e',name:'Sofía',likes:420}];
@@ -45,33 +51,64 @@ export function LikesOutput(){
   return <div className={'likes-stage '+(tool?.config.position||'top-right')}>{online&&tool&&<LikesBoard {...tool}/>}</div>;
 }
 export function LikesStudio({tool,api,notice,online,connected}){
-  const {config,setConfig,dirty,saving,error,save}=useNotificationSettings(tool.config,tool.revision,api,online,storage);
+  const {config,setConfig,dirty,saving,error}=useNotificationSettings(tool.config,tool.revision,api,online,storage);
   const [demo,setDemo]=useState(false),[reset,setReset]=useState(false);
+  const [mobileView,setMobileView]=useState('editor');
   const demoRows=useLikesDemo(demo,sample);
   const update=(key,value)=>setConfig(s=>({...s,[key]:value}));
   const url=new URL(likesOutputPath,location.origin).href;
-  return <div className="likes-editor">
-    <Card className="notifications-toolbar"><div><Badge className={connected?'success':''}>{connected?'TikTok conectado':'TikTok sin conectar'}</Badge><p className="help">Se cuentan los likes recibidos desde la conexión. No se recuperan likes anteriores. El conteo continúa al reconectar; reinícialo para otro directo.</p></div><div className="actions"><Button variant="outline" onClick={async()=>{try{await navigator.clipboard.writeText(url);notice('Enlace de Top likes copiado.');}catch{notice('Enlace: '+url);}}}><Copy size={16}/>Copiar salida</Button><Button asChild variant="outline"><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Abrir salida</a></Button></div></Card>
-    <div className="notifications-grid"><Card className="likes-settings">
-      <h2>Diseño del Top likes</h2><Toggle name="enabled" label="Mostrar clasificación en el directo" settings={config} update={update}/>
-      <Field label="Estilo">{id=><select id={id} className="input" value={config.style||'classic'} onChange={e=>{const style=e.target.value;setConfig(s=>({...s,...likesPresets[style],style}));}}>{likesStyles.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>}</Field>
-      <p className="help">Cada estilo propone un ancho y tamaño de texto; puedes ajustarlos debajo.</p>
-      <Button variant="outline" onClick={()=>setConfig(s=>({...s,fontSize:Math.max(30,Number(s.fontSize)||30),width:Math.max(400,Number(s.width)||400),color:'#ffffff'}))}>Mejorar lectura en móvil</Button>
-      <p className="help">Nombres y likes en negrita con contorno oscuro. Para diseños guardados, el botón aumenta el texto y lo pone blanco. Ajusta el ancho aquí y evita reducir toda la fuente en TikTok.</p>
-      <Toggle name="showTitle" label="Mostrar título" settings={{...defaultLikes,...config}} update={update}/>
-      <Field label="Título">{id=><Input id={id} value={config.title} maxLength={80} onChange={e=>update('title',e.target.value)}/>}</Field>
-      <div className="form-row">{[['limit','Usuarios visibles',1,20],['width','Ancho · px',280,1600],['fontSize','Tamaño de texto · px',16,96],['opacity','Opacidad del fondo · %',0,100],['borderOpacity','Opacidad del borde · %',0,100],['radius','Bordes redondeados · px',0,80]].map(([key,label,min,max])=><Field key={key} label={label}>{id=><Input id={id} type="number" min={min} max={max} value={config[key]} onChange={e=>update(key,e.target.value===''?'':Number(e.target.value))}/>}</Field>)}</div>
-      <div className="form-row">{[['background','Fondo'],['color','Texto'],['accent','Acento']].map(([key,label])=><Field key={key} label={label}>{id=><Input id={id} type="color" value={config[key]} onChange={e=>update(key,e.target.value)}/>}</Field>)}</div>
-      <Field label="Lado de la columna">{id=><select id={id} className="input" value={config.position.split('-')[1]} onChange={e=>update('position',config.position.split('-')[0]+'-'+e.target.value)}><option value="left">Izquierda</option><option value="right">Derecha</option><option value="center">Centro</option></select>}</Field>
-      <Field label="Posición">{id=><select id={id} className="input" value={config.position} onChange={e=>update('position',e.target.value)}>{[['top-left','Arriba · izquierda'],['top-center','Arriba · centro'],['top-right','Arriba · derecha'],['bottom-left','Abajo · izquierda'],['bottom-center','Abajo · centro'],['bottom-right','Abajo · derecha']].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>}</Field>
-      <Toggle name="rgbNames" label="Reflejo RGB en los nombres" description="Un brillo recorre las letras sobre un degradado de colores en movimiento." settings={{...defaultLikes,...config}} update={update}/>
-      <Toggle name="animateNames" label="Movimiento suave en los nombres" settings={{...defaultLikes,...config}} update={update}/>
-      <Toggle name="pulseHearts" label="Corazones con latido" settings={{...defaultLikes,...config}} update={update}/>
-      <Toggle name="showTotal" label="Mostrar total recibido" settings={config} update={update}/>
-      <details className="likes-css-editor"><summary>Editar CSS personalizado</summary><p className="help">Se aplica a la vista previa y a la salida, aislado del panel. Selectores: .likes-board, .likes-name, .likes-score, .likes-avatar, .likes-rank y .likes-crown. Borra el CSS para recuperar el estilo.</p><Field label="CSS personalizado">{id=><textarea id={id} className="input" rows={12} spellCheck={false} maxLength={20000} value={config.customCss||''} placeholder={'.likes-name { color: #299cdd; }'} onChange={e=>update('customCss',e.target.value)}/>}</Field><Button variant="outline" onClick={()=>update('customCss','')}>Restablecer CSS</Button></details>
-      <p role="status" className={error?'error':'help'}>{error||(saving?'Guardando…':dirty?'Cambios pendientes…':'Guardado en este equipo.')}</p><Button variant="outline" disabled={!online||saving} onClick={save}>Guardar diseño</Button>
-    </Card><div className="likes-monitor"><Card><h2>Vista previa</h2><Toggle name="demo" label="Ver ejemplo (solo vista previa)" settings={{demo}} update={(_,value)=>setDemo(value)}/><p className="help">{demo?'Simulación: nuevos likes y adelantamientos cada 2 segundos. No modifica el scoreboard.':'Los contadores y las posiciones se animan al recibir likes en vivo.'}</p><div className={"likes-preview likes-preview-"+config.position.split('-')[1]}><LikesBoard key={demo?'demo':'live'} config={config} ranking={demo?demoRows:tool.ranking} total={demo?demoRows.reduce((sum,row)=>sum+row.likes,0):tool.total} preview/></div></Card>
-    <Card><h2>Scoreboard local</h2><Badge className={connected?'success':''}>{connected?'Actualizando en tiempo real':'Conteo guardado'}</Badge><p className="help">{tool.updatedAt?'?ltimo like: '+new Date(tool.updatedAt).toLocaleTimeString('es'):'Esperando likes.'} {tool.savedAt?'Guardado local: '+new Date(tool.savedAt).toLocaleTimeString('es'):''}</p><Button variant="outline" disabled={!online} onClick={async()=>{const data=await api('likes/export');if(!data)return;const file=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=file;link.download='scoreboard-likes.json';link.click();setTimeout(()=>URL.revokeObjectURL(file),1000);}}>Descargar scoreboard</Button><p>{number(tool.total)} likes · {number(tool.participants)} usuarios</p><p className="help">Canal: {tool.channel?'@'+tool.channel:'esperando likes'}. La clasificación se guarda localmente. Cambiar de canal inicia un conteo nuevo.</p>{tool.error&&<p className="error">{tool.error}</p>}
-    {reset?<div role="alert"><p>¿Borrar el conteo actual? El diseño se conservará.</p><div className="actions"><Button disabled={!online} onClick={async()=>{if(await api('likes/reset')){setReset(false);notice('Conteo de likes reiniciado.');}}}>Confirmar reinicio</Button><Button variant="outline" onClick={()=>setReset(false)}>Cancelar</Button></div></div>:<Button variant="outline" disabled={!online} onClick={()=>setReset(true)}><RotateCcw size={16}/>Reiniciar conteo</Button>}</Card></div></div>
+  return <div className="likes-editor editor-workspace">
+    <header className="editor-workspace-header">
+      <h1 className="editor-workspace-title">Top likes</h1>
+      <OutputToolbar connected={connected} description={connected ? "Recibiendo likes del LIVE." : "Conecta TikTok para recibir likes."}>
+        <OutputLinks notice={notice} url={url} message="Enlace de Top likes copiado." iconSize={15} size="sm"/>
+      </OutputToolbar>
+    </header>
+    <EditorViewSwitch view={mobileView} change={setMobileView} editorLabel="Diseño" monitorLabel="Vista previa y conteo"/>
+    <div className="editor-workspace-grid" data-view={mobileView}>
+      <Card className="likes-settings editor-workspace-settings">
+        <div className="likes-editor-heading"><h2>Clasificación</h2><Toggle name="enabled" label="Mostrar clasificación en el directo" settings={config} update={update}/></div>
+        <div className="likes-editor-fields">
+          <Field label="Estilo">{id=><Select id={id} value={config.style||'classic'} onChange={e=>{const style=e.target.value;setConfig(s=>({...s,...likesPresets[style],style}));}}>{likesStyles.map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select>}</Field>
+          <Field label="Posición">{id=><Select id={id} value={config.position} onChange={e=>update('position',e.target.value)}>{[['top-left','Arriba · izquierda'],['top-center','Arriba · centro'],['top-right','Arriba · derecha'],['bottom-left','Abajo · izquierda'],['bottom-center','Abajo · centro'],['bottom-right','Abajo · derecha']].map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select>}</Field>
+          <NumberSettings fields={[['limit','Usuarios visibles',1,20]]} settings={config} update={update}/>
+          <Field label="Título">{id=><Input id={id} value={config.title} maxLength={80} onChange={e=>update('title',e.target.value)}/>}</Field>
+        </div>
+        <div className="likes-editor-fields likes-display-options">
+          <Toggle name="showTitle" label="Mostrar título" settings={{...defaultLikes,...config}} update={update}/>
+          <Toggle name="showTotal" label="Mostrar total recibido" settings={config} update={update}/>
+        </div>
+        <OverlayColors settings={config} update={update}/>
+        <details className="likes-design-section"><summary>Tamaño, opacidad y bordes</summary>
+          <NumberSettings fields={[['width','Ancho · px',280,1600],['fontSize','Tamaño de texto · px',16,96],['opacity','Opacidad del fondo · %',0,100],['borderOpacity','Opacidad del borde · %',0,100],['radius','Bordes redondeados · px',0,80]]} settings={config} update={update}/>
+          <Button variant="outline" size="sm" onClick={()=>setConfig(s=>({...s,fontSize:Math.max(30,Number(s.fontSize)||30),width:Math.max(400,Number(s.width)||400),color:'#ffffff'}))}>Mejorar lectura en móvil</Button>
+        </details>
+        <details className="likes-design-section"><summary>Efectos</summary><div className="likes-editor-fields likes-display-options">
+          <Toggle name="rgbNames" label="Reflejo RGB en los nombres" settings={{...defaultLikes,...config}} update={update}/>
+          <Toggle name="animateNames" label="Movimiento suave en los nombres" settings={{...defaultLikes,...config}} update={update}/>
+          <Toggle name="pulseHearts" label="Corazones con latido" settings={{...defaultLikes,...config}} update={update}/>
+        </div></details>
+        <details className="likes-css-editor likes-design-section"><summary>Editar CSS personalizado</summary><p className="help">Se aplica a la vista previa y a la salida, aislado del panel. Selectores: .likes-board, .likes-name, .likes-score, .likes-avatar, .likes-rank y .likes-crown. Borra el CSS para recuperar el estilo.</p><Field label="CSS personalizado">{id=><Textarea id={id} rows={6} spellCheck={false} maxLength={20000} value={config.customCss||''} placeholder={'.likes-name { color: #299cdd; }'} onChange={e=>update('customCss',e.target.value)}/>}</Field><Button variant="outline" size="sm" onClick={()=>update('customCss','')}>Restablecer CSS</Button></details>
+        <p role="status" className={error?"error":"help"}>{error || (saving ? "Guardando…" : dirty ? online ? "Pendiente de autoguardado" : "Pendiente de conexión" : "Configuración guardada")}</p>
+      </Card>
+      <div className="likes-monitor editor-workspace-monitor">
+        <Card>
+          <div className="likes-editor-heading"><h2>Vista previa</h2><Toggle name="demo" label="Ver ejemplo (solo vista previa)" settings={{demo}} update={(_,value)=>setDemo(value)}/></div>
+          <div className={"likes-preview likes-preview-"+config.position.split("-")[1]}>
+            <LikesBoard key={demo?"demo":"live"} config={config} ranking={demo?demoRows:tool.ranking} total={demo?demoRows.reduce((sum,row)=>sum+row.likes,0):tool.total} preview/>
+          </div>
+        </Card>
+        <Card>
+          <div className="likes-editor-heading"><h2>Conteo local</h2><Badge className={connected?"success":""}>{connected?"En vivo":"Conteo guardado"}</Badge></div>
+          <p className="likes-totals"><strong>{number(tool.total)}</strong> likes · <strong>{number(tool.participants)}</strong> usuarios</p>
+          <p className="help">{tool.channel && "@"+tool.channel+" · "}{tool.updatedAt ? "Último like a las "+new Date(tool.updatedAt).toLocaleTimeString("es") : "Esperando likes"}</p>
+          {tool.error&&<p className="error">{tool.error}</p>}
+          <div className="actions likes-count-actions">
+            <DownloadButton disabled={!online} onClick={async()=>{const data=await api("likes/export");if(data)downloadFile("scoreboard-likes.json", JSON.stringify(data,null,2), "application/json");}}>Descargar scoreboard</DownloadButton>
+            {reset?<div role="alert"><p>¿Borrar el conteo actual? El diseño se conservará.</p><div className="actions"><Button disabled={!online} onClick={async()=>{if(await api('likes/reset')){setReset(false);notice('Conteo de likes reiniciado.');}}}>Confirmar reinicio</Button><Button variant="outline" onClick={()=>setReset(false)}>Cancelar</Button></div></div>:<Button variant="outline" size="sm" disabled={!online} onClick={()=>setReset(true)}><RotateCcw size={16}/>Reiniciar conteo</Button>}
+          </div>
+        </Card>
+      </div>
+    </div>
   </div>;
 }

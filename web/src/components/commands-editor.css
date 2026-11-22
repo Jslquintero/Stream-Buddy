@@ -1,0 +1,44 @@
+.commands-editor.editor-workspace { display: block; }
+.commands-editor .editor-workspace-header { flex-wrap: wrap; }
+.commands-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.commands-editor fieldset { border: 0; padding: 0; min-width: 0; }
+.commands-editor .toggle-row { margin: 0; padding: 4px 0; border: 0; gap: 8px; }
+.commands-editor .toggle-row label, .commands-editor .field > label { font-size: 12px; }
+.commands-editor .actions { margin: 0; gap: 6px; }
+.commands-actions { margin-top: 10px; }
+.commands-editor .commands-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+.commands-editor .commands-view-list { grid-template-columns: minmax(0,1fr); }
+.commands-view-grid .command-card[data-expanded="true"] { grid-column: 1/-1; }
+.commands-editor .command-summary { gap: 8px; padding: 8px 10px; }
+.commands-editor .command-summary-copy strong { overflow-wrap: anywhere; }
+.commands-editor .command-summary-copy > span { font-size: 12px; }
+.commands-editor .command-fields { padding: 10px; gap: 8px; }
+.commands-editor .field { min-width: 0; margin: 0; gap: 4px; }
+.commands-editor .input { min-width: 0; min-height: 32px; padding: 5px 8px; font-size: 13px; }
+.commands-editor .help { margin: 0; font-size: 12px; }
+.commands-editor .form-row { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.commands-editor .command-media-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
+.commands-editor .media-file-field { padding: 4px; gap: 4px; background: transparent; border-color: transparent; }
+.commands-editor .media-file-field[data-dragging="true"] { border-color: #b9f678; }
+.commands-editor .media-file-field > .button { justify-self: stretch; padding-inline: 5px; }
+.commands-editor .media-file-field:has(details[open]) { grid-column: 1/-1; }
+.commands-editor .command-file-url, .commands-editor .command-options { margin: 0; padding: 0; }
+.commands-editor .command-file-url { border: 0; }
+.commands-editor .command-options > summary { font-size: 13px; padding: 8px 0; }
+.commands-editor .command-options[open] > .field,
+.commands-editor .command-options[open] > fieldset > .field + .field { margin-top: 8px; }
+.commands-editor .command-options .form-row { margin-top: 8px; }
+.commands-editor .save-bar { margin-top: 10px; padding: 8px 0 0; }
+.commands-monitor { display: grid; min-width: 0; }
+.commands-monitor > .card { display: grid; gap: 8px; }
+.commands-monitor > .card > .button { justify-self: start; }
+.commands-monitor > .card > .command-options { border: 0; }
+.commands-monitor > .card > .command-options > summary { padding: 0; }
+.commands-monitor .command-image-preview-stage { min-height: 110px; padding: 8px; }
+.commands-monitor .command-image-preview-stage img, .commands-monitor .command-clip-preview { max-height: min(28vh, 210px); }
+.commands-monitor .command-clip-preview { object-fit: contain; }
+@container (max-width: 420px) {
+  .commands-editor .command-media-grid { grid-template-columns: 1fr; }
+  .commands-editor .media-file-field { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+  .commands-editor .media-file-field .field { grid-column: 1/-1; }
+}

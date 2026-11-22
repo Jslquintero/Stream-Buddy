@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createNotificationsModule } from '../modules/notifications/index.js';
-import { videoSite } from '../modules/notifications/video-sites.js';
-import { defaultNotifications, notificationText, validateNotifications, notificationDesign } from '../modules/notifications/config.js';
+import { defaultNotifications, migrateNotifications, notificationText, validateNotifications, notificationDesign } from '../modules/notifications/config.js';
 
 function fixture(t) {
   const dataDir = fs.mkdtempSync(new URL('./scratch-notifications-', import.meta.url));
@@ -123,25 +122,38 @@ test('audio and video assets persist with per-event volume and bounded trims',t=
   assert.throws(()=>module.assets.upload({kind:'audio',data:'data:audio/mpeg;base64,PGh0bWw+'}));
 });
 
-test('direct media URLs persist and invalid schemes are rejected',t=>{
-  const {module,context}=fixture(t),config=structuredClone(defaultNotifications);
-  config.events.follow.image='https://cdn.example.com/media?id=1&token=abc';
-  config.events.gift.video='http://localhost:9000/intro.mp4';
-  module.save(config);
-  const reopened=createNotificationsModule(context);t.after(()=>reopened.close());
-  reopened.enqueue('follow');assert.equal(reopened.state().current.image,config.events.follow.image);
-  reopened.clear();reopened.enqueue('gift');assert.equal(reopened.state().current.video,config.events.gift.video);
-  for(const invalid of ['javascript:alert(1)','file:///video.mp4','data:image/png;base64,AA==','//cdn.example.com/test.gif','https:relative','https://user:password@example.com/a.gif']) {
-    config.events.follow.image=invalid;assert.throws(()=>validateNotifications(config));
-  }
+test('legacy alerts keep the previously displayed video and their audio when both visuals were saved',()=>{
+  const config = structuredClone(defaultNotifications);
+  const media = { image:'/notification-assets/'+'a'.repeat(64)+'.gif', imageName:'old.gif', video:'/notification-assets/'+'b'.repeat(64)+'.mp4',
+    videoName:'intro.mp4', audio:'/notification-assets/'+'a'.repeat(64)+'.mp3' };
+  Object.assign(config.events.follow, media);
+  assert.throws(() => validateNotifications(config), /imagen o un video/);
+  const event = migrateNotifications(config).events.follow;
+  assert.equal(event.image, '');
+  assert.equal(event.imageName, '');
+  assert.equal(event.video, media.video);
+  assert.equal(event.audio, media.audio);
 });
 
-test('website video links identify supported providers without trusting arbitrary hosts',()=>{
-  assert.equal(videoSite('https://www.youtube.com/watch?v=M7lc1UVf-VE&t=1m12s').start,72);
-  for(const url of ['https://youtu.be/M7lc1UVf-VE','https://youtube.com/shorts/M7lc1UVf-VE','https://youtube-nocookie.com/embed/M7lc1UVf-VE'])assert.equal(videoSite(url).id,'M7lc1UVf-VE');
-  assert.equal(videoSite('https://vimeo.com/123456789/abc123').url,'https://vimeo.com/123456789/abc123');
-  assert.equal(videoSite('https://player.vimeo.com/video/123456789?h=abc123#t=1m2s').start,62);
-  for(const url of ['https://youtube.com.evil.test/watch?v=M7lc1UVf-VE','https://example.com/video.mp4','javascript:alert(1)','https://youtube.com/playlist?list=123','https://user:pass@youtube.com/watch?v=M7lc1UVf-VE'])assert.equal(videoSite(url),null);
+test('external media is rejected for new alerts and removed from legacy settings', () => {
+  const config = structuredClone(defaultNotifications);
+  const event = config.events.gift;
+  const image = '/notification-assets/'+'a'.repeat(64)+'.gif';
+  for (const [kind,url] of [['image','https://cdn.example.com/alert.gif'], ['video','https://youtu.be/clip'], ['audio','https://example.com/audio.mp3']]) {
+    event[kind] = url;
+    assert.throws(() => validateNotifications(config));
+    event[kind] = '';
+  }
+  Object.assign(event,{image,video:'https://example.com/old.mp4',videoName:'old.mp4'});
+  config.events.follow.image='https://cdn.example.com/old.gif';
+  config.events.follow.imageName='old.gif';
+  const migrated=migrateNotifications(config);
+  assert.equal(migrated.events.follow.image,'');
+  assert.equal(migrated.events.follow.imageName,'');
+  assert.equal(migrated.events.gift.video,'');
+  assert.equal(migrated.events.gift.videoName,'');
+  assert.equal(migrated.events.gift.image,image);
+  assert.equal(migrated.events.gift.title,event.title);
 });
 
 test('image upload accepts GIFs above the old 5 MB limit and rejects above 20 MB',t=>{
@@ -154,14 +166,14 @@ test('image upload accepts GIFs above the old 5 MB limit and rejects above 20 MB
 
 test('local settings migrate older designs and recover a backup without losing media',t=>{
   const {module,context}=fixture(t);const config=structuredClone(defaultNotifications);
-  config.events.gift.image='https://example.com/gift.gif';config.events.gift.appearance={...notificationDesign(config,'gift'),animation:'bounce',borderOpacity:0,fontFamily:'google:'+'a'.repeat(24)};
+  config.events.gift.image='/notification-assets/'+'c'.repeat(64)+'.gif';config.events.gift.appearance={...notificationDesign(config,'gift'),animation:'bounce',borderOpacity:0,fontFamily:'google:'+'a'.repeat(24)};
   module.save(config);const firstRevision=module.state().revision;
   config.events.follow.title='Guardado nuevo';module.save(config);assert.ok(module.state().revision>firstRevision);
   const reopened=createNotificationsModule(context);t.after(()=>reopened.close());assert.equal(reopened.state().config.events.gift.appearance.borderOpacity,0);
   assert.equal(reopened.state().config.events.gift.appearance.fontFamily,'google:'+'a'.repeat(24));
   fs.writeFileSync(path.join(context.dataDir,'notifications.json'),'{broken');
-  const recovered=createNotificationsModule(context);t.after(()=>recovered.close());assert.match(recovered.state().error,/recuperada/);assert.equal(recovered.state().config.events.gift.image,'https://example.com/gift.gif');
+  const recovered=createNotificationsModule(context);t.after(()=>recovered.close());assert.match(recovered.state().error,/recuperada/);assert.equal(recovered.state().config.events.gift.image,'/notification-assets/'+'c'.repeat(64)+'.gif');
   delete config.borderOpacity;delete config.animationSpeed;delete config.events.gift.appearance.borderOpacity;
   fs.writeFileSync(path.join(context.dataDir,'notifications.json'),'\uFEFF'+JSON.stringify(config));
-  const legacy=createNotificationsModule(context);t.after(()=>legacy.close());assert.equal(legacy.state().error,'');assert.equal(legacy.state().config.borderOpacity,100);assert.equal(legacy.state().config.events.gift.image,'https://example.com/gift.gif');
+  const legacy=createNotificationsModule(context);t.after(()=>legacy.close());assert.equal(legacy.state().error,'');assert.equal(legacy.state().config.borderOpacity,100);assert.equal(legacy.state().config.events.gift.image,'/notification-assets/'+'c'.repeat(64)+'.gif');
 });

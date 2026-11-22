@@ -1,0 +1,22 @@
+.likes-editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
+.likes-editor .toggle-row { margin: 0; padding: 6px 0; border: 0; gap: 8px; }
+.likes-editor .toggle-row label, .likes-editor .field > label { font-size: 12px; }
+.likes-editor-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; align-items: end; }
+.likes-editor-fields > .form-row { display: contents; }
+.likes-editor .field { margin: 0; min-width: 0; gap: 4px; }
+.likes-editor .input { min-height: 32px; min-width: 0; padding: 5px 8px; font-size: 13px; }
+.likes-settings > .likes-editor-fields { margin-top: 8px; }
+.likes-settings > .form-row { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 6px 0 10px; }
+.likes-editor .input[type="color"] { height: 32px; padding: 2px 4px; }
+.likes-settings .likes-design-section { margin: 0; padding: 0 0 2px; }
+.likes-design-section summary { padding: 8px 0; font-size: 13px; font-weight: 600; }
+.likes-design-section > .form-row { grid-template-columns: repeat(auto-fit,minmax(min(100%,135px),1fr)); gap: 8px; }
+.likes-design-section > .button { margin: 8px 0; }
+.likes-settings [role="status"] { margin-top: 8px; }
+.likes-editor .likes-preview { margin-top: 8px; max-height: min(42vh, 360px); padding: 10px; align-items: flex-start; }
+.likes-editor .likes-totals { margin: 8px 0 2px; }
+.likes-editor .likes-count-actions { margin: 10px 0 0; gap: 8px; }
+.likes-editor .likes-count-actions [role="alert"] { flex-basis: 100%; }
+@container (max-width: 380px) {
+  .likes-editor-fields.likes-display-options { grid-template-columns: 1fr; gap: 0; }
+}

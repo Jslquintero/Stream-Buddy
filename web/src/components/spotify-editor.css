@@ -49,8 +49,6 @@
 .spotify-code-label textarea:focus { border-color:#b987f5; box-shadow:0 0 0 3px #b987f514; }
 .spotify-code-label textarea::placeholder { color:#6a768d; }
 .spotify-editor-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-.spotify-editor-actions button { background:#272632; border:1px solid #ffffff15; color:#ded7ea; font-size:11px; border-radius:6px; padding:7px 9px; cursor:pointer; }
-.spotify-editor-actions button:disabled { opacity:.4; cursor:default; }
 .spotify-editor-actions span { margin-left:auto; font-size:10px; color:#8c95a8; }
 .spotify-css-editor details p { margin-top:10px; color:#aeb8cc; font-size:12px; }
 .spotify-css-editor details code { display:inline; padding:1px 4px; margin:0; font-size:11px; color:#cbb0ed; }

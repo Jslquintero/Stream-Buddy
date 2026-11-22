@@ -1,3 +1,4 @@
+import { downloadFile } from './download-file.js';
 import { validateThemeCSS } from '../../../shared/custom-themes';
 
 export async function readThemeFile(file) {
@@ -17,8 +18,5 @@ export async function readThemeFile(file) {
 export function downloadThemeCSS(theme) {
   const css=validateThemeCSS(theme.css);
   const slug=theme.name.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'tema';
-  const url=URL.createObjectURL(new Blob([css],{type:'text/css;charset=utf-8'}));
-  const link=document.createElement('a');link.href=url;link.download='overlay-'+slug+'.css';
-  try{document.body.append(link);link.click();}
-  finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  downloadFile('overlay-'+slug+'.css', css, 'text/css;charset=utf-8');
 }

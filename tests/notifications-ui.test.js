@@ -45,6 +45,21 @@ test('command dashboard preserves the chosen view and saves public descriptions'
   assert.match(opened[0][0],/\/commands\?commands-list-output=1#tiktok.studio$/);
   assert.equal(requests.find(r=>r.url==='/api/commands/test').body.id,'!comandos');
 });
+test('dropping audio on a command uploads it through the audio field', async t => {
+  const { window, publish, requests } = await mount(t, '/commands');
+  publish({ token: 'test', settings: defaults, tts: { resources: {} }, events: [],
+    tools: { layout: {}, ads: {}, commands: { config: structuredClone(defaultCommands) } } });
+  const field = () => window.document.querySelector('section[aria-label="Sonido"]');
+  await until(field);
+  const drop = new window.Event('drop', { bubbles: true, cancelable: true });
+  Object.defineProperty(drop, 'dataTransfer', { value: { files: [new window.File(['audio'], 'alerta.mp3', { type: 'audio/mpeg' })] } });
+  field().dispatchEvent(drop);
+  await until(() => requests.some(request => request.url === '/api/notifications/upload'));
+  const upload = requests.find(request => request.url === '/api/notifications/upload');
+  assert.equal(upload.body.kind, 'audio');
+  assert.match(upload.body.data, /^data:audio\/mpeg;base64,/);
+  assert.equal(drop.defaultPrevented, true);
+});
 test('command help renders descriptions safely and paginates large lists', async t => {
   const {window,publish}=await mount(t,'/commands?commands-list-output');
   const help=Array.from({length:7},(_,i)=>({command:'!c'+i,description:i===0?'<img src=x>':'Descripción '+i}));
@@ -98,6 +113,13 @@ test('Top likes route autosaves design without losing edits on live updates; pre
   const state={token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},likes:{config:structuredClone(defaultLikes),ranking:[],total:0,participants:0}}};
   publish(state);await until(()=>window.document.querySelector('.likes-settings'));
   assert.equal(window.document.querySelector('.nav-item.active').textContent,'Top likes');
+  assert.ok([...window.document.querySelectorAll('.likes-settings details')].every(section => !section.open));
+  assert.ok(![...window.document.querySelectorAll('.likes-settings button')].some(button => button.textContent === 'Guardar diseño'));
+  const mobileMonitor = [...window.document.querySelectorAll('.editor-mobile-view button')].find(button => button.textContent === 'Vista previa y conteo');
+  mobileMonitor.click();
+  await until(() => window.document.querySelector('.editor-workspace-grid').dataset.view === 'monitor');
+  window.document.querySelector('.editor-mobile-view button').click();
+  await until(() => window.document.querySelector('.editor-workspace-grid').dataset.view === 'editor');
   const title=window.document.querySelector('.likes-settings input:not([type])');
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(title,'Mi comunidad');title.dispatchEvent(new window.Event('input',{bubbles:true}));await pause();
   state.tools.likes.ranking=[{id:'1',name:'Ana',likes:14}];state.tools.likes.total=14;publish(state);await pause();assert.equal(title.value,'Mi comunidad');
@@ -141,7 +163,7 @@ test('Super Fan editor restores older pending settings and sends a customized pr
   await until(()=>requests.some(r=>r.url==='/api/notifications/save'));
   assert.equal(requests.find(r=>r.url==='/api/notifications/save').body.events.follow.title,'Mi saludo pendiente');
 });
-async function until(check) { for(let i=0;i<80;i++){if(check())return;await pause();}assert.ok(check()); }
+async function until(check,attempts=80) { for(let i=0;i<attempts;i++){if(check())return;await pause();}assert.ok(check()); }
 async function mount(t, route) {
   const dom = new JSDOM('<div id="root"></div>', {url:'http://127.0.0.1:17900'+route,runScripts:'outside-only',pretendToBeVisual:true});
   t.after(()=>dom.window.close()); const {window}=dom; let stream; const requests=[];
@@ -168,12 +190,19 @@ test('notification editor preserves drafts, saves configuration and sends explic
   publish(state);await pause();assert.equal(title.value,'Hola {usuario}');
   assert.equal(window.document.querySelector('.notification-banner strong').textContent,'Hola María');
   const click=async text=>{const button=Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent===text);assert.ok(button);button.click();await pause();};
+  assert.equal(window.document.querySelectorAll('.notification-attachments input[type=file]').length,3);
+  assert.equal(window.document.querySelector('.notification-attachments input:not([type=file])'),null);
+  assert.equal(window.document.querySelector('.notification-attachments input[type=file]').closest('details'),null);
   window.Image=class {set src(value){queueMicrotask(()=>this.onload());}};
   const fileInput=window.document.querySelector('.notifications-settings input[type=file]');
   Object.defineProperty(fileInput,'files',{value:[new window.File(['GIF89a'],'alert.gif',{type:'image/gif'})]});
   fileInput.dispatchEvent(new window.Event('change',{bubbles:true}));
   await until(()=>window.document.querySelector('.notification-banner img'));
   assert.match(requests.find(r=>r.url==='/api/notifications/upload').body.data,/^data:image\/gif;base64,/);
+  const designTab = [...window.document.querySelectorAll('[role="tab"]')].find(tab => tab.textContent === 'Diseño');
+  designTab.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+  await until(() => designTab.getAttribute('aria-selected') === 'true');
+  assert.equal(window.document.querySelector('[data-panel="content"]').hidden,true);
   const custom=Array.from(window.document.querySelectorAll('.notifications-settings label')).find(label=>label.textContent==='Diseño propio para esta alerta');
   window.document.getElementById(custom.htmlFor).click();await pause();
   const layoutLabel=Array.from(window.document.querySelectorAll('.notifications-settings label')).find(label=>label.textContent==='Distribución');
@@ -188,7 +217,8 @@ test('notification editor preserves drafts, saves configuration and sends explic
   assert.match(preview.body.config.events.follow.image,/\.gif$/);
   assert.equal(preview.body.config.events.follow.appearance.layout,'top');
   assert.equal(requests.some(r=>r.url==='/api/notifications/save'),false);
-  await click('Guardar notificaciones');
+  assert.ok(![...window.document.querySelectorAll('button')].some(button=>button.textContent==='Guardar notificaciones'));
+  await until(()=>requests.some(r=>r.url==='/api/notifications/save'));
   assert.equal(title.value,'Hola {usuario}','Saving must not revert the draft before SSE acknowledges it');
   const saved=requests.find(r=>r.url==='/api/notifications/save').body;
   state.tools.notifications.config=saved;publish(state);
@@ -223,8 +253,8 @@ test('video trimmer constrains the selected clip to the alert duration and saves
   await set('Inicio · segundos',12);assert.equal(inputFor('Fin · segundos').value,'18');
   await set('Fin · segundos',50);assert.equal(inputFor('Fin · segundos').value,'18');
   await set('Duración · segundos',4);await until(()=>inputFor('Fin · segundos').value==='16');
-  assert.equal(window.document.querySelector('.alert-media-picker audio').volume,.35);
-  Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent==='Guardar notificaciones').click();await pause();
+  assert.equal(inputFor('Volumen: 35%').value,'35');
+  await until(()=>requests.some(r=>r.url==='/api/notifications/save'));
   const saved=requests.find(r=>r.url==='/api/notifications/save');assert.ok(saved);
   assert.equal(saved.body.events.follow.videoStart,12);assert.equal(saved.body.events.follow.videoEnd,16);assert.equal(saved.body.events.follow.volume,35);
 });
@@ -255,8 +285,8 @@ test('video and audio picker uploads attach to their event and initialize a boun
   const upload=async(kind,name,mime)=>{const input=window.document.querySelector(`input[type=file][accept*="${kind}"]`);Object.defineProperty(input,'files',{value:[new window.File(['test'],name,{type:mime})]});input.dispatchEvent(new window.Event('change',{bubbles:true}));};
   await upload('video','intro.mp4','video/mp4');await until(()=>window.document.querySelector('.alert-video-trimmer'));
   assert.match(window.document.querySelector('.alert-video-trimmer').textContent,/43.8 s/);
-  await upload('audio','sound.mp3','audio/mpeg');await until(()=>window.document.querySelector('.alert-media-picker audio'));
-  Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent==='Guardar notificaciones').click();
+  await upload('audio','sound.mp3','audio/mpeg');await until(()=>window.document.querySelector('.notifications-settings input[type=range][max="100"]'));
+
   await until(()=>requests.some(r=>r.url==='/api/notifications/save'));
   const event=requests.find(r=>r.url==='/api/notifications/save').body.events.follow;
   assert.equal(event.videoStart,0);assert.equal(event.videoEnd,6);assert.equal(event.videoDuration,43.75);
@@ -264,80 +294,12 @@ test('video and audio picker uploads attach to their event and initialize a boun
   assert.match(event.audio,/\.mp3$/);
 });
 
-test('direct image and video links are previewed, saved and keep the previous media on failure',async t=>{
-  const {window,requests,publish}=await mount(t,'/notifications');
-  window.Image=class{set src(value){queueMicrotask(()=>value.includes('broken')?this.onerror?.():this.onload?.());}};
-  const create=window.document.createElement.bind(window.document);
-  window.document.createElement=(tag,...args)=>{const node=create(tag,...args);if(tag==='video'){
-    Object.defineProperty(node,'duration',{get:()=>22.5});
-    Object.defineProperty(node,'src',{set(value){node.setAttribute('src',value);queueMicrotask(()=>node.onloadedmetadata?.());},get(){return node.getAttribute('src');}});
-  }return node;};
-  publish({token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},notifications:{config:structuredClone(defaultNotifications),queued:0,current:null}}});
-  await until(()=>window.document.querySelector('.alert-media-url'));
-  const enter=async(index,url)=>{const input=window.document.querySelectorAll('.alert-media-url input')[index];Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,url);input.dispatchEvent(new window.Event('input',{bubbles:true}));await pause();input.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));};
-  await enter(0,'https://cdn.example.com/alert.gif?token=test');
-  await until(()=>window.document.querySelector('.notification-banner img'));
-  assert.equal(window.document.querySelector('.notification-banner img').src,'https://cdn.example.com/alert.gif?token=test');
-  await enter(0,'https://cdn.example.com/broken.gif');await until(()=>window.document.querySelector('.alert-media-url .error'));
-  assert.equal(window.document.querySelector('.notification-banner img').src,'https://cdn.example.com/alert.gif?token=test');
-  await enter(1,'https://cdn.example.com/video.mp4');await until(()=>window.document.querySelector('.alert-video-trimmer'));
-  Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent==='Guardar notificaciones').click();
-  await until(()=>requests.some(r=>r.url==='/api/notifications/save'));
-  const event=requests.find(r=>r.url==='/api/notifications/save').body.events.follow;
-  assert.equal(event.video,'https://cdn.example.com/video.mp4');assert.equal(event.videoEnd,6);assert.equal(event.videoDuration,22.5);
-  assert.equal(event.image,'https://cdn.example.com/alert.gif?token=test');
-  assert.equal(requests.some(r=>r.url==='/api/notifications/upload'),false);
-});
-
-test('YouTube page URLs use the site player and retain timestamp trimming',async t=>{
-  const {window,requests,publish}=await mount(t,'/notifications');const players=[];
-  window.YT={Player:class{
-    constructor(target,options){this.options=options;this.time=0;const frame=window.document.createElement('iframe');frame.title='YouTube';target.replaceWith(frame);players.push(this);queueMicrotask(()=>options.events.onReady({target:this}));}
-    setVolume(value){this.volume=value;}mute(){}unMute(){}getCurrentTime(){return this.time;}pauseVideo(){this.paused=true;}seekTo(value){this.time=value;}
-    cueVideoById(value){this.clip=value;}loadVideoById(value){this.clip=value;}destroy(){this.destroyed=true;}
-  }};
-  publish({token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},notifications:{config:structuredClone(defaultNotifications),queued:0,current:null}}});
-  await until(()=>window.document.querySelectorAll('.alert-media-url input').length===2);
-  const input=window.document.querySelectorAll('.alert-media-url input')[1];
-  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'https://youtu.be/M7lc1UVf-VE?t=12');input.dispatchEvent(new window.Event('input',{bubbles:true}));await pause();
-  input.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
-  await until(()=>players.some(p=>p.clip));
-  assert.equal(players.find(p=>p.clip).clip.startSeconds,12);assert.equal(players.find(p=>p.clip).clip.endSeconds,18);
-  assert.ok(window.document.querySelector('.alert-website-player iframe'));
-  assert.equal(window.document.querySelector('.alert-video-trimmer video'),null);
-  Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent==='Guardar notificaciones').click();await until(()=>requests.some(r=>r.url==='/api/notifications/save'));
-  assert.equal(requests.find(r=>r.url==='/api/notifications/save').body.events.follow.videoStart,12);
-  assert.equal(requests.some(r=>r.url==='/api/notifications/upload'),false);
-  const player=players.find(p=>p.clip&&!p.destroyed);player.time=19;await until(()=>player.paused);
-});
-
-test('Vimeo output seeks to the segment, stops at its end and destroys on clear',async t=>{
-  const {window,publish}=await mount(t,'/?notifications-output=1');let player;
-  window.Vimeo={Player:class{
-    constructor(target,options){player=this;this.options=options;this.events={};}on(name,handler){this.events[name]=handler;}ready(){return Promise.resolve();}
-    setVolume(value){this.volume=value;return Promise.resolve();}setCurrentTime(value){this.time=value;return Promise.resolve();}play(){this.played=true;return Promise.resolve();}pause(){this.paused=true;return Promise.resolve();}destroy(){this.destroyed=true;return Promise.resolve();}
-  }};
-  const state={tools:{notifications:{current:{id:'vimeo',type:'follow',title:'Hola',message:'Gracias',style:defaultNotifications,video:'https://vimeo.com/123456789',videoStart:20,videoEnd:26,videoMuted:true,expiresAt:Date.now()+6000}}}};
-  publish(state);await until(()=>player?.played);assert.ok(player.time>=20&&player.time<21);assert.equal(player.volume,0);
-  assert.equal(player.options.controls,false);assert.equal(player.options.title,false);
-  player.events.playing();await pause();assert.equal(window.document.querySelector('.alert-website-player').style.visibility,'');
-  player.events.timeupdate({seconds:26});assert.equal(player.paused,true);
-  await pause();assert.equal(window.document.querySelector('.alert-website-player').style.visibility,'hidden');
-  publish({tools:{notifications:{current:null}}});await until(()=>player.destroyed);
-});
-
-test('YouTube alert output hides controls and loading or paused player screens',async t=>{
-  const {window,publish}=await mount(t,'/?notifications-output=1');let player;
-  window.YT={Player:class{
-    constructor(target,options){player=this;this.options=options;this.time=12;target.replaceWith(window.document.createElement('iframe'));queueMicrotask(()=>options.events.onReady({target:this}));}
-    setVolume(){}mute(){}unMute(){}loadVideoById(){}cueVideoById(){}getCurrentTime(){return this.time;}seekTo(){}pauseVideo(){}destroy(){}
-  }};
-  publish({tools:{notifications:{current:{id:'clean',type:'follow',title:'Hola',message:'Gracias',style:defaultNotifications,video:'https://youtube.com/watch?v=M7lc1UVf-VE',videoStart:12,videoEnd:18,videoMuted:true,expiresAt:Date.now()+6000}}}});
-  await until(()=>player);assert.equal(player.options.playerVars.controls,0);assert.equal(player.options.playerVars.fs,0);
-  assert.equal(window.document.querySelector('.alert-website-player').style.visibility,'hidden');
-  player.options.events.onStateChange({data:1,target:player});await pause();assert.equal(window.document.querySelector('.alert-website-player').style.visibility,'');
-  player.options.events.onStateChange({data:2,target:player});await pause();assert.equal(window.document.querySelector('.alert-website-player').style.visibility,'hidden');
-  assert.equal(window.document.querySelector('button'),null);
+test('notification output ignores external media from a stale event',async t=>{
+  const {window,publish}=await mount(t,'/?notifications-output=1');
+  publish({tools:{notifications:{current:{id:'legacy',type:'follow',title:'Hola',message:'Gracias',style:defaultNotifications,
+    video:'https://example.com/video.mp4',image:'https://example.com/image.gif',audio:'https://example.com/audio.mp3',expiresAt:Date.now()+6000}}}});
+  await until(()=>window.document.querySelector('.notification-banner'));
+  assert.equal(window.document.querySelector('.output-stage img, .output-stage video, .output-stage audio, .output-stage iframe'),null);
 });
 
 test('local GIF without MIME above 5 MB replaces a previous video and reports bad files inline',async t=>{
@@ -376,7 +338,7 @@ test('pending notification edits survive a page reload and retry saving to disk'
   second.publish(state);await pause();assert.equal(restored.value,'Recuperado tras recargar');
   let saved;
   second.window.fetch=async(url,options)=>{saved=JSON.parse(options.body);return {ok:true,json:async()=>({ok:true,notificationRevision:200})};};
-  Array.from(second.window.document.querySelectorAll('button')).find(b=>b.textContent==='Guardar notificaciones').click();await until(()=>saved);
+  await until(()=>saved,200);
   await until(()=>!second.window.localStorage.getItem('live-studio.notifications.pending.v1'));
   second.publish(state);await pause();assert.equal(restored.value,'Recuperado tras recargar');
   const third=await mount(t,'/notifications');third.publish({...state,tools:{...state.tools,notifications:{...state.tools.notifications,config:saved,revision:200}}});await until(()=>third.window.document.querySelector('.notifications-settings'));

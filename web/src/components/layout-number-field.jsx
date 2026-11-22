@@ -1,3 +1,4 @@
+import { Input } from './ui';
 import { useEffect, useRef, useState } from 'react';
 
 const display=value=>String(Math.round(value*100)/100);
@@ -12,7 +13,7 @@ export function LayoutNumberField({ label, value, min, max, onChange }) {
     const next=Math.min(max,Math.max(min,number));setText(display(next));
     if(Math.abs(next-value)>.00001)onChange(next);
   };
-  return <label>{label}<input className="input" type="number" aria-label={label} min={min} max={max} step="any" value={text} onFocus={()=>{editing.current=true;}} onBlur={commit} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}} onChange={event=>{
+  return <label>{label}<Input type="number" aria-label={label} min={min} max={max} step="any" value={text} onFocus={()=>{editing.current=true;}} onBlur={commit} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}} onChange={event=>{
     const next=event.target.value;setText(next);
     const number=Number(next);
     if(next.trim()!==''&&Number.isFinite(number)&&number>=min&&number<=max&&Math.abs(number-value)>.00001)onChange(number);

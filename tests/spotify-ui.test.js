@@ -96,7 +96,7 @@ test('Spotify automatically saves actions and recovers pending changes after rel
 test('Spotify autosaves output design, cover, effects, theme and animations without a save button', async t => {
   const f = await setup(t,'/spotify'), doc=f.window.document;
   const button = text => [...doc.querySelectorAll('button')].find(b=>b.textContent===text);
-  const toggle = text => [...doc.querySelectorAll('label')].find(l=>l.textContent===text).querySelector('input');
+  const toggle = text => [...doc.querySelectorAll('label')].find(label => label.textContent === text).control;
   const actions = [
     [()=>button('Gallery').click(),'playerStyle','gallery'],
     [()=>button('Vinilo').click(),'coverStyle','vinyl'],

@@ -1,3 +1,6 @@
+import { ToggleRow } from './fields';
+import { FilePicker } from './ui/file-picker';
+import { Select, Input, Button } from './ui';
 import { useEffect, useState } from 'react';
 import { Music2 } from 'lucide-react';
 import { appearanceDefaults, playerStyles, coverFinishes, coverStyles, animationStyles } from '../../../shared/spotify';
@@ -9,23 +12,21 @@ function Choices({ title, field, values, config, change, miniature = false }) {
 }
 export function SpotifyAppearance({ draft, setDraft, notice }) {
   const c = { ...appearanceDefaults, ...draft }, change = (key, value) => setDraft(d => ({ ...d, [key]:value }));
-  async function upload(event) {
-    const file = event.target.files?.[0]; event.target.value = '';
-    if (!file) return;
+  async function upload(file) {
     if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 500000) { notice('Elige un PNG, JPG o WebP de hasta 500 KB.'); return; }
     try { const result = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); change('idleCover', result); } catch { notice('No se pudo leer la imagen.'); }
   }
   return <div className="spotify-customization">
     <Choices title="Apariencia del reproductor" field="playerStyle" values={playerStyles} config={c} change={change} miniature/>
     <Choices title="Apariencia de la carátula" field="coverStyle" values={coverStyles} config={c} change={change} miniature/>
-    {c.coverStyle === 'canvas' && <label>Video personalizado (URL MP4 o WebM)<input className="input" type="url" value={c.canvasUrl} onChange={e => change('canvasUrl', e.target.value)}/><small className="help">Video en bucle para todas las canciones. No descarga Canvas de Spotify. Si falla, se muestra la carátula.</small></label>}
+    {c.coverStyle === 'canvas' && <label>Video personalizado (URL MP4 o WebM)<Input type="url" value={c.canvasUrl} onChange={e => change('canvasUrl', e.target.value)}/><small className="help">Video en bucle para todas las canciones. No descarga Canvas de Spotify. Si falla, se muestra la carátula.</small></label>}
     <hr/><h3>Carátula</h3>
-    {[['coverGlow','Brillo alrededor de la carátula'],['coverBlur','Carátula desenfocada como fondo']].map(([key,label]) => <label className="spotify-toggle" key={key}>{label}<input type="checkbox" role="switch" checked={c[key]} onChange={e => change(key,e.target.checked)}/></label>)}
-    <label>Imagen cuando no hay música<input type="file" accept="image/png,image/jpeg,image/webp" onChange={upload}/><small className="help">PNG, JPG o WebP · máximo 500 KB. Se muestra al estar conectado sin una canción; ocultar al pausar tiene prioridad.</small></label>
-    {c.idleCover && <div className="spotify-idle-upload"><img src={c.idleCover} alt="Carátula en reposo"/><button type="button" onClick={() => change('idleCover','')}>Quitar imagen</button></div>}
-    <hr/><h3>Colores</h3><label className="spotify-toggle">Colores de la carátula<input role="switch" type="checkbox" checked={c.magicColors} onChange={e => change('magicColors',e.target.checked)}/></label>
-    <label>Tema<select className="input" value={c.theme} onChange={e => change('theme',e.target.value)}><optgroup label="Básicos"><option value="dark">Oscuro</option><option value="light">Claro</option><option value="tinted">Color sólido</option><option value="gradient">Degradado de color</option><option value="transparent">Transparente</option></optgroup><optgroup label="Windows"><option value="xp">Luna XP</option><option value="wmp">Windows Media Player</option></optgroup><optgroup label="Colección nueva"><option value="winamp">Winamp clásico</option><option value="ipod">iPod</option><option value="vaporwave">Vaporwave</option><option value="neon">Neón nocturno</option><option value="radio">Radio FM</option><option value="cassette">Cassette</option><option value="marquee">Marquesina</option><option value="amber">Terminal ámbar</option><option value="glass">Vidrio</option><option value="editorial">Editorial</option></optgroup></select></label>
-    <label>Color del tema y acento<input type="color" value={c.tintColor} onChange={e => change('tintColor',e.target.value)}/></label><div className="spotify-swatches">{['#267493','#21857e','#777b25','#a4832b','#b56829','#aa4830','#a93645','#a25476','#7944a1'].map(color => <button type="button" key={color} aria-label={'Color '+color} aria-pressed={c.tintColor === color} style={{background:color}} onClick={() => change('tintColor',color)}/>)}</div>
+    {[['coverGlow','Brillo alrededor de la carátula'],['coverBlur','Carátula desenfocada como fondo']].map(([key,label]) => <ToggleRow key={key} label={label} checked={c[key]} onCheckedChange={value => change(key,value)}/>)}
+    <div><FilePicker label="Imagen cuando no hay música" accept="image/png,image/jpeg,image/webp" onFile={upload}/><p className="help">PNG, JPG o WebP · máximo 500 KB. Se muestra al estar conectado sin una canción; ocultar al pausar tiene prioridad.</p></div>
+    {c.idleCover && <div className="spotify-idle-upload"><img src={c.idleCover} alt="Carátula en reposo"/><Button variant="ghost" size="sm" onClick={() => change('idleCover','')}>Quitar imagen</Button></div>}
+    <hr/><h3>Colores</h3><ToggleRow label="Colores de la carátula" checked={c.magicColors} onCheckedChange={value => change('magicColors',value)}/>
+    <label>Tema<Select value={c.theme} onChange={e => change('theme',e.target.value)}><optgroup label="Básicos"><option value="dark">Oscuro</option><option value="light">Claro</option><option value="tinted">Color sólido</option><option value="gradient">Degradado de color</option><option value="transparent">Transparente</option></optgroup><optgroup label="Windows"><option value="xp">Luna XP</option><option value="wmp">Windows Media Player</option></optgroup><optgroup label="Colección nueva"><option value="winamp">Winamp clásico</option><option value="ipod">iPod</option><option value="vaporwave">Vaporwave</option><option value="neon">Neón nocturno</option><option value="radio">Radio FM</option><option value="cassette">Cassette</option><option value="marquee">Marquesina</option><option value="amber">Terminal ámbar</option><option value="glass">Vidrio</option><option value="editorial">Editorial</option></optgroup></Select></label>
+    <label>Color del tema y acento<Input type="color" value={c.tintColor} onChange={e => change('tintColor',e.target.value)}/></label><div className="spotify-swatches">{['#267493','#21857e','#777b25','#a4832b','#b56829','#aa4830','#a93645','#a25476','#7944a1'].map(color => <button type="button" key={color} aria-label={'Color '+color} aria-pressed={c.tintColor === color} style={{background:color}} onClick={() => change('tintColor',color)}/>)}</div>
     <small className="help">Color sólido y Degradado tiñen el fondo con el color elegido. Activa Colores de la carátula para adaptarlo a cada canción.</small>
     <small className="help">El color de acento también se usa si no se pueden leer los colores de la imagen.</small>
     <hr/><Choices title="Animación de entrada" field="revealAnimation" values={animationStyles} config={c} change={change}/><Choices title="Animación de salida" field="exitAnimation" values={animationStyles} config={c} change={change}/>

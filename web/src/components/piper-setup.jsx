@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card } from './ui';
+import { Button, Card, Select } from './ui';
 
 export function PiperSetup({ resources, speaking, api }) {
   const dialog = useRef(null);
@@ -40,7 +40,7 @@ export function PiperSetup({ resources, speaking, api }) {
           <legend>¿Qué voces quieres instalar?</legend>
           <label className="piper-choice"><input type="radio" name="piper-scope" value="language" checked={scope === 'language'} onChange={() => setScope('language')}/> Un idioma específico</label>
           <label className="piper-choice"><input type="radio" name="piper-scope" value="all" checked={scope === 'all'} onChange={() => setScope('all')}/> Todos los idiomas</label>
-          {scope === 'language' && <label className="field">Idioma<select className="input" value={language} disabled={!languages.length} onChange={e => setLanguage(e.target.value)}>{!languages.length && <option value="es">Cargando idiomas…</option>}{languages.map(code => <option key={code} value={code}>{names.of(code)}</option>)}</select><span className="help">Incluye las voces y variantes regionales de este idioma.</span></label>}
+          {scope === 'language' && <label className="field">Idioma<Select value={language} disabled={!languages.length} onChange={e => setLanguage(e.target.value)}>{!languages.length && <option value="es">Cargando idiomas…</option>}{languages.map(code => <option key={code} value={code}>{names.of(code)}</option>)}</Select><span className="help">Incluye las voces y variantes regionales de este idioma.</span></label>}
         </fieldset>
         <p className="help" role="status">{loading ? 'Consultando recursos…' : selected.length ? `${selected.length} voces · Aproximadamente ${size >= 1024 ? (size / 1024).toFixed(1) + ' GB' : size + ' MB'} de voces.` : 'No hay voces disponibles.'}</p>
         {resources.error && <p className="error" role="alert">{resources.error}</p>}
