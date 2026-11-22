@@ -109,3 +109,42 @@ test('Spotify HTTP connect requires CSRF token and callback validates OAuth stat
   assert.equal(cancelled.status, 303); assert.equal(cancelled.headers.get('location'), '/spotify');
   assert.equal((await fetch(origin + '/spotify')).status, 200);
 });
+
+test('Spotify appearance persists and rejects unsafe media settings', t => {
+  const f = fixture(t);
+  f.spotify.save({ clientId, mode:'api', playerStyle:'gallery', coverStyle:'canvas', canvasUrl:'https://example.com/loop.mp4', coverGlow:true, coverBlur:true, magicColors:true, tintColor:'#aa3377', revealAnimation:'swing-left', exitAnimation:'tilt-right', idleCover:'data:image/png;base64,YQ==' });
+  const restored = createSpotifyModule(f.options); t.after(() => restored.close());
+  assert.equal(restored.state().config.playerStyle,'gallery');
+  assert.equal(restored.state().config.coverGlow,true);
+  assert.equal(restored.state().config.exitAnimation,'tilt-right');
+  for (const invalid of [{canvasUrl:'javascript:alert(1)'},{idleCover:'data:image/svg+xml;base64,YQ=='},{playerStyle:'bad'},{tintColor:'red'},{coverGlow:'true'}]) assert.throws(() => f.spotify.save({clientId,...invalid}));
+  assert.equal(f.spotify.state().config.playerStyle,'gallery');
+});
+
+test('Spotify persists per-skin CSS and canvas dimensions with bounded settings', t => {
+  const f = fixture(t);
+  const customCss = { compact:'.spotify-title { color: coral; }', gallery:'.spotify-now { height: 500px; }' };
+  f.spotify.save({clientId, mode:'api', customCss, cssEnabled:false, outputWidth:720, outputHeight:520});
+  const restored = createSpotifyModule(f.options); t.after(() => restored.close());
+  assert.deepEqual(restored.state().config.customCss, customCss);
+  assert.equal(restored.state().config.cssEnabled,false);
+  assert.equal(restored.state().config.outputWidth,720);
+  assert.equal(restored.state().config.outputHeight,520);
+  for (const invalid of [{customCss:null},{customCss:[]},{customCss:{invalid:''}},{customCss:{compact:12}},{customCss:{compact:'x'.repeat(12001)}},{outputWidth:79},{outputHeight:2561},{outputWidth:100.5},{cssEnabled:'true'}]) assert.throws(() => f.spotify.save({clientId,...invalid}));
+  assert.deepEqual(f.spotify.state().config.customCss,customCss);
+});
+
+test('Spotify keeps colored themes, vinyl and tint after reopening', t => {
+  const f = fixture(t);
+  for (const theme of ['dark','light','tinted','gradient','transparent']) {
+    f.spotify.save({ clientId, mode:'api', theme, tintColor:'#7944a1', coverStyle:'vinyl', playerStyle:'gallery' });
+    const reopened = createSpotifyModule(f.options);
+    try {
+      assert.equal(reopened.state().config.theme,theme);
+      assert.equal(reopened.state().config.tintColor,'#7944a1');
+      assert.equal(reopened.state().config.coverStyle,'vinyl');
+      assert.equal(reopened.state().config.playerStyle,'gallery');
+    } finally { reopened.close(); }
+  }
+  assert.throws(() => f.spotify.save({clientId,theme:'invalid'}));
+});

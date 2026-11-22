@@ -1,23 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Copy, ExternalLink, Music2 } from 'lucide-react';
 import { Badge, Button, Card, Input } from './ui';
 import { useStudio } from '../hooks/use-studio';
 import './spotify.css';
+import './spotify-editor.css';
+import './spotify-cover-finishes.css';
+import { SpotifyAppearance, SpotifyVisual, SpotifyPresence, demoPlayback } from './spotify-appearance';
+import { spotifySize, validateSpotifyConfig } from '../../../shared/spotify';
+import { SpotifySurface } from './spotify-surface';
+import { SpotifyVisibilitySettings } from './spotify-visibility';
+import { spotifyVisibility } from '../../../shared/spotify-visibility';
+import { useNotificationSettings } from '../hooks/use-notification-settings';
+
+const spotifyStorage = {key:'live-studio.spotify.pending.v1', validate:validateSpotifyConfig, migrate:value=>value, action:'spotify/save'};
 
 export function SpotifyStudio({ tool, api, notice, online }) {
-  const [draft, setDraft] = useState(tool.config), [busy, setBusy] = useState(false);
+  const {config:draft, setConfig:setDraft, dirty, saving, error:saveError, save} = useNotificationSettings(tool.config, undefined, api, online, spotifyStorage);
+  const [busy, setBusy] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0), [previewVisible, setPreviewVisible] = useState(true);
+  const dimensions = spotifySize(draft.playerStyle, draft);
   const local = (draft.mode || 'local') === 'local';
   const output = new URL(tool.url, window.location.origin).href;
   const redirect = window.location.origin + '/api/spotify/callback';
-  const save = async () => {
-    setBusy(true);
-    try { const ok = await api('spotify/save', draft); if (ok) notice('Ajustes de Spotify guardados.'); return ok; }
-    finally { setBusy(false); }
-  };
   const connect = async () => {
     setBusy(true);
     try {
-      if (!await api('spotify/save', draft)) return;
+      if (!await save()) return;
       const result = await api('spotify/connect');
       if (result?.authorizationUrl) window.location.assign(result.authorizationUrl);
       else if (result) notice('Lectura local activada. Abre Spotify de escritorio y reproduce una canción.');
@@ -42,20 +50,23 @@ export function SpotifyStudio({ tool, api, notice, online }) {
       <label>Client ID<Input value={draft.clientId} maxLength={32} autoComplete="off" spellCheck={false} placeholder="Client ID de tu app de Spotify" onChange={e => setDraft({ ...draft, clientId: e.target.value.trim() })}/></label>
       <p className="help">Solo necesitas el Client ID. La sesión se conserva localmente en este equipo.</p>
       </>}
-      <div className="actions"><Button disabled={!online || busy || (!local && !draft.clientId)} onClick={connect}>{busy ? 'Preparando…' : local ? 'Activar lectura local' : tool.connected ? 'Volver a conectar' : 'Conectar Spotify'}</Button><Button variant="outline" disabled={!online || busy || (tool.config.mode === 'local' ? !tool.config.enabled : !tool.connected && !tool.connecting)} onClick={() => api('spotify/disconnect')}>{tool.config.mode === 'local' ? 'Detener lectura local' : 'Desconectar Spotify'}</Button></div>
+      <div className="actions"><Button disabled={!online || busy || saving || (!local && !draft.clientId)} onClick={connect}>{busy ? 'Preparando…' : local ? 'Activar lectura local' : tool.connected ? 'Volver a conectar' : 'Conectar Spotify'}</Button><Button variant="outline" disabled={!online || busy || saving || (tool.config.mode === 'local' ? !tool.config.enabled : !tool.connected && !tool.connecting)} onClick={async () => { if (dirty && !await save()) return; await api('spotify/disconnect'); }}>{tool.config.mode === 'local' ? 'Detener lectura local' : 'Desconectar Spotify'}</Button></div>
       {tool.error && <p className="spotify-error" role="alert">{tool.error}</p>}
       <hr/>
       <h2>Diseño de la salida</h2>
-      <label>Estilo<select className="input" value={draft.theme} onChange={e => setDraft({ ...draft, theme: e.target.value })}><option value="dark">Oscuro</option><option value="light">Claro</option></select></label>
-      <label className="spotify-check"><input type="checkbox" checked={draft.hideWhenPaused} onChange={e => setDraft({ ...draft, hideWhenPaused: e.target.checked })}/>Ocultar cuando la música esté pausada</label>
-      <Button variant="outline" disabled={!online || busy} onClick={save}>Guardar ajustes de Spotify</Button>
+      <p className="help">Autoguardado activo para diseño, carátula, brillo, fondo, colores, animaciones y CSS.</p>
+      <p role="status" className={saveError ? 'spotify-error' : 'help'}>{saveError || (saving ? 'Guardando automáticamente…' : dirty ? online ? 'Cambios pendientes de guardar…' : 'Sin conexión. Cambios conservados en este navegador.' : 'Todos los cambios guardados automáticamente.')}</p>
+      {saveError && <Button variant="outline" disabled={!online || busy || saving} onClick={save}>Reintentar guardado</Button>}
+      <SpotifyAppearance draft={draft} setDraft={setDraft} notice={notice}/>
+      <SpotifyVisibilitySettings draft={draft} setDraft={setDraft}/>
     </Card>
     <Card className="spotify-preview-panel">
       <div className="section-heading"><h2>Ahora escuchando</h2><Music2 size={20}/></div>
-      <div className="spotify-preview"><SpotifyCard playback={online ? tool.playback : null} theme={draft.theme}/>{(!online || !tool.playback) && <div className="spotify-empty"><Music2 size={36}/><p>{!online ? 'Esperando conexión con Live Studio.' : tool.config.mode === 'local' ? tool.config.enabled ? 'Abre Spotify de escritorio en este PC y reproduce una canción.' : 'Activa la lectura local para mostrar tu canción.' : tool.connected ? 'Reproduce una canción en Spotify para verla aquí.' : 'Conecta Spotify para ver tu canción aquí.'}</p></div>}</div>
-      <p className="help">La vista previa muestra también las canciones pausadas. La salida aplica los ajustes guardados y se oculta si no hay una canción disponible.</p>
+      <div className="spotify-preview"><SpotifySurface config={draft} preview><SpotifyPresence key={previewKey} playback={previewVisible ? (online && tool.playback ? tool.playback : demoPlayback) : null} config={draft}/></SpotifySurface></div>
+      <div className="actions"><Button variant="outline" onClick={() => { setPreviewVisible(true); setPreviewKey(k => k + 1); }}>Probar entrada</Button><Button variant="outline" onClick={() => setPreviewVisible(false)}>Probar salida</Button></div>
+      <p className="help">La vista previa usa una canción de ejemplo si no hay música. Cada cambio se guarda automáticamente y se aplica al directo.</p>
       <h3>En tu directo</h3>
-      <p className="muted">Añade una fuente de navegador en LIVE Studio u OBS de <strong>600 × 160 px</strong> y pega este enlace. El fondo es transparente.</p>
+      <p className="muted">Añade una fuente de navegador en LIVE Studio u OBS de <strong>{dimensions[0]} × {dimensions[1]} px</strong> y pega este enlace. El fondo es transparente.</p>
       <code>{output}</code>
       <div className="actions"><Button variant="outline" onClick={() => copy(output)}><Copy size={15}/>Copiar salida de Spotify</Button><Button variant="outline" asChild><a href={output} target="_blank" rel="noopener noreferrer">Ver salida de Spotify<ExternalLink size={15}/></a></Button></div>
       <p className="help">Muestra la información de la canción; el audio sigue reproduciéndose en Spotify.</p>
@@ -63,21 +74,19 @@ export function SpotifyStudio({ tool, api, notice, online }) {
   </div>;
 }
 
-export function SpotifyCard({ playback, theme = 'dark' }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  if (!playback) return null;
-  const progress = Math.min(playback.duration, playback.progress + (playback.playing ? Math.max(0, now - playback.updatedAt) : 0));
-  return <article className={'spotify-now spotify-' + theme}>
-    {playback.image ? <img className="spotify-cover" src={playback.image} alt="Carátula del álbum"/> : <div className="spotify-cover spotify-placeholder"><Music2 size={38}/></div>}
-    <div className="spotify-track"><span className="spotify-brand">Spotify <span>· {playback.playing ? 'ESCUCHANDO AHORA' : 'EN PAUSA'}</span></span><a className="spotify-title" href={playback.url || 'https://open.spotify.com'} target="_blank" rel="noopener noreferrer">{playback.title}</a><p className="spotify-artist">{playback.artist}</p><div className="spotify-progress" role="progressbar" aria-label="Progreso de la canción" aria-valuemin={0} aria-valuemax={playback.duration} aria-valuenow={progress}><span style={{ width: `${playback.duration ? progress / playback.duration * 100 : 0}%` }}/></div></div>
-  </article>;
-}
+export function SpotifyCard(props) { return <SpotifyVisual {...props}/>; }
 
 export function SpotifyOutput() {
   const { state, online } = useStudio();
   const tool = state?.tools.spotify;
+  const visibility = useRef({key:null});
+  const [,tick] = useState(0);
+  useEffect(()=>{const timer=setInterval(()=>tick(n=>n+1),200);return()=>clearInterval(timer);},[]);
   useEffect(() => { document.documentElement.classList.add('spotify-output'); return () => document.documentElement.classList.remove('spotify-output'); }, []);
-  const playback = online && tool?.connected && !tool.error && (tool.playback?.playing || !tool.config.hideWhenPaused) ? tool.playback : null;
-  return <div className="spotify-stage"><SpotifyCard playback={playback} theme={tool?.config.theme}/></div>;
+  const available = online && tool?.connected && !tool.error;
+  visibility.current = spotifyVisibility(visibility.current, available ? tool.playback : null, tool?.config || {}, Date.now());
+  const playback = visibility.current.visible ? tool.playback : null;
+  const idle = available && !tool.playback && !tool.config.songChangeOnly && tool.config.idleCover ? { ...demoPlayback, title:'Nada reproduciéndose', artist:'', playing:false, progress:0, image:tool.config.idleCover, idle:true } : null;
+  const size = spotifySize(tool?.config.playerStyle, tool?.config);
+  return <div className="spotify-stage" style={{width:size[0],height:size[1],padding:0}}><SpotifySurface config={tool?.config}>{online && tool?.connected && !tool.error && <SpotifyPresence playback={playback || idle} config={tool?.config || {}}/>}</SpotifySurface></div>;
 }

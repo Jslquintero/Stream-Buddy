@@ -83,7 +83,7 @@ export function createDashboardServer(center) {
       let bytes = 0; const chunks = [];
       for await (const chunk of req) {
         bytes += chunk.length;
-        if (bytes > (url.pathname==='/api/notifications/upload'?43000000:['/api/layout/save','/api/layout/create','/api/layout/save-composition'].includes(url.pathname)?8000000:url.pathname==='/api/commands/save'?600000:20000)) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
+        if (bytes > (url.pathname==='/api/notifications/upload'?43000000:['/api/layout/save','/api/layout/create','/api/layout/save-composition'].includes(url.pathname)?8000000:url.pathname==='/api/spotify/save'?850000:url.pathname==='/api/commands/save'?600000:20000)) { json(res, 413, { error: 'Solicitud demasiado grande' }); return; }
         chunks.push(chunk);
       }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');

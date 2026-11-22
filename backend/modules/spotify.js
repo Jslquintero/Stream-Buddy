@@ -2,15 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { createSpotifyLocalReader, localPlayback } from './spotify-local.js';
+import { appearanceDefaults, validateAppearance, spotifyThemes } from '../../shared/spotify.js';
 
-const defaults = { mode: 'local', enabled: true, clientId: '', hideWhenPaused: true, theme: 'dark' };
+const defaults = { ...appearanceDefaults, mode: 'local', enabled: true, clientId: '', hideWhenPaused: true, theme: 'dark' };
 export const spotifyOutputPath = '/?spotify-output=1#tiktok.studio';
 function validate(value) {
   const config = { ...defaults, ...value };
   if (!['local', 'api'].includes(config.mode) || typeof config.enabled !== 'boolean') throw new Error('Modo de Spotify inválido.');
   if (typeof config.clientId !== 'string' || (config.clientId && !/^[a-f0-9]{32}$/i.test(config.clientId))) throw new Error('Introduce el Client ID de Spotify (32 caracteres).');
-  if (typeof config.hideWhenPaused !== 'boolean' || !['dark', 'light'].includes(config.theme)) throw new Error('Diseño de Spotify inválido.');
-  return { mode: config.mode, enabled: config.enabled, clientId: config.clientId, hideWhenPaused: config.hideWhenPaused, theme: config.theme };
+  if (typeof config.hideWhenPaused !== 'boolean' || !spotifyThemes.includes(config.theme)) throw new Error('Diseño de Spotify inválido.');
+  return { ...validateAppearance(config), mode: config.mode, enabled: config.enabled, clientId: config.clientId, hideWhenPaused: config.hideWhenPaused, theme: config.theme };
 }
 const safeUrl = (value, host) => {
   try { const url = new URL(value); return url.protocol === 'https:' && url.hostname === host ? url.href : ''; } catch { return ''; }
