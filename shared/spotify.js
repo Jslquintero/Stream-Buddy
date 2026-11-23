@@ -12,9 +12,9 @@ export const coverFinishes = {
   "glass": "Vidrio",
   "editorial": "Editorial"
 };
-export const playerStyles = ['compact', 'boxy', 'gallery', 'minimal', 'macos', 'shell', 'discord', ...Object.keys(coverFinishes)];
+export const playerStyles = ['compact', 'boxy', 'gallery', 'vertical', 'minimal', 'cd-retro', 'macos', 'shell', 'discord', ...Object.keys(coverFinishes)];
 export const coverStyles = ['square', 'canvas', 'vinyl', 'none', ...Object.keys(coverFinishes)];
-export const spotifyThemes = ['dark', 'light', 'tinted', 'gradient', 'transparent', 'xp', 'wmp', 'winamp', 'ipod', 'vaporwave', 'neon', 'radio', 'cassette', 'marquee', 'amber', 'glass', 'editorial'];
+export const spotifyThemes = ['dark', 'light', 'tinted', 'gradient', 'transparent', 'cd-retro', 'xp', 'wmp', 'winamp', 'ipod', 'vaporwave', 'neon', 'radio', 'cassette', 'marquee', 'amber', 'glass', 'editorial'];
 export const animationStyles = ['original', 'fade', 'slide-left', 'slide-right', 'slide-top', 'slide-bottom', 'grow', 'shrink', 'swing-left', 'swing-right', 'tilt-right', 'tilt-left'];
 export const appearanceDefaults = { playerStyle: 'compact', coverStyle: 'square', coverGlow: false, coverBlur: false, magicColors: false, tintColor: '#1ed760', idleCover: '', canvasUrl: '', revealAnimation: 'original', exitAnimation: 'original', customCss: {}, cssEnabled: true, outputWidth: 0, outputHeight: 0, hideDelay:0, songChangeOnly:false, visibleDuration:5, hideVisualizer:false };
 export function validateAppearance(value) {
@@ -33,7 +33,22 @@ export function validateAppearance(value) {
   if (c.canvasUrl) { let url; try { url = new URL(c.canvasUrl); } catch { throw new Error('URL de video inválida.'); } if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Usa un enlace HTTP o HTTPS al video.'); }
   return Object.fromEntries(Object.keys(appearanceDefaults).map(key => [key, c[key]]));
 }
-export function spotifySize(style, config = {}) { const size = ['shell','amber'].includes(style) ? [600, 280] : style === 'ipod' ? [320,420] : style === 'gallery' ? [320, 420] : style === 'minimal' ? [600, 90] : style === 'boxy' ? [600, 140] : !style || style === 'compact' ? [600, 200] : [600, 180]; return [config.outputWidth || size[0], config.outputHeight || size[1]]; }
+const playerSizes = {
+  __proto__: null,
+  compact: [600, 200],
+  boxy: [600, 140],
+  gallery: [320, 420],
+  vertical: [288, 424],
+  minimal: [600, 90],
+  'cd-retro': [552, 264],
+  shell: [600, 280],
+  ipod: [320, 420],
+  amber: [600, 280]
+};
+export function spotifySize(style, config = {}) {
+  const [width, height] = playerSizes[style] || (style ? [600, 180] : playerSizes.compact);
+  return [config.outputWidth || width, config.outputHeight || height];
+}
 export function validateSpotifyConfig(value) {
   const config = { mode:'local', enabled:true, clientId:'', hideWhenPaused:true, theme:'dark', ...value };
   if (!['local','api'].includes(config.mode) || typeof config.enabled !== 'boolean') throw new Error('Modo de Spotify inválido.');

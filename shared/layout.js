@@ -1,7 +1,9 @@
 import { validateCustomThemes } from './custom-themes.js';
 export const themes = { xp: 'Windows XP', dark: 'Estudio oscuro', neon: 'Neón', minimal: 'Minimalista' };
+export const messengerCameraKind = 'messenger-camera';
+
 export function isCameraWindow(element) {
-  return element.kind === 'frame' && (element.id === 'camera' || element.id.startsWith('camera-') || /^(c[aá]mara|camera|webcam)(?:\.exe)?$/i.test(element.title.trim()));
+  return element.kind === messengerCameraKind || (element.kind === 'frame' && (element.id === 'camera' || element.id.startsWith('camera-') || /^(c[aá]mara|camera|webcam)(?:\.exe)?$/i.test(element.title.trim())));
 }
 export const legacyLayout = {
   theme: 'xp', format: 'landscape', background: '#14223d', transparent: true,
@@ -43,6 +45,15 @@ export const defaultLayout = createVerticalLayout();
 export function canvasSize(layout) {
   return {width:layout.canvasWidth ?? (layout.format==='portrait'?1080:1920),height:layout.canvasHeight ?? (layout.format==='portrait'?1920:1080)};
 }
+export function messengerCameraDimensions(side, width, height) {
+  return {w: side / width * 100, h: side / height * 100};
+}
+export function messengerCameraMinSide(width, height) {
+  return Math.min(width, height) * .05;
+}
+export function messengerCameraMaxSide(element, width, height) {
+  return Math.min((100-element.x) * width / 100, (100-element.y) * height / 100);
+}
 export const maxBackgroundImageLength = 2000000;
 export const maxIconImageLength = 120000;
 export const maxLayoutImageLength = 6000000;
@@ -56,14 +67,33 @@ export function backgroundMode(layout) { return layout.transparent ? 'transparen
 export function validateLayout(input) {
   const customThemes=input?.customThemes===undefined?[]:validateCustomThemes(input.customThemes);
   if (!input || (!Object.hasOwn(themes, input.theme)&&!customThemes.some(theme=>theme.id===input.theme)) || !['landscape', 'portrait'].includes(input.format) || !/^#[0-9a-f]{6}$/i.test(input.background) || typeof input.transparent !== 'boolean' || !Array.isArray(input.elements) || input.elements.length > 30) throw new Error('Layout inválido');
+  const extras = {};
+  if(input.canvasWidth!==undefined||input.canvasHeight!==undefined){
+    for(const key of ['canvasWidth','canvasHeight']){
+      if(!Number.isInteger(input[key])||input[key]<240||input[key]>7680)throw new Error('El lienzo debe medir entre 240 y 7680 píxeles por lado');
+      extras[key]=input[key];
+    }
+  }
+  const {width,height}=canvasSize(input);
+  const cameraMin=messengerCameraDimensions(messengerCameraMinSide(width,height),width,height);
   const ids = new Set();
   let imageLength=0;
   const elements = input.elements.map(e => {
-    if (!e || typeof e.id !== 'string' || e.id.length > 80 || !e.id || ids.has(e.id) || typeof e.title !== 'string' || e.title.length > 80 || typeof e.text !== 'string' || e.text.length > 300 || !['text', 'frame', 'taskbar', 'icons'].includes(e.kind) || typeof e.hidden !== 'boolean') throw new Error('Elemento inválido');
+    if (!e || typeof e.id !== 'string' || e.id.length > 80 || !e.id || ids.has(e.id) || typeof e.title !== 'string' || e.title.length > 80 || typeof e.text !== 'string' || e.text.length > 300 || !['text', 'frame', 'taskbar', 'icons', messengerCameraKind].includes(e.kind) || typeof e.hidden !== 'boolean') throw new Error('Elemento inválido');
     ids.add(e.id);
-    for (const [key, min, max] of [['x',0,99],['y',0,99],['w',5,100],['h',e.kind==='taskbar'?1:5,100],['fontSize',10,72]]) if (!Number.isFinite(e[key]) || e[key] < min || e[key] > max) throw new Error('Dimensiones inválidas');
+    const messenger=e.kind===messengerCameraKind;
+    for (const [key, min, max] of [['x',0,99],['y',0,99],['w',messenger?cameraMin.w:5,100],['h',messenger?cameraMin.h:e.kind==='taskbar'?1:5,100],['fontSize',10,72]]) if (!Number.isFinite(e[key]) || e[key] < min || e[key] > max) throw new Error('Dimensiones inválidas');
+    if (messenger && Math.abs(e.w*width/100-e.h*height/100) > .01) throw new Error('El marco de cámara MSN Messenger debe ser cuadrado');
     if (e.x + e.w > 100.001 || e.y + e.h > 100.001) throw new Error('El elemento debe estar dentro del lienzo');
     const result=Object.fromEntries(['id','title','text','kind','hidden','x','y','w','h','fontSize'].map(k => [k,e[k]]));
+    if(messenger&&e.frameColor!==undefined){
+      if(typeof e.frameColor!=='string'||!/^#[0-9a-f]{6}$/i.test(e.frameColor))throw new Error('Color del marco de cámara inválido');
+      result.frameColor=e.frameColor.toLowerCase();
+    }
+    if(messenger&&e.frameAnimated!==undefined){
+      if(typeof e.frameAnimated!=='boolean')throw new Error('Animación del marco de cámara inválida');
+      result.frameAnimated=e.frameAnimated;
+    }
     if(e.xpControls!==undefined){
       if(!e.xpControls||!['text','frame'].includes(e.kind)||!['x','y'].every(key=>Number.isFinite(e.xpControls[key])&&e.xpControls[key]>=0&&e.xpControls[key]<=1))throw new Error('Posición de controles XP inválida');
       result.xpControls={x:e.xpControls.x,y:e.xpControls.y};
@@ -84,13 +114,6 @@ export function validateLayout(input) {
     }
     return result;
   });
-  const extras = {};
-  if(input.canvasWidth!==undefined||input.canvasHeight!==undefined){
-    for(const key of ['canvasWidth','canvasHeight']){
-      if(!Number.isInteger(input[key])||input[key]<240||input[key]>7680)throw new Error('El lienzo debe medir entre 240 y 7680 píxeles por lado');
-      extras[key]=input[key];
-    }
-  }
   if(input.customThemes!==undefined)extras.customThemes=customThemes;
   if (input.backgroundMode !== undefined) {
     if (!['transparent','color','image'].includes(input.backgroundMode)) throw new Error('Tipo de fondo inválido');

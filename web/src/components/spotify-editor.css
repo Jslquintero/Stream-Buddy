@@ -16,6 +16,10 @@
 .mini-gallery i { width:36px; height:36px; }
 .mini-gallery b { width:28px; height:3px; box-shadow:0 5px #8f96a6; }
 .mini-gallery em { display:none; }
+.mini-vertical { width:33px; height:48px; flex-direction:column; padding:5px; gap:4px; border-radius:5px; }
+.mini-vertical i { width:23px; height:23px; border-radius:3px; }
+.mini-vertical b { width:23px; height:3px; box-shadow:0 4px #8f96a6; }
+.mini-vertical em { left:5px; right:5px; bottom:4px; width:auto; }
 .mini-minimal { height:25px; }
 .mini-minimal b { width:100%; height:3px; box-shadow:0 5px #8f96a6; }
 .mini-minimal em { display:none; }
@@ -31,6 +35,23 @@
 .mini-shell b { width:65px; height:3px; background:#b6d5bb; box-shadow:0 6px #99a4a0,0 12px #99a4a0; }
 .mini-shell em { left:5px; right:5px; bottom:4px; width:auto; background:repeating-linear-gradient(90deg,#b6d5bb 0 2px,transparent 2px 3px); }
 .mini-discord { background:#363941; border-top-color:#363941; }
+.mini-cd-retro {
+  height:43px; margin-block:2.5px; border-radius:0; padding:4px 5px;
+  border:1px solid #727272;
+  background:linear-gradient(90deg,#05045a,#1c78c0) top / 100% 8px no-repeat #b9b9b9;
+  box-shadow:inset 1px 1px #fff,inset -1px -1px #393939;
+}
+.mini-cd-retro i { width:24px; height:24px; margin-top:6px; border-radius:0; }
+.mini-cd-retro b { width:40px; height:6px; margin-top:-6px; border-radius:0; background:#fff; box-shadow:0 8px #fff; }
+.mini-cd-retro em { right:6px; bottom:6px; width:40px; height:2px; background:#727272; box-shadow:0 1px #fff; }
+.mini-editorial {
+  height:25px; margin-block:11.5px; padding:0; gap:7px;
+  background:linear-gradient(105deg,#eee9dc,#d4cebf);
+  border-left:2px solid #1ed760; border-radius:1px; box-shadow:none; overflow:hidden;
+}
+.mini-editorial i { width:40%; height:100%; border-radius:0; box-shadow:2px 2px #25251f22; }
+.mini-editorial b { width:25px; height:3px; margin-top:-8px; border-radius:0; background:#25251f; box-shadow:0 5px #68665d; }
+.mini-editorial em { left:calc(40% + 7px); right:5px; bottom:5px; width:auto; height:1px; background:linear-gradient(90deg,#1ed760 40%,#25251f30 40%); }
 .mini-square,.mini-canvas,.mini-vinyl,.mini-none { background:none; box-shadow:none; }
 .mini-square em,.mini-canvas em,.mini-vinyl em,.mini-none em { display:none; }
 .mini-canvas::after { content:'▶'; color:#fff; font-size:12px; }

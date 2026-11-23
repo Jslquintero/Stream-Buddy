@@ -2,7 +2,7 @@
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { LayoutCanvas } from '../web/src/components/layout-studio.jsx';
-import { createVerticalLayout, themes, createIconRow } from '../shared/layout.js';
+import { createVerticalLayout, themes, createIconRow, messengerCameraKind, messengerCameraDimensions } from '../shared/layout.js';
 import { baseThemeCSS } from '../shared/custom-themes.js';
 import '../web/src/styles.css';
 import '../web/src/components/xp-skin.css';
@@ -70,6 +70,38 @@ async function run(){
   }
   results.push(theme+' / '+format+': PASS — position, size, font, aspect ratio, no cropping');
  }
+ const camera={id:'messenger',kind:messengerCameraKind,title:'Cámara MSN Messenger',text:'',x:0,y:0,...messengerCameraDimensions(110,1920,1080),fontSize:26,hidden:false,frameColor:'#dc143c'};
+ const scene={theme:'xp',format:'landscape',transparent:false,background:'#357ac2',elements:[camera]};
+ flushSync(()=>root.render(<LayoutCanvas document={scene}/>));
+ const frame=window.document.querySelector('.messenger-camera svg');
+ const context=window.document.createElement('canvas').getContext('2d');
+ for(const svg of [frame,window.document.querySelector('.layout-background')]){
+  const copy=svg.cloneNode(true);
+  copy.setAttribute('width',svg===frame?'110':'1920');
+  copy.setAttribute('height',svg===frame?'110':'1080');
+  const image=new Image();
+  await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(copy));});
+  context.clearRect(0,0,110,110);
+  context.drawImage(image,0,0);
+  const alpha=(x,y)=>context.getImageData(x,y,1,1).data[3];
+  verify(alpha(55,55)===0,'Messenger camera center must remain transparent');
+  verify(alpha(55,4)===255,'Messenger camera top rim must remain opaque');
+  verify(alpha(0,0)===(svg===frame?0:255),'Messenger camera must preserve the layout behind the outer corner');
+  if(svg===frame){
+   const [red,green,blue]=context.getImageData(55,4,1,1).data;
+   verify(red>green+80&&red>blue+60,'Messenger camera rim must render the configured tint');
+  }
+ }
+ results.push('Messenger camera: PASS — rim, rounded corner and transparent aperture');
+ flushSync(()=>root.render(<LayoutCanvas document={{...scene,elements:[{...camera,frameAnimated:true}]}}/>));
+ const bands=[...frame.querySelectorAll('rect[pathLength]')];
+ verify(bands.length>1,'The frame needs multiple moving color bands');
+ frame.pauseAnimations();
+ for(const [time,shift] of [[.5,-12.5],[1.5,-37.5],[4.5,-12.5]]){
+  frame.setCurrentTime(time);
+  bands.forEach((band,i)=>verify(Math.abs(parseFloat(getComputedStyle(band).strokeDashoffset)-(shift-i*25))<.1,'Messenger colors must move along the rim and repeat'));
+ }
+ results.push('Messenger camera: PASS — color bands move around the frame and repeat');
  window.document.getElementById('report').textContent=results.join('\n');window.document.body.dataset.test='pass';
 }
 run().catch(error=>{window.document.getElementById('report').textContent=error.stack;window.document.body.dataset.test='fail';});

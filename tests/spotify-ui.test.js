@@ -72,6 +72,53 @@ test('Local output shows AIMP playback with its artwork and player name', async 
   assert.equal(output.querySelector('img.spotify-cover').getAttribute('src'), f.spotify.playback.image);
 });
 
+test('Spotify vertical design previews, autosaves and uses a portrait canvas in the output', async t => {
+  const panel = await setup(t, '/spotify'), doc = panel.window.document;
+  const vertical = [...doc.querySelectorAll('button')].find(button => button.textContent === 'Vertical');
+  assert.ok(vertical);
+  vertical.click();
+  await until(() => widget(doc)?.querySelector('.player-vertical'));
+  assert.equal(vertical.getAttribute('aria-pressed'), 'true');
+  assert.match(doc.querySelector('.spotify-preview-panel').textContent, /288 × 424 px/);
+  await until(() => panel.requests.some(request => request.url === '/api/spotify/save'));
+  const config = JSON.parse(panel.requests.find(request => request.url === '/api/spotify/save').body);
+  assert.equal(config.playerStyle, 'vertical');
+
+  const output = await setup(t, '/?spotify-output=1'), page = output.window.document;
+  output.spotify.config = config;
+  await output.publish();
+  await until(() => widget(page)?.querySelector('.player-vertical'));
+  const stage = page.querySelector('.spotify-stage');
+  assert.equal(stage.style.width, '288px');
+  assert.equal(stage.style.height, '424px');
+  assert.ok(widget(page).querySelector('.player-vertical [role="progressbar"]'));
+});
+
+test('Spotify CD Retro is available as both a layout and a theme', async t => {
+  const panel = await setup(t, '/spotify'), doc = panel.window.document;
+  const button = [...doc.querySelectorAll('button')].find(button => button.textContent === 'CD Retro');
+  const theme = doc.querySelector('option[value="cd-retro"]').closest('select');
+  button.click();
+  await until(() => widget(doc)?.querySelector('.player-cd-retro.spotify-cd-retro'));
+  theme.value = 'cd-retro';
+  theme.dispatchEvent(new panel.window.Event('change', {bubbles:true}));
+  await until(() => panel.requests.some(request => request.url === '/api/spotify/save' && JSON.parse(request.body).theme === 'cd-retro'));
+  const config = JSON.parse(panel.requests.filter(request => request.url === '/api/spotify/save').at(-1).body);
+  assert.equal(config.playerStyle, 'cd-retro');
+  assert.equal(config.theme, 'cd-retro');
+
+  const output = await setup(t, '/?spotify-output=1');
+  output.spotify.config = config;
+  await output.publish();
+  const shadow = widget(output.window.document);
+  assert.ok(shadow.querySelector('.player-cd-retro.spotify-cd-retro'));
+  assert.deepEqual([...shadow.querySelectorAll('.spotify-cd-label')].map(label => label.textContent), ['Pista', 'Artista']);
+  assert.equal(output.window.document.querySelector('.spotify-stage').style.height, '264px');
+  output.spotify.config.playerStyle = 'vertical';
+  await output.publish();
+  assert.ok(shadow.querySelector('.player-vertical.spotify-cd-retro'));
+});
+
 test('Spotify CSS is live, isolated, saved per skin and can be reset', async t => {
   const f = await setup(t, '/spotify'), doc = f.window.document;
   await until(() => doc.querySelector('textarea[aria-label="CSS personalizado"]'));

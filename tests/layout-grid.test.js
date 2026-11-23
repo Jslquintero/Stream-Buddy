@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {gridTransform} from '../web/src/lib/layout-grid.js';
+import {messengerCameraDimensions,messengerCameraKind} from '../shared/layout.js';
 
 test('grid snaps logical pixels, preserves untouched axes and supports fine adjustments',()=>{
   const e={x:5,y:5,w:40,h:25,kind:'frame'};
@@ -22,4 +23,12 @@ test('grid resizing and movement respect canvas bounds at custom resolutions',()
   const resized=gridTransform({...e,x:0},17,17,1440,2560,{resize:true,step:16});
   assert.ok(Math.abs(resized.w*1440/100-592)<1e-8);
   assert.equal(resized.h*2560/100,656);
+});
+
+test('Messenger camera resizes in square pixels from either axis and stays in bounds',()=>{
+  const width=1080,height=1920;
+  const element={kind:messengerCameraKind,x:50,y:50,...messengerCameraDimensions(432,width,height)};
+  for(const [dx,dy,side] of [[17,0,448],[0,17,448],[4000,0,540],[0,-4000,54]]){
+    assert.deepEqual(gridTransform(element,dx,dy,width,height,{resize:true}),messengerCameraDimensions(side,width,height));
+  }
 });

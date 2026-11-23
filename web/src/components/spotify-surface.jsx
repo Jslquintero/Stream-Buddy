@@ -18,7 +18,8 @@ export function SpotifySurface({ config = {}, children, preview = false }) {
     return () => observer.disconnect();
   }, [preview, width]);
   const css = config.cssEnabled !== false ? config.customCss?.[config.playerStyle || 'compact'] || '' : '';
-  return <div className="spotify-surface-frame" ref={frame} style={{ height:height * scale, width:preview ? '100%' : width }}>
+  const centerPreview = preview && config.playerStyle === 'vertical';
+  return <div className="spotify-surface-frame" ref={frame} style={{ height:height * scale, width:preview ? '100%' : width, maxWidth:centerPreview ? width : undefined, marginInline:centerPreview ? 'auto' : undefined }}>
     <div className="spotify-surface" ref={host} style={{width, height, transform:`scale(${scale})`, transformOrigin:'top left'}}>
       {root && createPortal(<><style>{'@layer spotify-base {\n' + baseCss + '\n' + skinCss + '\n' + finishCss + '\n}'}</style><style data-spotify-custom-css>{css}</style><div className="spotify-widget" style={{width, height}}>{children}</div></>, root)}
     </div>
