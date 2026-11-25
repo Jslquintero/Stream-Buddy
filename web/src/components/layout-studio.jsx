@@ -94,11 +94,13 @@ export function LayoutCanvas({ document, selected, select, update, remove, guide
   </div>;
 }
 
-export function LayoutOutput() {
-  const { state } = useStudio();
+export function LayoutOutput({ compositionId }) {
+  const { state } = useStudio('layout');
   useEffect(()=>{ document.documentElement.classList.add('layout-output'); return ()=>document.documentElement.classList.remove('layout-output'); },[]);
-  const id=new URLSearchParams(window.location.search).get('composition');
-  const outputDocument=id?state?.tools.layout.compositions?.find(item=>item.id===id)?.document:state?.tools.layout.document;
+  const layout = state?.tools.layout;
+  const outputDocument = compositionId === null
+    ? layout?.document
+    : layout?.compositions?.find(item => item.id === compositionId)?.document;
   return outputDocument ? <LayoutCanvas document={outputDocument}/> : null;
 }
 
@@ -129,6 +131,7 @@ export function LayoutStudio({ tool, api, notice, compositionId, open }) {
     setSelected(current=>current===id?null:current);
   };
   const deleteKey = event => {
+    if (event.target.closest('.layout-library')) return;
     if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)&&!event.isComposing&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&!event.target.closest('input,textarea,select,button,a,[contenteditable]:not([contenteditable="false"])')){
       const element=draft.elements.find(e=>e.id===selected);
       if(element){event.preventDefault();const size=canvasSize(draft),step=event.shiftKey?10:1;update(element.id,gridTransform(element,event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0,event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0,size.width,size.height,{snap:false}));}
@@ -177,7 +180,7 @@ export function LayoutStudio({ tool, api, notice, compositionId, open }) {
     <LayoutLibrary document={draft} tool={tool} api={api} notice={notice} open={open} compositionId={compositionId} busy={loadingImage||iconImageTasks>0} preview={layout=><LayoutCanvas document={layout}/>}/>
     {composition&&<h2>{composition.name}</h2>}
     <OutputToolbar className="layout-toolbar" title="Layout Studio" description={<>{saveError?'Error al guardar':saving?'Guardando automáticamente…':dirty?'Cambios pendientes…':'Autoguardado · salida sincronizada'} · {width} &times; {height}</>}>
-      <OutputLinks notice={notice} url={output} message="Enlace de salida copiado." fallback="Salida" openLabel="Ver salida"/>
+      <OutputLinks notice={notice} url={output} message={`Enlace de ${composition?.name ?? 'Layout principal'} copiado.`} fallback="Salida" openLabel="Ver salida"/>
       <Button disabled={!dirty||saving||loadingImage||iconImageTasks>0} onClick={save}>{saving?'Guardando…':saveError?'Reintentar guardado':'Guardar layout'}</Button>
     </OutputToolbar>
     {tool.error&&<p className="error">{tool.error}</p>}{saveError&&<p className="error" role="alert">{saveError} Tus cambios siguen en el editor.</p>}

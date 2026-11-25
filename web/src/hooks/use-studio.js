@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useStudio() {
+export function useStudio(output) {
   const [state, setState] = useState(null);
   const [notice, setNotice] = useState('');
   const [online, setOnline] = useState(false);
@@ -8,7 +8,9 @@ export function useStudio() {
 
   useEffect(() => {
     let disconnected = false;
-    const stream = new EventSource('/api/events');
+    let rotating = false;
+    const stream = new EventSource(output ? `/api/events?output=${output}` : '/api/events');
+    if (output) stream.addEventListener?.('rotate', () => { rotating = true; });
     stream.onmessage = event => {
       try {
         const next = JSON.parse(event.data);
@@ -22,12 +24,16 @@ export function useStudio() {
       }
     };
     stream.onerror = () => {
+      if (rotating) {
+        rotating = false;
+        return;
+      }
       disconnected = true;
       setOnline(false);
       setNotice('Sin conexión con Live Studio. Abre Iniciar.cmd; el panel se reconectará automáticamente.');
     };
     return () => stream.close();
-  }, []);
+  }, [output]);
 
   const api = useCallback(async (action, body = {}, options = {}) => {
     try {

@@ -21,6 +21,11 @@ const baseNavigation=[{id:'home',title:'Vista general',icon:LayoutDashboard},...
 export default function App(){
  const {state,notice,setNotice,online,api}=useStudio();const [view,setView]=useRoute(),[menu,setMenu]=useState(false),[busy,setBusy]=useState(false); const discovered=useRef(false);
  useEffect(()=>{if(view==='tts'&&state&&!discovered.current&&!state.tts.resources?.task?.running){discovered.current=true;void api('tts/refresh');}},[view,state,api]);
+ useEffect(() => {
+   if (state && view?.startsWith('layout:') && !state.tools.layout.compositions?.some(item => item.id === view.slice(7))) {
+     setView('layout', { replace: true });
+   }
+ }, [view, state, setView]);
  const navigation=baseNavigation.flatMap(item=>item.id==='layout'?[item,...(state?.tools.layout.compositions||[]).map(composition=>({id:'layout:'+composition.id,title:composition.name,icon:ChevronRight}))]:[item]);
  const go=id=>{setView(id);setMenu(false);}; const open=async id=>{go(id);if(id!=='tts')await api('start',{tool:id});};
  const startAll=async()=>{setBusy(true);try{const a=await api('start',{tool:'layout'}),b=await api('start',{tool:'ads'});if(a&&b)setNotice('Inicio solicitado. Consulta el estado de tus herramientas.');}finally{setBusy(false);}};

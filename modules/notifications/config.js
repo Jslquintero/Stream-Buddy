@@ -8,7 +8,7 @@ const localMedia = {
 export function isLocalNotificationAsset(kind, path) {
   return typeof path === 'string' && localMedia[kind].test(path);
 }
-export const designExtras = { layout: 'left', imageSize: 96, imageRadius: 0, imageFit: 'contain', width: 680, padding: 24, backgroundOpacity: 100, borderOpacity:100, animationSpeed:500, borderWidth: 2, shadow: true, fontFamily: 'sans', textAlign: 'left', fontWeight: '700' };
+export const designExtras = { layout: 'left', imageSize: 96, imageRadius: 0, imageFit: 'contain', width: 680, padding: 24, backgroundOpacity: 100, borderOpacity:100, animationSpeed:500, borderWidth: 2, shadow: true, textShadow: false, fontFamily: 'sans', textAlign: 'left', fontWeight: '700' };
 export const defaultNotifications = {
   ...designExtras,
   enabled: true, duration: 6, position: 'top-center', animation: 'slide',
@@ -91,6 +91,8 @@ function validateDesign(input) {
   result.fontFamily=value.fontFamily;
   if (typeof value.shadow !== 'boolean') throw new Error('Sombra inválida');
   result.shadow = value.shadow;
+  if (typeof value.textShadow !== 'boolean') throw new Error('Sombra del texto inválida');
+  result.textShadow = value.textShadow;
   return result;
 }
 export function notificationText(template, data = {}) {

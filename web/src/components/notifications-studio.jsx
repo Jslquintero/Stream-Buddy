@@ -54,13 +54,16 @@ export function NotificationVisual({ notification, live = false }) {
   const Icon = icons[type] || Bell;
   return <div className={'notification-position ' + style.position}><NotificationFontResource family={style.fontFamily}/>
     <div className={'notification-banner layout-' + style.layout + ' animate-' + style.animation} style={{ background: style.background + Math.round(style.backgroundOpacity*2.55).toString(16).padStart(2,'0'), color: style.color, '--alert-accent': style.accent, fontSize: style.fontSize + 'px', borderRadius: style.radius + 'px', width:style.width+'px', padding:style.padding+'px', borderWidth:style.borderWidth+'px', boxShadow:style.shadow?undefined:'none', textAlign:style.textAlign, fontFamily:notificationFontStack(style.fontFamily),borderColor:style.accent+Math.round((style.borderOpacity??100)*2.55).toString(16).padStart(2,'0'),animationDuration:(style.animationSpeed??500)+'ms' }}>
-      {isLocalNotificationAsset('video',notification.video)?<VideoClip src={notification.video} start={notification.videoStart} end={notification.videoEnd} muted={!live||!!notification.audio||notification.videoMuted} volume={notification.volume} fit={style.imageFit} autoPlay expiresAt={notification.expiresAt} duration={style.duration} style={{width:style.imageSize+'px',height:style.imageSize+'px',maxWidth:'100%',borderRadius:style.imageRadius+'px',overflow:'hidden'}}/>:isLocalNotificationAsset('image',image)?<img className="notification-image" src={image} alt={style.layout==='image-only'?title:''} style={{width:style.imageSize+'px',height:style.imageSize+'px',objectFit:style.imageFit,borderRadius:style.imageRadius+'px'}}/>:<span className="notification-symbol"><Icon aria-hidden="true"/></span>}{style.layout!=='image-only'&&<div className="notification-copy"><strong style={{fontWeight:style.fontWeight}}>{title}</strong><p>{message}</p></div>}
+      {isLocalNotificationAsset('video',notification.video)?<VideoClip src={notification.video} start={notification.videoStart} end={notification.videoEnd} muted={!live||!!notification.audio||notification.videoMuted} volume={notification.volume} fit={style.imageFit} autoPlay expiresAt={notification.expiresAt} duration={style.duration} style={{width:style.imageSize+'px',height:style.imageSize+'px',maxWidth:'100%',borderRadius:style.imageRadius+'px',overflow:'hidden'}}/>:isLocalNotificationAsset('image',image)?<img className="notification-image" src={image} alt={style.layout==='image-only'?title:''} style={{width:style.imageSize+'px',height:style.imageSize+'px',objectFit:style.imageFit,borderRadius:style.imageRadius+'px'}}/>:<span className="notification-symbol"><Icon aria-hidden="true"/></span>}
+      {style.layout !== 'image-only' && <div className="notification-copy" style={{textShadow: style.textShadow ? '0 1px 2px #000, 0 2px 6px #000c' : undefined}}>
+        <strong style={{fontWeight:style.fontWeight}}>{title}</strong><p>{message}</p>
+      </div>}
     </div>
   </div>;
 }
 
 export function NotificationsOutput() {
-  const { state, online } = useStudio();
+  const { state, online } = useStudio('notifications');
   const current = state?.tools.notifications?.current;
   const [expired, setExpired] = useState(null);
   useEffect(() => {

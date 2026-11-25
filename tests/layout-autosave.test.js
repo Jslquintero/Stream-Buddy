@@ -52,11 +52,81 @@ test('composition submenus retain separate drafts and save to independent output
   await until(()=>requests.filter(r=>r.url==='/api/layout/save-composition').length===2);
   assert.equal(requests.find(r=>r.body.id==='scene-a').body.document.elements[0].title,'Título A');
   assert.equal(requests.find(r=>r.body.id==='scene-b').body.document.elements[0].title,'Título B');
-  const output=await fixture(t,async()=>{},'scene-b');
-  output.state.tools.layout.compositions=f.state.tools.layout.compositions.map(item=>({...item,document:requests.find(r=>r.body.id===item.id).body.document}));output.send();
-  await until(()=>output.window.document.querySelector('.title-text')?.textContent==='Título B');
-  output.state.tools.layout.compositions=[];output.send();await pause(30);
-  assert.equal(output.window.document.querySelector('.layout-canvas'),null,'Missing output must not show the principal layout');
+  const compositions = f.state.tools.layout.compositions.map(item => ({
+    ...item, document: requests.find(r => r.body.id === item.id).body.document,
+  }));
+  const activeEditor = () => f.window.document.querySelector('div:not([hidden]) > .layout-studio');
+  const copied = [];
+  Object.defineProperty(f.window.navigator, 'clipboard', { value: { writeText: async url => copied.push(url) } });
+  for (const item of compositions) {
+    await f.click(item.name);
+    const toolbar = activeEditor().querySelector('.layout-toolbar');
+    const url = toolbar.querySelector('a').href;
+    assert.equal(new URL(url).pathname, '/output/layout/' + item.id);
+    assert.equal(activeEditor().querySelector('.library-composition.is-active a').href, url);
+    [...toolbar.querySelectorAll('button')].find(button => button.textContent === 'Copiar salida').click();
+    assert.equal(copied.at(-1), url);
+    const output = await fixture(t, async () => {}, new URL(url).pathname, compositions);
+    assert.equal(output.window.document.querySelector('.title-text')?.textContent, item.document.elements[0].title);
+    output.state.tools.layout.compositions = compositions.filter(other => other.id !== item.id);
+    output.send();
+    await until(() => !output.window.document.querySelector('.layout-canvas'));
+  }
+  const legacy = await fixture(t, async () => {}, '/?layout-output=1&composition=scene-b', compositions);
+  assert.equal(legacy.window.document.querySelector('.title-text')?.textContent, 'Título B');
+});
+
+test('composition cards rename and delete saved layouts without opening them first', async t => {
+  const requests = [];
+  const f = await fixture(t, async (url, options) => {
+    const body = JSON.parse(options.body);
+    requests.push({ url, body });
+    const layout = f.state.tools.layout;
+    if (url === '/api/layout/rename') {
+      layout.compositions = layout.compositions.map(item => item.id === body.id ? { ...item, name: body.name } : item);
+    } else if (url === '/api/layout/delete') {
+      layout.compositions = layout.compositions.filter(item => item.id !== body.id);
+    }
+    f.send();
+    return { ok: true, json: async () => ({ ok: true }) };
+  });
+  f.state.tools.layout.compositions = [
+    { id: 'scene-a', name: 'Gaming', document: defaultLayout, revision: 100 },
+    { id: 'scene-b', name: 'Charla', document: defaultLayout, revision: 100 },
+  ];
+  f.send();
+  const visible = selector => f.window.document.querySelector(`div:not([hidden]) > .layout-studio ${selector}`);
+  const click = async label => {
+    const button = visible(`button[aria-label="${label}"]`);
+    assert.ok(button, label);
+    button.click();
+    await pause(25);
+  };
+  await until(() => visible('button[aria-label="Renombrar Gaming"]'));
+  assert.equal(visible('button[aria-label="Eliminar Layout principal"]'), null);
+  await click('Renombrar Gaming');
+  assert.equal(visible('.library-composition-form input').value, 'Gaming');
+  await f.input('.library-composition-form input', '  Gaming nuevo  ');
+  await f.click('Guardar nombre');
+  await until(() => visible('button[aria-label="Editar Gaming nuevo"]'));
+  assert.equal(f.window.location.pathname, '/layout');
+  await click('Eliminar Charla');
+  await f.click('Cancelar');
+  assert.equal(requests.length, 1);
+  await click('Eliminar Charla');
+  await f.click('Confirmar eliminación');
+  await until(() => !visible('button[aria-label="Editar Charla"]'));
+  await f.click('Gaming nuevo');
+  assert.equal(f.window.location.pathname, '/layout/scene-a');
+  await click('Eliminar Gaming nuevo');
+  visible('.library-composition-form button[type="submit"]').click();
+  await until(() => f.window.location.pathname === '/layout');
+  assert.deepEqual(requests, [
+    { url: '/api/layout/rename', body: { id: 'scene-a', name: 'Gaming nuevo' } },
+    { url: '/api/layout/delete', body: { id: 'scene-b' } },
+    { url: '/api/layout/delete', body: { id: 'scene-a' } },
+  ]);
+  assert.equal(visible('.library-grid').children.length, 1);
 });
 
 test('XP control size autosaves and survives position changes and dragging',async t=>{
@@ -148,8 +218,9 @@ test('dragging snaps in canvas pixels at preview scale and ignores accidental mo
   await until(()=>Math.abs(requests.at(-1).elements[0].x*10.8-83)<.001);
 });
 async function until(check,timeout=3500){const start=Date.now();while(!check()&&Date.now()-start<timeout)await pause(20);assert.ok(check(),'Timed out waiting for layout update');}
-async function fixture(t,fetch,output=false){
-  const dom=new JSDOM('<div id="root"></div>',{url:'http://127.0.0.1:17900'+(output?'/?layout-output=1'+(typeof output==='string'?'&composition='+output:''):''),runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
+async function fixture(t,fetch,output=false,compositions){
+  const path=typeof output==='string'?output:output?'/?layout-output=1':'/';
+  const dom=new JSDOM('<div id="root"></div>',{url:'http://127.0.0.1:17900'+path,runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
   const {window}=dom;let stream;
   window.EventSource=class{constructor(){stream=this;}close(){}};
   window.ResizeObserver=class{observe(){}disconnect(){}};
@@ -157,9 +228,8 @@ async function fixture(t,fetch,output=false){
   const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),asset=html.match(/src="([^"]+\.js)"/)[1];
   window.eval(fs.readFileSync(new URL('../dist'+asset,import.meta.url),'utf8'));
   await until(()=>stream);
-  const state={token:'token',settings:defaults,tools:{layout:{revision:100,document:structuredClone(defaultLayout)},ads:{}},tts:{resources:{},metrics:{}},events:[]};
+  const state={token:'token',settings:defaults,tools:{layout:{revision:100,document:structuredClone(defaultLayout),compositions},ads:{}},tts:{resources:{},metrics:{}},events:[]};
   const send=()=>stream.onmessage({data:JSON.stringify(state)});send();
-  if(typeof output==='string'){state.tools.layout.compositions=[{id:output,name:'Salida',document:structuredClone(defaultLayout),revision:100}];send();}
   await until(()=>window.document.querySelector(output?'.layout-canvas':'.layout-studio'));
   const click=async text=>{const button=[...window.document.querySelectorAll('button')].find(b=>b.textContent.trim()===text);assert.ok(button,text);button.click();await pause(25);};
   if(!output)await click('Layout Studio');

@@ -27,9 +27,9 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  assert.equal(window.location.pathname,'/layout');
  window.history.back();await until(()=>window.location.pathname==='/tts' && window.document.querySelector('.nav-item.active').textContent==='Voz y chat');
  window.history.forward();await until(()=>window.location.pathname==='/layout' && window.document.querySelector('.nav-item.active').textContent==='Layout Studio');
- assert.equal(Array.from(window.document.querySelectorAll('a')).find(a=>a.textContent==='Ver salida').href,'http://127.0.0.1:17900/?layout-output=1#tiktok.studio');
+ assert.equal(Array.from(window.document.querySelectorAll('a')).find(a=>a.textContent==='Ver salida').href,'http://127.0.0.1:17900/output/layout#tiktok.studio');
  let copiedOutput='';Object.defineProperty(window.navigator,'clipboard',{value:{writeText:async text=>{copiedOutput=text;}}});
- await click('Copiar salida');assert.equal(copiedOutput,'http://127.0.0.1:17900/?layout-output=1#tiktok.studio');
+ await click('Copiar salida');assert.equal(copiedOutput,'http://127.0.0.1:17900/output/layout#tiktok.studio');
  assert.equal(window.document.querySelectorAll('.layout-stage .xp-window').length,3);
  assert.equal(window.document.querySelectorAll('.layout-stage .xp-window .xp-controls i').length,6);
  assert.equal(window.document.querySelectorAll('.xp-window .close-window').length,3);

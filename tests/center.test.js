@@ -156,7 +156,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
   assert.match(await (await fetch(base)).text(), /LIVE STUDIO/);
   const html = await (await fetch(base)).text();
-  for (const route of ['/tts', '/layout', '/layout/', '/ads', '/notifications', '/likes']) {
+  for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes']) {
     const page = await fetch(base + route);
     assert.equal(page.status, 200);
     assert.equal(await page.text(), html);
@@ -168,6 +168,15 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal(asset.status, 200);
   assert.match(asset.headers.get('content-type'), /javascript/);
   assert.match(asset.headers.get('cache-control'), /immutable/);
+  for (const route of ['/?spotify-output=1', '/?notifications-output=1', '/commands?commands-output=1', '/output/layout', script]) {
+    const page = await fetch(base + route);
+    const head = await fetch(base + route, { method: 'HEAD' });
+    assert.equal(head.status, 200, route);
+    assert.equal(head.headers.get('content-type'), page.headers.get('content-type'));
+    assert.equal(Number(head.headers.get('content-length')), (await page.arrayBuffer()).byteLength);
+    assert.equal(await head.text(), '');
+  }
+  assert.equal((await fetch(base + '/api/events', { method: 'HEAD' })).status, 404);
   assert.equal((await fetch(base + '/assets/missing.js')).status, 404);
   assert.equal((await fetch(base + '/assets/%2e%2e%2f%2e%2e%2fpackage.json')).status, 404);
   const state = await (await fetch(base + '/api/state')).json(); assert.equal(state.backend, 'node');
@@ -213,10 +222,21 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal(created.status,200,'Composition images may exceed the generic 20 KB request limit');
   const {compositionId}=await created.json();assert.ok(compositionId);
   assert.equal((await fetch(base+'/layout/'+compositionId)).status,200);
+  const output = await fetch(base+'/output/layout/'+compositionId);
+  assert.equal(output.status,200);
+  assert.equal(output.headers.get('cache-control'),'no-store');
+  assert.match(output.headers.get('content-type'),/^text\/html/);
   const updated=await post('layout/save-composition',{id:compositionId,document:portable},{'X-Studio':state.token});
   assert.equal(updated.status,200);assert.ok((await updated.json()).layoutRevision);
   assert.equal((await post('layout/rename',{id:compositionId,name:'Nuevo nombre'},{'X-Studio':state.token})).status,200);
   assert.equal(center.tools.layout.state().compositions[0].name,'Nuevo nombre');
+  const replacement=await post('layout/create',{name:'Otra composición',document:defaultLayout},{'X-Studio':state.token});
+  const survivingId=(await replacement.json()).compositionId;
+  assert.equal((await post('layout/delete',{id:compositionId})).status,403);
+  assert.equal((await post('layout/delete',{id:compositionId},{'X-Studio':state.token})).status,200);
+  assert.equal((await post('layout/delete',{id:compositionId},{'X-Studio':state.token})).status,400);
+  assert.deepEqual(center.tools.layout.state().compositions.map(item=>item.id),[survivingId]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataDir,'layout-compositions.json'),'utf8')).map(item=>item.id),[survivingId]);
   assert.equal(center.tools.layout.state().document.theme,'custom-http');
   assert.equal((await post('start', { tool: 'unknown' }, { 'X-Studio': state.token })).status, 400);
   const controller = new AbortController();
@@ -228,4 +248,12 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const update = await Promise.race([reader.read(), new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('SSE no respondió')), 3000); timer.unref(); })]);
   assert.match(new TextDecoder().decode(update.value), /evento de prueba/);
   controller.abort(); await reader.cancel().catch(() => {});
+  const outputStream = await fetch(base + '/api/events?output=likes', { signal: AbortSignal.timeout(5000) });
+  assert.equal(outputStream.status, 200);
+  const outputEvents = await outputStream.text();
+  const firstOutput = JSON.parse(outputEvents.match(/^data: (.+)$/m)[1]);
+  assert.deepEqual(Object.keys(firstOutput), ['tools']);
+  assert.deepEqual(Object.keys(firstOutput.tools), ['likes']);
+  assert.match(outputEvents, /^retry: 350$/m);
+  assert.match(outputEvents, /event: rotate\ndata: \{\}\n\n$/);
 });

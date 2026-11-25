@@ -29,6 +29,7 @@ export function NotificationDesign({ design, update, resize, fonts, api, online 
         <div className="form-row">{select('fontFamily','Tipografía',[...systemFonts,...(fonts?.items||[]).map(font=>['google:'+font.id,font.name+' · instalada']),...(/^google:/.test(design.fontFamily)&&!(fonts?.items||[]).some(f=>'google:'+f.id===design.fontFamily)?[[design.fontFamily,'Fuente de Google seleccionada']]:[])])}{select('fontWeight','Grosor del título',[['400','Normal'],['600','Seminegrita'],['700','Negrita'],['900','Muy gruesa']])}</div>
         <Field label="Tamaño de texto · px">{id => <Input id={id} type="number" min="16" max="96" required value={design.fontSize} onChange={e => update('fontSize',e.target.value === '' ? '' : Number(e.target.value))}/>}</Field>
         {select('textAlign','Alineación de texto',[['left','Izquierda'],['center','Centro'],['right','Derecha']])}
+        <Toggle name="textShadow" label="Sombra del texto" settings={design} update={update}/>
         <NotificationFonts fonts={fonts} api={api} online={online} select={value=>update('fontFamily',value)}/>
       </div>
     </details>

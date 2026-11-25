@@ -147,7 +147,7 @@ export function CommandAudio({ event, onError }) {
 }
 
 export function CommandsOutput({ listOnly = false }) {
-  const { state, online } = useStudio(), [error, setError] = useState(''), [now, setNow] = useState(Date.now());
+  const { state, online } = useStudio('commands'), [error, setError] = useState(''), [now, setNow] = useState(Date.now());
   const tool = state?.tools.commands;
   useEffect(() => {
     document.documentElement.classList.add('commands-output');

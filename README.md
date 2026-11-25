@@ -46,7 +46,7 @@ El servidor HTTP, configuración, filtros, cola, instalación y administración 
 - Los ajustes guardados con Piper se cargan con Pocket TTS y conservan la salida, el volumen y los filtros.
 - El nuevo Layout guarda en `data/layout.json`. Los datos del editor anterior permanecen intactos; no se importan automáticamente.
 - AdQueue conserva configuración y archivos en sus ubicaciones actuales.
-- La nueva salida de Layout es `http://127.0.0.1:17900/?layout-output=1#tiktok.studio` (o el puerto configurado). Sustituye la URL anterior en tu fuente de navegador. La salida de anuncios sigue en `http://127.0.0.1:17843/output#tiktok.studio`.
+- La salida del Layout principal es `http://127.0.0.1:17900/output/layout#tiktok.studio` (o el puerto configurado). Cada composición guardada tiene su propia ruta `/output/layout/<id>`. En **Mis composiciones**, pulsa **Copiar salida** en la tarjeta correspondiente y pega la URL en una fuente de enlace nueva para esa escena. Los enlaces anteriores de Layout siguen funcionando. La salida de anuncios es `http://127.0.0.1:17843/output#tiktok.studio`.
 - AdQueue todavía requiere `../AdQueueWeb/dist` y sus requisitos originales de .NET. Layout ya no requiere carpetas hermanas.
 
 Los archivos originales de las tres herramientas no se modifican. El servidor anterior `server.py` se ha sustituido por `server.js`.

@@ -46,7 +46,7 @@ function LikesBoardContent({config,ranking=[],total=0,preview=false}){
   </section>;
 }
 export function LikesOutput(){
-  const {state,online}=useStudio();const tool=state?.tools.likes;
+  const {state,online}=useStudio('likes');const tool=state?.tools.likes;
   useEffect(()=>{document.documentElement.classList.add('likes-output');document.documentElement.style.colorScheme='normal';return()=>{document.documentElement.classList.remove('likes-output');document.documentElement.style.removeProperty('color-scheme');};},[]);
   return <div className={'likes-stage '+(tool?.config.position||'top-right')}>{online&&tool&&<LikesBoard {...tool}/>}</div>;
 }

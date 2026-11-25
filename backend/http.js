@@ -1,24 +1,36 @@
 import http from 'node:http';
 import { viewForPath } from '../shared/routes.js';
+import { layoutOutputId } from '../shared/layout-url.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 
 const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
+const outputTools = new Set(['spotify', 'likes', 'notifications', 'commands', 'layout']);
+const outputStreamLifetime = 3000;
 
 export function createDashboardServer(center) {
   const token = randomBytes(32).toString('hex');
-  const clients = new Set();
+  const clients = new Map();
   let publishTimer;
   const snapshot = () => ({ ...center.snapshot(), token });
+  const eventData = output => {
+    const data = output ? { tools: { [output]: center.tools[output].state() } } : snapshot();
+    return `data: ${JSON.stringify(data)}\n\n`;
+  };
   const publish = () => {
     if (publishTimer) return;
     publishTimer = setTimeout(() => {
       publishTimer = null;
-      const data = `data: ${JSON.stringify(snapshot())}\n\n`;
+      if (!clients.size) return;
+      const messages = new Map();
       // Slow tabs receive the latest state on the next update, without buffering
       // every download-progress event or dropping large catalog snapshots.
-      for (const client of clients) if (!client.writableNeedDrain && !client.destroyed) client.write(data);
+      for (const [client, output] of clients) {
+        if (client.writableNeedDrain || client.destroyed || client.writableEnded) continue;
+        if (!messages.has(output)) messages.set(output, eventData(output));
+        client.write(messages.get(output));
+      }
     }, 30);
   };
   center.on('state', publish);
@@ -60,13 +72,25 @@ export function createDashboardServer(center) {
         if (url.pathname === '/api/state') return json(res, 200, snapshot());
         if (url.pathname === '/api/events') {
           if (clients.size >= 20) return json(res, 503, { error: 'Demasiadas conexiones' });
+          const output = url.searchParams.get('output');
+          if (output !== null && !outputTools.has(output)) return json(res, 400, { error: 'Salida no válida' });
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Content-Type-Options': 'nosniff' });
-          res.write(`data: ${JSON.stringify(snapshot())}\n\n`);
-          clients.add(res); res.on('close', () => clients.delete(res)); return;
+          if (output) res.write('retry: 350\n\n');
+          res.write(eventData(output));
+          clients.set(res, output);
+          // Leave a gap for document and asset requests when Chromium fills its HTTP/1.1 connection pool.
+          const rotation = output ? setTimeout(() => res.end('event: rotate\ndata: {}\n\n'), outputStreamLifetime) : null;
+          res.on('close', () => {
+            clearTimeout(rotation);
+            clients.delete(res);
+          });
+          return;
         }
+      }
+      if (req.method === 'GET' || req.method === 'HEAD') {
         const publicRoot = path.resolve(center.root, 'dist');
         const pathname = decodeURIComponent(url.pathname);
-        const isPage = viewForPath(pathname) !== null;
+        const isPage = viewForPath(pathname) !== null || layoutOutputId(pathname) !== undefined;
         const file = path.resolve(publicRoot, '.' + (isPage ? '/index.html' : pathname));
         const relative = path.relative(publicRoot, file);
         if (relative.startsWith('..') || path.isAbsolute(relative) || (!isPage && !pathname.startsWith('/assets/'))) return json(res, 404, { error: 'No encontrado' });
@@ -75,7 +99,8 @@ export function createDashboardServer(center) {
         catch (error) { if (error.code === 'ENOENT' || error.code === 'EISDIR') return json(res, 404, { error: isPage ? 'Compila el frontend con npm run build.' : 'No encontrado' }); throw error; }
         const mime = mimeTypes[path.extname(file)];
         if (!mime) return json(res, 404, { error: 'No encontrado' });
-        res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': isPage ? 'no-store' : 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
+        res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Content-Length': content.length, 'Cache-Control': isPage ? 'no-store' : 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
+        if (req.method === 'HEAD') return res.end();
         return res.end(content);
       }
       if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });
@@ -98,7 +123,7 @@ export function createDashboardServer(center) {
     }
   });
   server.requestTimeout = 15000; server.headersTimeout = 10000;
-  const heartbeat = setInterval(() => { for (const client of clients) if (!client.writableNeedDrain) client.write(': heartbeat\n\n'); }, 15000);
+  const heartbeat = setInterval(() => { for (const [client, output] of clients) if (!output && !client.writableNeedDrain && !client.writableEnded) client.write(': heartbeat\n\n'); }, 15000);
   heartbeat.unref();
   const poller = setInterval(() => center.poll().catch(error => center.log(error.message)), 2500);
   poller.unref();
@@ -107,7 +132,7 @@ export function createDashboardServer(center) {
     async close() {
       clearInterval(heartbeat); clearInterval(poller); clearTimeout(publishTimer);
       center.off('state', publish);
-      for (const client of clients) client.end();
+      for (const client of clients.keys()) client.end();
       const closed = new Promise(resolve => server.close(resolve));
       server.closeAllConnections();
       await center.close(); await closed;

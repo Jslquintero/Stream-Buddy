@@ -79,7 +79,7 @@ export function SpotifyStudio({ tool, api, notice, online }) {
 export function SpotifyCard(props) { return <SpotifyVisual {...props}/>; }
 
 export function SpotifyOutput() {
-  const { state, online } = useStudio();
+  const { state, online } = useStudio('spotify');
   const tool = state?.tools.spotify;
   const visibility = useRef({key:null});
   const [,tick] = useState(0);

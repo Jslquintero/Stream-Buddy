@@ -45,6 +45,11 @@ export function createLayoutModule({ dataDir, changed, log }) {
       const name=nameOf(input.name);persist(compositions.map(item=>item.id===input.id?{...item,name}:item));
       return {};
     },
+    deleteComposition(input) {
+      const next = compositions.filter(item => item.id !== input.id);
+      if (next.length === compositions.length) throw new Error('Composición no encontrada');
+      persist(next);
+    },
     health: async () => {}, start: async () => { changed(); },
     save(input) {
       const next = validateLayout(input);

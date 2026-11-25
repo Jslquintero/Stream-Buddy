@@ -24,9 +24,9 @@ test('custom canvas resolution persists and invalid dimensions are rejected', t 
 
 test('TikTok output links retain the local suffix and configured port', () => {
   for (const host of ['127.0.0.1','localhost','[::1]']) {
-    assert.equal(layoutOutputURL(`http://${host}:17900/?editor=1#old`),'http://127.0.0.1:17900/?layout-output=1#tiktok.studio');
+    assert.equal(layoutOutputURL(`http://${host}:17900/?editor=1#old`),'http://127.0.0.1:17900/output/layout#tiktok.studio');
   }
-  assert.equal(layoutOutputURL('http://127.0.0.1:17901/'),'http://127.0.0.1:17901/?layout-output=1#tiktok.studio');
+  assert.equal(layoutOutputURL('http://127.0.0.1:17901/'),'http://127.0.0.1:17901/output/layout#tiktok.studio');
 });
 
 test('layout persists all styles and rejects invalid documents without losing saved work', t => {

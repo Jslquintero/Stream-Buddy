@@ -29,7 +29,9 @@ test('named compositions persist independently without replacing the legacy layo
   assert.equal(fs.readFileSync(path.join(dataDir,'layout.json'),'utf8'),original);
   assert.notEqual(layoutOutputURL('http://localhost:17900',a),layoutOutputURL('http://localhost:17900',b));
   assert.equal(viewForPath('/layout/'+a),'layout:'+a);
-  assert.equal(new URL(layoutOutputURL('http://localhost:17900',a)).searchParams.get('composition'),a);
+  const output = new URL(layoutOutputURL('http://localhost:17900',a));
+  assert.equal(output.pathname,'/output/layout/'+a);
+  assert.equal(output.search,'');
   const saved=fs.readFileSync(path.join(dataDir,'layout-compositions.json'),'utf8');
   assert.throws(()=>library.saveComposition({id:a,document:{}}));
   assert.throws(()=>library.saveComposition({id:'missing',document:defaultLayout}));

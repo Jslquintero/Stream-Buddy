@@ -66,6 +66,7 @@ export class Center extends EventEmitter {
       case 'layout/create': return this.tools.layout.create(body);
       case 'layout/save-composition': return this.tools.layout.saveComposition(body);
       case 'layout/rename': return this.tools.layout.rename(body);
+      case 'layout/delete': this.tools.layout.deleteComposition(body); break;
       case 'settings': this.settings.save(body); this.log('Configuración de voz guardada'); break;
       case 'tts/preview': this.tts.preview(body.text, body.settings); break;
       case 'tts/remove': this.tts.remove(body.id); break;

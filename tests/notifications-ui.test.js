@@ -232,9 +232,10 @@ test('notification output is empty when idle, renders escaped events and clears 
   assert.ok(window.document.documentElement.classList.contains('notifications-output'));
   assert.equal(window.document.documentElement.style.colorScheme,'normal','Embedded output must not inherit the dashboard dark color scheme');
   assert.equal(window.document.querySelector('.notification-banner'),null);
-  state.tools.notifications.current={id:'one',type:'gift',title:'<img src=x onerror=alert(1)>',message:'Gracias',style:defaultNotifications,expiresAt:Date.now()+200};
+  state.tools.notifications.current={id:'one',type:'gift',title:'<img src=x onerror=alert(1)>',message:'Gracias',style:{...defaultNotifications,textShadow:true},expiresAt:Date.now()+200};
   publish(state);await until(()=>window.document.querySelector('.notification-banner'));
   const banner=window.document.querySelector('.notification-banner');assert.equal(banner.querySelector('img'),null);
+  assert.ok(banner.querySelector('.notification-copy').style.textShadow);
   publish(state);await pause();assert.equal(window.document.querySelector('.notification-banner'),banner,'SSE must not replay animation');
   await until(()=>!window.document.querySelector('.notification-banner'));
   state.tools.notifications.current={...state.tools.notifications.current,id:'two',expiresAt:Date.now()+6000};publish(state);
@@ -345,11 +346,15 @@ test('pending notification edits survive a page reload and retry saving to disk'
   assert.equal(third.window.document.querySelector('.notifications-settings input:not([type])').value,'Recuperado tras recargar');
 });
 
-test('transparent border, animations and installed fonts are retained by autosave',async t=>{
+test('text shadow, transparent border, animations and installed fonts are retained by autosave',async t=>{
   const {window,requests,publish}=await mount(t,'/notifications');const fontId='a'.repeat(24);
   publish({token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},notifications:{config:structuredClone(defaultNotifications),fonts:{items:[{id:fontId,name:'Montserrat'}]},revision:1,queued:0,current:null}}});
   await until(()=>window.document.querySelector('.notifications-settings'));
   const field=label=>{const node=Array.from(window.document.querySelectorAll('label')).find(l=>l.textContent===label);assert.ok(node,label);return window.document.getElementById(node.htmlFor);};
+  const copy=window.document.querySelector('.notification-copy');
+  assert.equal(copy.style.textShadow,'');
+  field('Sombra del texto').click();await pause();
+  assert.ok(copy.style.textShadow);
   field('Borde transparente').click();await pause();
   for(const [label,value] of [['Animación de entrada','bounce'],['Tipografía','google:'+fontId]]){const select=field(label);select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));await pause();}
   assert.equal(window.document.querySelector('.notification-banner').style.borderColor,'rgba(185, 246, 120, 0)');
@@ -357,6 +362,9 @@ test('transparent border, animations and installed fonts are retained by autosav
   assert.ok(window.document.head.querySelector('link[href="/notification-fonts/'+fontId+'.css"]'));
   await until(()=>requests.some(r=>r.url==='/api/notifications/save'));
   const saved=requests.filter(r=>r.url==='/api/notifications/save').at(-1).body;assert.equal(saved.borderOpacity,0);assert.equal(saved.fontFamily,'google:'+fontId);assert.equal(saved.animation,'bounce');
+  assert.equal(saved.textShadow,true);
+  field('Sombra del texto').click();await pause();
+  assert.equal(copy.style.textShadow,'');
 });
 
 test('notification autosave serializes saves and preserves edits made during a pending request',async t=>{
