@@ -243,10 +243,19 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const stream = await fetch(base + '/api/events', { signal: controller.signal });
   assert.match(stream.headers.get('content-type'), /event-stream/);
   const reader = stream.body.getReader();
-  const initial = new TextDecoder().decode((await reader.read()).value); assert.match(initial, /"Volume":33/);
+  const decoder = new TextDecoder();
+  const readUntil = async pattern => {
+    let text = '';
+    while (!pattern.test(text)) {
+      const update = await Promise.race([reader.read(), new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('SSE no respondió')), 3000); timer.unref(); })]);
+      if (update.done) break;
+      text += decoder.decode(update.value, { stream: true });
+    }
+    return text;
+  };
+  const initial = await readUntil(/"Volume":33/); assert.match(initial, /"Volume":33/);
   center.log('evento de prueba');
-  const update = await Promise.race([reader.read(), new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('SSE no respondió')), 3000); timer.unref(); })]);
-  assert.match(new TextDecoder().decode(update.value), /evento de prueba/);
+  assert.match(await readUntil(/evento de prueba/), /evento de prueba/);
   controller.abort(); await reader.cancel().catch(() => {});
   const outputStream = await fetch(base + '/api/events?output=likes', { signal: AbortSignal.timeout(5000) });
   assert.equal(outputStream.status, 200);

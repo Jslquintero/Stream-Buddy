@@ -13,10 +13,13 @@ export function createCommandsModule({ dataDir, changed }) {
   function clear() { clearTimeout(timers.list); list = null; clearTimeout(timers.visual); clearTimeout(timers.audio); visual = null; audio = null; changed(); }
   function showHelp(page = null) {
     const help = config.commands.filter(row => row.enabled).map(row => ({ command: row.command, description: row.description || '' }));
-    const startedAt = Date.now(), duration = page === null ? Math.max(12000, Math.ceil(help.length / 6) * 8000) : 12000;
+    const startedAt = Date.now(), duration = config.listAlwaysVisible ? null : 12000;
     clearTimeout(timers.list);
-    list = { id: randomUUID(), help, page, startedAt, expiresAt: startedAt + duration };
-    timers.list = setTimeout(() => { list = null; changed(); }, duration); timers.list.unref();
+    list = { id: randomUUID(), help, page, startedAt, expiresAt: duration ? startedAt + duration : null };
+    if (duration) {
+      timers.list = setTimeout(() => { list = null; changed(); }, duration);
+      timers.list.unref();
+    }
     changed(); return true;
   }
   function trigger(row, user) {

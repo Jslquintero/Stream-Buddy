@@ -1,6 +1,6 @@
 import { CopyLinkButton } from './components/output-controls';
 import { useEffect, useRef, useState } from 'react';
-import { Activity, ArrowDownToLine, ArrowRight, AudioLines, Check, ChevronRight, CircleHelp, Clapperboard, Copy, ExternalLink, LayoutDashboard, Menu, Monitor, Play, Plus, Radio, RefreshCw, Settings2, ShieldCheck, Sparkles, Volume2, X } from 'lucide-react';
+import { Activity, AudioLines, Bell, ChevronRight, CircleHelp, Clapperboard, Copy, ExternalLink, Heart, LayoutDashboard, Menu, Monitor, Music2, RefreshCw, Share2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Badge, Button, Card } from './components/ui';
 import { useRoute } from './hooks/use-route';
 import { TikTokConnection } from './components/tiktok-connection';
@@ -10,48 +10,76 @@ import { LayoutStudio } from './components/layout-studio';
 import { NotificationsStudio } from './components/notifications-studio';
 import { CommandsStudio } from './components/commands-studio';
 import { LikesStudio } from './components/likes-studio';
+import { SocialStudio } from './components/social-studio';
 import { SpotifyStudio } from './components/spotify-studio';
-import { Bell, Heart, Music2 } from 'lucide-react';
-const modules = [{id:'tts',title:'Voz y chat',subtitle:'Conecta con tu comunidad',description:'Dale voz a cada comentario. Configura tus voces, filtros y la conexión con TikTok.',icon:AudioLines,color:'mint',action:'Configurar voz'}, {id:'layout',title:'Layout Studio',subtitle:'Tu directo, a tu estilo',description:'Prepara tus escenas y overlays. Todo lo que necesitas para destacar en pantalla.',icon:Monitor,color:'violet',action:'Abrir editor'}, {id:'ads',title:'AdQueue',subtitle:'Cada anuncio en su momento',description:'Organiza tus videos y controla la cola de anuncios sin interrumpir tu directo.',icon:Clapperboard,color:'orange',action:'Gestionar anuncios'}];
-modules.push({id:'notifications',title:'Notificaciones',subtitle:'Celebra a tu comunidad',description:'Personaliza las alertas de seguidores, regalos, compartidos y Super Fans para tu directo.',icon:Bell,color:'mint',action:'Configurar alertas'});
-modules.push({id:'likes',title:'Top likes',subtitle:'Tu comunidad m?s activa',description:'Muestra qui?nes apoyan tu directo con m?s likes. Clasificaci?n y dise?o en tiempo real.',icon:Heart,color:'orange',action:'Configurar Top likes'});
-modules.push({id:'commands',title:'Comandos de chat',subtitle:'Tu chat toma el control',description:'Configura comandos para mostrar GIF, notificaciones y reproducir sonidos en el directo.',icon:Sparkles,color:'violet',action:'Configurar comandos'});
-modules.push({id:'spotify',title:'Spotify',subtitle:'La música de tu directo',description:'Muestra la canción que estás escuchando, con su carátula y artista en un overlay para tu stream.',icon:Music2,color:'mint',action:'Configurar Spotify'});
-const baseNavigation=[{id:'home',title:'Vista general',icon:LayoutDashboard},...modules];
+import { Home, adQueueOutputURL } from './components/home';
+
+const widgets = [
+  { id: 'layout', title: 'Escenas', description: 'Escenas y composiciones del directo.', icon: Monitor, color: 'violet', action: 'Abrir editor' },
+  { id: 'ads', title: 'AdQueue', description: 'Cola de videos para anuncios.', icon: Clapperboard, color: 'orange', action: 'Gestionar anuncios' },
+  { id: 'notifications', title: 'Notificaciones', description: 'Alertas de seguidores, regalos y más.', icon: Bell, color: 'mint', action: 'Configurar alertas' },
+  { id: 'likes', title: 'Top likes', description: 'Clasificación de likes en directo.', icon: Heart, color: 'orange', action: 'Configurar Top likes' },
+  { id: 'social', title: 'Social Media Rotator', description: 'Highlight your social channels with eye-catching pop-up rotations.', icon: Share2, color: 'violet', action: 'Configurar redes' },
+  { id: 'commands', title: 'Comandos de chat', description: 'GIF, sonidos y lista de comandos.', icon: Sparkles, color: 'violet', action: 'Configurar comandos' },
+  { id: 'spotify', title: 'Música', description: 'Canción actual, artista y carátula.', icon: Music2, color: 'mint', action: 'Configurar música' },
+];
+const navigationGroups = [
+  { id: 'general', title: 'General', items: [
+    { id: 'home', title: 'Vista general', icon: LayoutDashboard },
+    { id: 'tts', title: 'Voz y chat', icon: AudioLines },
+  ] },
+  { id: 'widgets', title: 'Widgets', items: widgets },
+];
+const navigationItems = navigationGroups.flatMap(group => group.items);
 export default function App(){
- const {state,notice,setNotice,online,api}=useStudio();const [view,setView]=useRoute(),[menu,setMenu]=useState(false),[busy,setBusy]=useState(false); const discovered=useRef(false);
+ const {state,notice,setNotice,online,api}=useStudio();const [view,setView]=useRoute(),[menu,setMenu]=useState(false); const discovered=useRef(false);
  useEffect(()=>{if(view==='tts'&&state&&!discovered.current&&!state.tts.resources?.task?.running){discovered.current=true;void api('tts/refresh');}},[view,state,api]);
  useEffect(() => {
    if (state && view?.startsWith('layout:') && !state.tools.layout.compositions?.some(item => item.id === view.slice(7))) {
      setView('layout', { replace: true });
    }
  }, [view, state, setView]);
- const navigation=baseNavigation.flatMap(item=>item.id==='layout'?[item,...(state?.tools.layout.compositions||[]).map(composition=>({id:'layout:'+composition.id,title:composition.name,icon:ChevronRight}))]:[item]);
+ const compositions=state?.tools.layout.compositions ?? [];
+ const currentTitle=navigationItems.find(item=>item.id===view)?.title
+   ?? compositions.find(composition=>'layout:'+composition.id===view)?.name;
  const go=id=>{setView(id);setMenu(false);}; const open=async id=>{go(id);if(id!=='tts')await api('start',{tool:id});};
- const startAll=async()=>{setBusy(true);try{const a=await api('start',{tool:'layout'}),b=await api('start',{tool:'ads'});if(a&&b)setNotice('Inicio solicitado. Consulta el estado de tus herramientas.');}finally{setBusy(false);}};
- const t=state?.tts;const count=state?1+['layout','ads','notifications','likes','commands','spotify'].filter(id=>state.tools[id]?.running).length:0;
- return <div className="app-shell"><aside className={menu?'sidebar mobile-open':'sidebar'}><a className="brand" href="/" onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();go('home');}}} aria-label="Live Studio inicio"><span className="brand-mark"><AudioLines/></span><span>live<span className="brand-light">studio</span><small>CREATOR WORKSPACE</small></span></a><div className="workspace"><span className="avatar">LS</span><span>Mi espacio de trabajo<small>Personal · Local</small></span><Badge>LOCAL</Badge></div><p className="nav-label">WORKSPACE</p><nav>{navigation.map(({id,title,icon:Icon})=><button key={id} aria-current={view===id?'page':undefined} className={(view===id?'nav-item active':'nav-item')+(id.startsWith('layout:')?' nav-subitem':'')} onClick={()=>go(id)}><Icon size={19}/>{title}{view===id&&<span className="nav-indicator"/>}</button>)}</nav><div className="sidebar-bottom"><div className="local-card"><span className="online-dot"/><strong>Todo en tu equipo</strong><p>Tu espacio de producción local, siempre a mano.</p><ShieldCheck size={18}/></div><span className="sidebar-foot"><CircleHelp size={16}/> Live Studio Center <small>v0.3</small></span></div></aside>{menu&&<button className="sidebar-scrim" aria-label="Cerrar menú" onClick={()=>setMenu(false)}/>}
- <div className="main-shell"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Abrir menú" onClick={()=>setMenu(true)}><Menu/></Button><span>Workspace</span><ChevronRight size={14}/><strong>{navigation.find(n=>n.id===view)?.title}</strong></div><div className="topbar-actions"><TikTokConnection state={state} online={online} api={api}/><div className="topbar-status"><span className={online?'online-dot':'offline-dot'}/>{online?'Sistema conectado':'Conectando…'}<span className="avatar small">LS</span></div></div></header>
- <main>{view !== 'notifications' && view !== 'likes' && view !== 'commands' && <div className="page-heading"><div><p className="eyebrow">TU ESPACIO. TU DIRECTO.</p><h1>{view==='home'?'Todo listo para tu próximo directo.':view==='tts'?'La voz de tu comunidad.':view==='spotify'?'La música de tu directo.':(view==='layout'||view?.startsWith('layout:'))?'Tu próxima gran escena.':'Tus anuncios, en orden.'}</h1><p className="muted">{view==='home'?'Un solo lugar para preparar, conectar y controlar tu stream.':view==='tts'?'Haz que cada mensaje forme parte del directo.': 'Prepara y controla tu herramienta desde tu espacio de trabajo.'}</p></div>{view==='home'&&<Button onClick={startAll} disabled={!online||busy}><Play size={15}/>{busy?'Iniciando…':'Iniciar herramientas'}</Button>}</div>}
+ const t=state?.tts;
+ return <div className="app-shell"><aside className={menu?'sidebar mobile-open':'sidebar'}><a className="brand" href="/" onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();go('home');}}} aria-label="Live Studio inicio"><span className="brand-mark"><AudioLines/></span><span>live<span className="brand-light">studio</span><small>CREATOR WORKSPACE</small></span></a><div className="workspace"><span className="avatar">LS</span><span>Mi espacio de trabajo<small>Personal · Local</small></span><Badge>LOCAL</Badge></div><SidebarNavigation view={view} go={go}/><div className="sidebar-bottom"><div className="local-card"><span className="online-dot"/><strong>Todo en tu equipo</strong><p>Tu espacio de producción local, siempre a mano.</p><ShieldCheck size={18}/></div><span className="sidebar-foot"><CircleHelp size={16}/> Live Studio Center <small>v0.3</small></span></div></aside>{menu&&<button className="sidebar-scrim" aria-label="Cerrar menú" onClick={()=>setMenu(false)}/>}
+ <div className="main-shell"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Abrir menú" onClick={()=>setMenu(true)}><Menu/></Button><span>Espacio de trabajo</span><ChevronRight size={14}/><strong>{currentTitle}</strong></div><TikTokConnection state={state} online={online} api={api}/></header>
+ <main>{view !== 'home' && view !== 'notifications' && view !== 'likes' && view !== 'commands' && view !== 'social' && <div className="page-heading"><div><p className="eyebrow">TU ESPACIO. TU DIRECTO.</p><h1>{view==='tts'?'La voz de tu comunidad.':view==='spotify'?'La música de tu directo.':(view==='layout'||view?.startsWith('layout:'))?'Tu próxima gran escena.':'Tus anuncios, en orden.'}</h1><p className="muted">{view==='tts'?'Haz que cada mensaje forme parte del directo.': 'Prepara y controla tu herramienta desde tu espacio de trabajo.'}</p></div></div>}
  {notice&&<div className="notice" role="status"><Activity size={16}/><span>{notice}</span><Button variant="ghost" size="icon" aria-label="Cerrar aviso" onClick={()=>setNotice('')}><X size={16}/></Button></div>}
- {view==='home'&&<><div className="stats-grid"><Card className="stat"><span className="stat-icon"><Settings2/></span><div><p>Herramientas disponibles</p><strong>{count}<small> / {modules.length} activas</small></strong></div><span className="stat-trend">Tu estudio</span></Card><Card className="stat"><span className="stat-icon"><Volume2/></span><div><p>Mensajes leídos</p><strong>{t?.metrics?.completed||0}<small> esta sesión</small></strong></div><span className="tiny-wave">▂ ▅ ▃ ▇ ▄ ▂ ▅</span></Card><Card className="stat"><span className="stat-icon"><AudioLines/></span><div><p>Cola de voz</p><strong>{t?.queued||0}<small> mensajes pendientes</small></strong></div><Badge className="success">{t?.paused?'Pausada':t?.speaking?'Leyendo':'En espera'}</Badge></Card></div>
- <div className="section-heading"><div><h2>Tus herramientas</h2><p className="muted">Todo lo que hace único tu directo.</p></div><span className="subtle">{modules.length} MÓDULOS</span></div><div className="module-grid">{modules.map(({id,title,subtitle,description,icon:Icon,color,action})=>{const tool=state?.tools[id];const running=id==='tts'?!!state:tool?.running;return <Card className="module-card" key={id}><div className="module-top"><span className={'module-icon '+color}><Icon size={25}/></span><Badge className={running?'success':''}><span className={running?'online-dot':'offline-dot'}/>{running?'Disponible':tool?.starting?'Iniciando':tool?.error?'Revisar actividad':tool?.available?'Detenido':'No encontrado'}</Badge></div><h3>{title}</h3><span className="module-subtitle">{subtitle}</span><p>{description}</p><Button variant="outline" disabled={!online} onClick={()=>open(id)}>{action}<ArrowRight size={16}/></Button></Card>;})}</div>
- <div className="bottom-grid"><Card className="quickstart"><span className="sparkle-icon"><Sparkles/></span><p className="eyebrow">UN BUEN DIRECTO EMPIEZA AQUÍ</p><h2>Prepara tu estudio.<br/>Hazlo tuyo.</h2><p>Prueba la voz, prepara tus escenas y organiza tus anuncios antes de salir en vivo.</p><Button variant="outline" onClick={()=>go('tts')}>Probar mi voz<ArrowRight size={15}/></Button><div className="quickstart-art" aria-hidden="true"><AudioLines/></div></Card><ActivityFeed events={state?.events||[]}/></div></>}
+ {view==='home'&&<Home widgets={widgets} state={state} online={online} open={open}/>}
  <div hidden={view!=='tts'}>{state?<VoiceStudio state={state} api={api} notice={setNotice}/>:<Card className="loading" role="status">Conectando con tu estudio…</Card>}</div>
  <div hidden={view!=='layout'}>{state&&<LayoutStudio tool={state.tools.layout} api={api} notice={setNotice} open={go}/>}</div>
  {state?.tools.layout.compositions?.map(composition=><div key={composition.id} hidden={view!=='layout:'+composition.id}><CompositionEditor active={view==='layout:'+composition.id} tool={state.tools.layout} compositionId={composition.id} api={api} notice={setNotice} open={go}/></div>)}
  {view==='ads'&&<ToolView id="ads" tool={state?.tools.ads} api={api} notice={setNotice}/>}
  <div hidden={view!=='notifications'}>{state?.tools.notifications?<NotificationsStudio tool={state.tools.notifications} api={api} notice={setNotice} connected={online&&t?.connected} online={online}/>:view==='notifications'&&<Card className="loading">{state?'Reinicia Live Studio para cargar el módulo de notificaciones.':'Conectando con tu estudio…'}</Card>}</div>
  <div hidden={view!=='likes'}>{state?.tools.likes?<LikesStudio tool={state.tools.likes} api={api} notice={setNotice} online={online} connected={online&&t?.connected}/>:view==='likes'&&<Card>Reinicia Live Studio para cargar Top likes.</Card>}</div>
+ <div hidden={view!=='social'}>{state?.tools.social?<SocialStudio tool={state.tools.social} api={api} notice={setNotice} online={online}/>:view==='social'&&<Card>Reinicia Live Studio para cargar Social Media Rotator.</Card>}</div>
  <div hidden={view!=='commands'}>{state?.tools.commands&&<CommandsStudio tool={state.tools.commands} api={api} notice={setNotice} online={online} connected={online&&t?.connected}/>}</div>
  <div hidden={view!=='spotify'}>{state?.tools.spotify?<SpotifyStudio tool={state.tools.spotify} api={api} notice={setNotice} online={online}/>:view==='spotify'&&<Card>Reinicia Live Studio para cargar Spotify.</Card>}</div>
  <footer><span><span className="online-dot"/> Hecho para tu próximo directo.</span><span>LIVE STUDIO <span className="footer-separator">/</span> Tu producción, bajo control.</span></footer></main></div></div>;
 }
-function ActivityFeed({events}){return <Card className="activity-card"><div className="section-heading"><h2>Actividad reciente</h2><Badge>EN ESTE EQUIPO</Badge></div><div className="activity-list">{events.length?events.slice(-5).reverse().map((event,i)=><div className="event" key={i}><span className="event-icon"><Check size={13}/></span><p>{event.text}<time>{event.time}</time></p></div>):<div className="empty"><Activity/><p>Tu actividad aparecerá aquí.</p><small>Inicia una herramienta para comenzar.</small></div>}</div></Card>;}
-function ToolView({id,tool,api,notice}){const url=tool?.url||(id==='layout'?'http://localhost:8787':'http://127.0.0.1:17843');return <Card className="tool-view"><div className="tool-toolbar"><strong>{id==='layout'?'Layout Studio':'AdQueue'}</strong><div className="actions"><Button variant="outline" size="sm" onClick={()=>api('start',{tool:id})} disabled={tool?.starting}><RefreshCw size={14}/>Iniciar / reconectar</Button><Button asChild variant="outline" size="sm"><a href={url} target="_blank" rel="noopener noreferrer">Abrir aparte<ExternalLink size={14}/></a></Button>{id==='ads'&&<CopyLinkButton url="http://127.0.0.1:17843/output#tiktok.studio" notice={notice} message="Enlace de salida copiado." size="sm"><Copy size={14}/>Copiar salida</CopyLinkButton>}</div></div>{tool?.running?<iframe src={url} title={id==='layout'?'Layout Studio':'AdQueue'} allow="autoplay; clipboard-write"/>:<div className="tool-empty"><Monitor size={38}/><h2>{tool?.starting?'Preparando tu herramienta…':'Tu herramienta está detenida'}</h2><p>{tool?.error||(!tool?.available?'No se encontraron los archivos de la herramienta. Revisa su instalación.':'Inicia la herramienta para abrir su espacio de trabajo.')}</p></div>}</Card>;}
+function ToolView({id,tool,api,notice}){const url=tool?.url||(id==='layout'?'http://localhost:8787':'http://127.0.0.1:17843');return <Card className="tool-view"><div className="tool-toolbar"><strong>{id==='layout'?'Layout Studio':'AdQueue'}</strong><div className="actions"><Button variant="outline" size="sm" onClick={()=>api('start',{tool:id})} disabled={tool?.starting}><RefreshCw size={14}/>Iniciar / reconectar</Button><Button asChild variant="outline" size="sm"><a href={url} target="_blank" rel="noopener noreferrer">Abrir aparte<ExternalLink size={14}/></a></Button>{id==='ads'&&<CopyLinkButton url={adQueueOutputURL(url)} notice={notice} message="Enlace de salida copiado." size="sm"><Copy size={14}/>Copiar salida</CopyLinkButton>}</div></div>{tool?.running?<iframe src={url} title={id==='layout'?'Layout Studio':'AdQueue'} allow="autoplay; clipboard-write"/>:<div className="tool-empty"><Monitor size={38}/><h2>{tool?.starting?'Preparando tu herramienta…':'Tu herramienta está detenida'}</h2><p>{tool?.error||(!tool?.available?'No se encontraron los archivos de la herramienta. Revisa su instalación.':'Inicia la herramienta para abrir su espacio de trabajo.')}</p></div>}</Card>;}
 
 function CompositionEditor({active,...props}) {
  const [visited,setVisited]=useState(active);
  useEffect(()=>{if(active)setVisited(true);},[active]);
  return visited||active?<LayoutStudio {...props}/>:null;
+}
+
+function SidebarNavigation({ view, go }) {
+  return <nav aria-label="Menú principal">
+    {navigationGroups.map(group => <section className="nav-category" key={group.id} aria-labelledby={`nav-${group.id}`}>
+      <h2 className="nav-label" id={`nav-${group.id}`}>{group.title}</h2>
+      {group.items.map(({ id, title, icon: Icon }) => {
+        const active = view === id;
+        const inLayout = id === 'layout' && view?.startsWith('layout:');
+        return <button key={id} type="button" aria-current={active ? 'page' : inLayout ? 'location' : undefined}
+          className={active || inLayout ? 'nav-item active' : 'nav-item'} onClick={() => go(id)}>
+          <Icon size={19} aria-hidden="true"/>{title}{(active || inLayout) && <span className="nav-indicator"/>}
+        </button>;
+      })}
+    </section>)}
+  </nav>;
 }

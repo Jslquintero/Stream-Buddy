@@ -12,3 +12,4 @@ export const Tabs = TabsPrimitive.Root;
 export function TabsList(props) { return <TabsPrimitive.List className="tabs-list" {...props} />; }
 export function TabsTrigger(props) { return <TabsPrimitive.Trigger className="tabs-trigger" {...props} />; }
 export function TabsContent(props) { return <TabsPrimitive.Content className="tabs-content" {...props} />; }
+export { Dialog } from './dialog';

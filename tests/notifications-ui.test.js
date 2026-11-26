@@ -5,8 +5,77 @@ import { JSDOM } from 'jsdom';
 import { defaults } from '../backend/settings.js';
 import { defaultNotifications } from '../modules/notifications/config.js';
 import { defaultLikes } from '../modules/likes/config.js';
+import { defaultSocial } from '../modules/social/config.js';
 import { defaultCommands } from '../modules/commands/config.js';
 const pause = () => new Promise(resolve => setTimeout(resolve,30));
+test('Home copies widget URLs and the chosen layout without leaving the overview', async t => {
+  const { window, publish, requests } = await mount(t, '/');
+  publish({
+    token: 'test', settings: defaults, tts: { resources: {} }, events: [],
+    tools: {
+      layout: { running: true, compositions: [{ id: 'pausa', name: 'Pausa' }] },
+      ads: { available: true, running: false, url: 'http://127.0.0.1:17843' },
+      notifications: { config: defaultNotifications, url: '/?notifications-output=1#tiktok.studio' },
+      likes: { config: defaultLikes, url: '/?likes-output=1#tiktok.studio' },
+      social: { config: defaultSocial, url: '/?social-output=1#tiktok.studio' },
+      commands: {
+        config: defaultCommands, url: '/commands?commands-output=1#tiktok.studio',
+        listUrl: '/commands?commands-list-output=1#tiktok.studio',
+      },
+      spotify: { config: { mode: 'local', enabled: false }, url: '/?spotify-output=1#tiktok.studio' },
+    },
+  });
+
+  const doc = window.document;
+  const copied = [];
+  let clipboardAvailable = true;
+  Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async url => {
+    if (!clipboardAvailable) throw new Error('Clipboard unavailable');
+    copied.push(url);
+  } } });
+  const copy = async (label, url) => {
+    const selector = `.home button[aria-label="${label}"]`;
+    await until(() => doc.querySelector(selector));
+    const previousCount = copied.length;
+    doc.querySelector(selector).click();
+    await until(() => copied.length > previousCount);
+    assert.equal(copied.at(-1), url);
+  };
+  const origin = window.location.origin;
+  await until(() => doc.querySelector('.home select'));
+  const menuItems = id => [...doc.querySelectorAll(`nav [aria-labelledby="nav-${id}"] button`)].map(button => button.textContent);
+  assert.deepEqual(menuItems('general'), ['Vista general', 'Voz y chat']);
+  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Social Media Rotator', 'Comandos de chat', 'Música']);
+  assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), menuItems('widgets'));
+  await copy('Copiar URL de Escenas', origin + '/output/layout#tiktok.studio');
+  const select = doc.querySelector('.home select');
+  select.value = 'pausa';
+  select.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await copy('Copiar URL de Pausa', origin + '/output/layout/pausa#tiktok.studio');
+  await copy('Copiar URL de AdQueue', 'http://127.0.0.1:17843/output#tiktok.studio');
+  await copy('Copiar URL de Notificaciones', origin + '/?notifications-output=1#tiktok.studio');
+  await copy('Copiar URL de Top likes', origin + '/?likes-output=1#tiktok.studio');
+  await copy('Copiar URL de Social Media Rotator', origin + '/?social-output=1#tiktok.studio');
+  await copy('Copiar URL de Comandos de chat', origin + '/commands?commands-output=1#tiktok.studio');
+  await copy('Copiar URL de la lista de comandos', origin + '/commands?commands-list-output=1#tiktok.studio');
+  await copy('Copiar URL de Música', origin + '/?spotify-output=1#tiktok.studio');
+  const spotifyCopy = doc.querySelector('.home button[aria-label="Copiar URL de Música"]');
+  await until(() => spotifyCopy.textContent === 'Copiada');
+  clipboardAvailable = false;
+  spotifyCopy.click();
+  await until(() => doc.querySelector('.home-copy-fallback code')?.textContent === origin + '/?spotify-output=1#tiktok.studio');
+  assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 8);
+  assert.equal(window.location.pathname, '/');
+  assert.equal(requests.length, 0);
+
+  const homeButtons = [...doc.querySelectorAll('.home button')];
+  assert.ok(!homeButtons.some(button => button.textContent.includes('Iniciar herramientas')));
+  assert.doesNotMatch(doc.querySelector('.home').textContent, /Voz y chat|Configurar voz/);
+  homeButtons.find(button => button.textContent === 'Gestionar anuncios').click();
+  await until(() => requests.some(request => request.url === '/api/start' && request.body.tool === 'ads'));
+  assert.equal(window.location.pathname, '/ads');
+});
+
 test('Top likes applies custom CSS inside an isolated output and changes sides live',async t=>{
   const {window,publish}=await mount(t,'/?likes-output=1');
   const config={...defaultLikes,style:'medals',width:380,position:'top-left',showTitle:false,customCss:'.likes-name { color: red; }'};
@@ -25,7 +94,7 @@ test('Top likes applies custom CSS inside an isolated output and changes sides l
   await until(()=>window.document.querySelector('.likes-board'));
   assert.equal(window.document.querySelector('.likes-css-surface'),null);
 });
-test('command dashboard preserves the chosen view and saves public descriptions', async t => {
+test('command dashboard preserves the chosen view and saves descriptions', async t => {
   const {window,publish,requests}=await mount(t,'/commands');
   window.localStorage.setItem('studio.commands.view','list');
   publish({token:'test',settings:defaults,tts:{resources:{}},events:[],tools:{layout:{},ads:{},commands:{config:structuredClone(defaultCommands)}}});
@@ -60,14 +129,18 @@ test('dropping audio on a command uploads it through the audio field', async t =
   assert.match(upload.body.data, /^data:audio\/mpeg;base64,/);
   assert.equal(drop.defaultPrevented, true);
 });
-test('command help renders descriptions safely and paginates large lists', async t => {
+test('command help lists only command names and paginates large lists', async t => {
   const {window,publish}=await mount(t,'/commands?commands-list-output');
-  const help=Array.from({length:7},(_,i)=>({command:'!c'+i,description:i===0?'<img src=x>':'Descripción '+i}));
+  const names=['!score','!send [amount] [username]','!spin','!c3','!c4','!c5','!c6'];
+  const help=names.map(command=>({command,description:'Descripción oculta'}));
   const visual={id:'help',help,startedAt:Date.now(),expiresAt:Date.now()+30000};
   publish({tools:{commands:{list:visual,visual:{id:'image',image:'https://example.com/a.gif',expiresAt:Date.now()+30000},audio:{id:'sound',src:'https://example.com/a.mp3',expiresAt:Date.now()+30000}}}});await until(()=>window.document.querySelector('.commands-help'));
-  assert.equal(window.document.querySelectorAll('.commands-help dt').length,6);assert.equal(window.document.querySelector('.commands-help img'),null);
-  visual.startedAt=Date.now()-9000;publish({tools:{commands:{list:visual,visual:{id:'image',image:'https://example.com/a.gif',expiresAt:Date.now()+30000},audio:{id:'sound',src:'https://example.com/a.mp3',expiresAt:Date.now()+30000}}}});await until(()=>window.document.querySelector('.commands-help dt')?.textContent==='!c6');
-  assert.equal(window.document.querySelectorAll('.commands-help dt').length,1);
+  const list=window.document.querySelector('.commands-help');
+  assert.equal(list.querySelector('h2').textContent,'Commands:');
+  assert.deepEqual(Array.from(list.querySelectorAll('li'), item=>item.textContent),names.slice(0,6));
+  assert.doesNotMatch(list.textContent,/Descripción oculta/);
+  visual.startedAt=Date.now()-9000;publish({tools:{commands:{list:visual,visual:{id:'image',image:'https://example.com/a.gif',expiresAt:Date.now()+30000},audio:{id:'sound',src:'https://example.com/a.mp3',expiresAt:Date.now()+30000}}}});await until(()=>window.document.querySelector('.commands-help li')?.textContent==='!c6');
+  assert.equal(window.document.querySelectorAll('.commands-help li').length,1);
   assert.equal(window.document.querySelector('audio'),null);
   assert.equal(window.document.querySelector('.command-visual img'),null);
 });

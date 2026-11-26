@@ -30,6 +30,7 @@ backend/
     local-tool.js           Ciclo de vida común de herramientas externas
 modules/tts/                Motores de voz Windows y Pocket TTS
 modules/tiktok/             Conector propio de navegador y lector Webcast local
+modules/social/             Rotador de redes sociales para el directo
 web/src/                    Frontend React y componentes reutilizables
 dist/                       Frontend compilado servido por Node
 data/tts.json               Configuración del usuario
@@ -88,6 +89,14 @@ Solo para el modo API, Spotify [exige Premium al propietario de una app en modo 
 La sesión se renueva automáticamente y se guarda en `data/spotify.json`, excluido de Git. Este archivo contiene credenciales de sesión: no lo compartas. Los tokens no se envían al panel ni a las salidas. **Desconectar Spotify** borra la sesión local; puedes revocar el acceso también desde tu cuenta de Spotify.
 
 El servidor consulta la canción cada cinco segundos, compartiendo una sola consulta entre las pestañas y salidas. Respeta los tiempos de espera de Spotify y oculta la canción ante errores, sesiones privadas o ausencia de reproducción. La salida también se oculta al perder conexión con Live Studio. Las pruebas usan respuestas simuladas; la autorización y reproducción reales requieren tu cuenta.
+
+## Social Media Rotator
+
+El módulo **Social Media Rotator** alterna tus redes en un pop-up animado para destacar cada canal durante el directo. La salida transparente es `http://127.0.0.1:17900/?social-output=1#tiktok.studio` y se añade como fuente de navegador en TikTok LIVE Studio u OBS; funciona sin conectar TikTok.
+
+Añade hasta 20 redes (Instagram, TikTok, YouTube, Twitch, Kick, X, Facebook, Discord, Telegram, Threads o un sitio web) y edita el nombre, el usuario o texto y el color de cada una. Puedes elegir cada cuánto cambia la red (2–120 segundos), el orden secuencial o aleatorio, la animación de entrada (pop, deslizar, girar, rebote, fundido o sin animación), la posición, el tamaño, los colores, la opacidad, los bordes y la barra de progreso. La vista previa permite avanzar, retroceder y reiniciar la rotación.
+
+El diseño se guarda en `data/social.json` y los cambios pendientes se recuperan desde el navegador. La rotación continúa mientras la salida esté abierta; ocultar el widget con **Mostrar en el directo** detiene la tarjeta sin borrar la configuración.
 
 ## Cierre
 
@@ -169,7 +178,7 @@ La salida `/?likes-output=1#tiktok.studio` tiene fondo transparente y se a?ade c
 El scoreboard de likes conserva tambi?n la URL de la foto de perfil y muestra la foto junto al nombre en el editor y la salida. Si no hay foto o falla su carga, muestra la inicial. Las fotos se actualizan al recibir nuevos likes y requieren acceso a la URL de TikTok; el conteo y los nombres permanecen locales. El panel indica la hora del ?ltimo like y del ?ltimo guardado. ?Descargar scoreboard? exporta todos los participantes a JSON, aunque la salida est? limitada a menos puestos.
 # Comandos de chat
 
-`!comandos` muestra los comandos activos y sus descripciones cortas en una salida independiente: `/commands?commands-list-output=1#tiktok.studio`. La lista cambia de página cada ocho segundos cuando hay más de seis comandos. Es un comando reservado y respeta el interruptor general del módulo. **Probar !comandos** abre esta salida y muestra la lista sin necesitar conexión a TikTok. No publica mensajes en el chat ni interrumpe las imágenes o los audios.
+`!comandos` muestra los nombres de los comandos activos, uno por línea, en una salida independiente: `/commands?commands-list-output=1#tiktok.studio`. La lista cambia de página cada ocho segundos cuando hay más de seis comandos. Es un comando reservado y respeta el interruptor general del módulo. **Probar !comandos** abre esta salida y muestra la lista sin necesitar conexión a TikTok. No publica mensajes en el chat ni interrumpe las imágenes o los audios.
 
 El dashboard permite alternar las tarjetas entre **Lista** y **Cuadrícula**. La elección se conserva en ese navegador y no modifica la salida del directo.
 

@@ -101,7 +101,7 @@ export function CommandsStudio({ tool, api, notice, online, connected }) {
           </button>
           <div id={'command-fields-' + row.id} className="command-fields" hidden={expanded !== row.id}>
           <div className="form-row"><Field label="Comando">{id => <Input id={id} value={row.command} maxLength={41} onChange={e => edit(row.id, 'command', e.target.value)}/>}</Field><Toggle name="enabled" label="Activo" settings={row} update={(_, value) => edit(row.id, 'enabled', value)}/></div>
-          <Field label="Descripción corta" hint={'Los usuarios la verán al escribir ' + (config.listCommand ?? '!comandos') + '.'}>{id => <Input id={id} value={row.description ?? ''} maxLength={100} placeholder="Ej.: Reproduce el sonido de la definitiva de Sion" onChange={e => edit(row.id, 'description', e.target.value)}/>}</Field>
+          <Field label="Descripción corta" hint="Se muestra junto al comando en el editor.">{id => <Input id={id} value={row.description ?? ''} maxLength={100} placeholder="Ej.: Reproduce el sonido de la definitiva de Sion" onChange={e => edit(row.id, 'description', e.target.value)}/>}</Field>
           <div className="command-media-grid">{[['image', 'Imagen o GIF'], ['video', 'Clip corto'], ['audio', 'Sonido']].map(([kind, label]) => <MediaFileField key={kind} kind={kind} title={label} src={row[kind]} hint={kind === 'video' ? 'máximo 30 segundos' : undefined} onRemove={() => edit(row.id, kind, '')} removeLabel={'Quitar ' + label.toLowerCase()} compact disabled={busy || !online} onFile={file => upload(row.id, kind, file)}><details className="command-file-url"><summary>Usar enlace</summary><Field label={'Enlace de ' + label.toLowerCase()} hint={kind === 'image' ? 'Enlace directo o de Tenor.' : 'Enlace directo al archivo.'}>{id => <Input id={id} value={row[kind] ?? ''} placeholder="https://..." onChange={e => editMedia(row.id, kind, e.target.value)}/>}</Field></details></MediaFileField>)}</div>
           <details className="command-options"><summary>Ajustes de reproducción</summary><Field label="Texto de notificación (opcional)">{id => <Input id={id} maxLength={200} value={row.text} onChange={e => edit(row.id, 'text', e.target.value)}/>}</Field>
           <div className="form-row"><Field label="Duración visual · segundos">{id => <Input id={id} type="number" min="1" max="120" value={row.duration} onChange={e => edit(row.id, 'duration', e.target.value === '' ? '' : Number(e.target.value))}/>}</Field><Field label="Volumen · %">{id => <Input id={id} type="number" min="0" max="100" value={row.volume} onChange={e => edit(row.id, 'volume', e.target.value === '' ? '' : Number(e.target.value))}/>}</Field></div>
@@ -123,6 +123,7 @@ export function CommandsStudio({ tool, api, notice, online, connected }) {
           <Button variant="outline" size="sm" disabled={busy || !online} onClick={() => testOutput("!comandos")}>Probar {listCommand}</Button>
         </OutputToolbar>
         <Card><details className="command-options"><summary>Ajustes de la lista</summary><fieldset disabled={busy || !online}>
+          <Toggle name="listAlwaysVisible" label="Mantener la lista visible siempre" settings={config} update={(_, enabled) => update(old => ({ ...old, listAlwaysVisible: enabled }))}/>
           <Field label="Palabra para mostrar la lista">{id => <Input id={id} maxLength={41} value={config.listCommand ?? '!comandos'} onChange={e => update(old => ({ ...old, listCommand: e.target.value }))}/>}</Field>
           <Field label="Cooldown de la lista (segundos por usuario)" hint="0 desactiva la espera.">{id => <Input id={id} type="number" min="0" max="3600" value={config.listCooldown ?? 20} onChange={e => update(old => ({ ...old, listCooldown: e.target.value === '' ? '' : Number(e.target.value) }))}/>}</Field>
         </fieldset></details></Card>
@@ -156,12 +157,24 @@ export function CommandsOutput({ listOnly = false }) {
   }, []);
   useEffect(() => setError(''), [tool?.visual?.id, tool?.audio?.id]);
   const current = listOnly ? tool?.list : tool?.visual;
-  const visual = online && current?.expiresAt > now ? current : null;
+  const visual = online && current && (current.expiresAt == null || current.expiresAt > now) ? current : null;
   const audio = !listOnly && online && tool?.audio?.expiresAt > now ? tool.audio : null;
   const pages = Math.max(1, Math.ceil((visual?.help?.length || 0) / 6));
-  const page = Math.min(pages - 1, Math.max(0, visual?.page != null ? visual.page - 1 : Math.floor((now - (visual?.startedAt || now)) / 8000)));
+  const page = visual?.page != null
+    ? Math.min(pages - 1, Math.max(0, visual.page - 1))
+    : Math.floor(Math.max(0, now - (visual?.startedAt || now)) / 8000) % pages;
   return <div className="commands-stage">
-    {visual && <div className="command-visual" key={'visual-' + visual.id}>{visual.help && <section className="commands-help"><h2>Comandos disponibles</h2>{visual.help.length ? <dl>{visual.help.slice(page * 6, page * 6 + 6).map(entry => <div key={entry.command}><dt>{entry.command}</dt><dd>{entry.description}</dd></div>)}</dl> : <p>No hay comandos activos por ahora.</p>}<footer>{tool?.config?.listCommand ?? '!comandos'} · Ver esta lista{pages > 1 && <span> · {page + 1} / {pages}</span>}</footer></section>}{visual.video && <CommandVideo key={visual.id} event={visual} muted={!!tool?.audio?.src || tool?.audio?.id !== visual.id} onError={setError}/>} {!visual.video && visual.image && <img src={visual.image} alt="" onError={() => setError('No se pudo cargar la imagen del comando.')}/>} {visual.text && <p>{visual.text}</p>}</div>}
+    {visual?.help && <section className="commands-help" lang="en">
+      <h2>Commands:</h2>
+      {visual.help.length ? <ul role="list">
+        {visual.help.slice(page * 6, page * 6 + 6).map(({ command }) => <li key={command}>{command}</li>)}
+      </ul> : <p lang="es">No hay comandos activos.</p>}
+    </section>}
+    {visual && !visual.help && <div className="command-visual" key={'visual-' + visual.id}>
+      {visual.video && <CommandVideo key={visual.id} event={visual} muted={!!tool?.audio?.src || tool?.audio?.id !== visual.id} onError={setError}/>}
+      {!visual.video && visual.image && <img src={visual.image} alt="" onError={() => setError('No se pudo cargar la imagen del comando.')}/>}
+      {visual.text && <p>{visual.text}</p>}
+    </div>}
     {audio?.src && <CommandAudio key={'audio-' + audio.id} event={audio} onError={setError}/>}
     {error && <button className="command-output-error" onClick={() => location.reload()}>{error} Pulsa para reintentar.</button>}
   </div>;

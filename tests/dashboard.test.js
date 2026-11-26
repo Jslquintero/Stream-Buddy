@@ -16,17 +16,17 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  await until(()=>stream);const state={token:'test-token',settings:{...defaults,Username:'usuario'},tools:{layout:{running:false,available:true},ads:{running:true,available:true}},tts:{queued:2,connected:false,connector:true,resources:{voices:[],devices:[],models:[],catalog:[]}},events:[]};
  stream.onmessage({data:JSON.stringify(state)});await until(()=>window.document.body.textContent.includes('@usuario'));
  const buttons=()=>Array.from(window.document.querySelectorAll('button'));const click=async text=>{const b=buttons().find(b=>b.textContent.trim()===text);assert.ok(b,'Botón '+text);b.click();await pause();};
- await click('Configurar voz');await until(()=>window.document.querySelector('input[type="number"]'));
+ await click('Voz y chat');await until(()=>window.document.querySelector('input[type="number"]'));
  const input=window.document.querySelector('input[type="number"]');Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'1.4');input.dispatchEvent(new window.Event('input',{bubbles:true}));await pause();
  state.tts.connected=true;stream.onmessage({data:JSON.stringify(state)});await pause();assert.equal(window.document.querySelector('input[type="number"]').value,'1.4');
  await click('Probar estos ajustes');const preview=requests.find(r=>r.url==='/api/tts/preview');assert.ok(preview);assert.equal(JSON.parse(preview.body).settings.Speed,1.4);assert.equal(preview.headers['X-Studio'],'test-token');assert.equal(state.settings.Speed,1);
  await click('Pausar');assert.ok(requests.some(r=>r.url==='/api/pause'));
  await click('Guardar cambios');assert.equal(JSON.parse(requests.find(r=>r.url==='/api/settings').body).Speed,1.4);
  state.tools.layout.document=structuredClone(defaultLayout);stream.onmessage({data:JSON.stringify(state)});await pause();
- await click('Layout Studio');await until(()=>window.document.querySelector('.layout-inspector input'));
+ await click('Escenas');await until(()=>window.document.querySelector('.layout-inspector input'));
  assert.equal(window.location.pathname,'/layout');
  window.history.back();await until(()=>window.location.pathname==='/tts' && window.document.querySelector('.nav-item.active').textContent==='Voz y chat');
- window.history.forward();await until(()=>window.location.pathname==='/layout' && window.document.querySelector('.nav-item.active').textContent==='Layout Studio');
+ window.history.forward();await until(()=>window.location.pathname==='/layout' && window.document.querySelector('.nav-item.active').textContent==='Escenas');
  assert.equal(Array.from(window.document.querySelectorAll('a')).find(a=>a.textContent==='Ver salida').href,'http://127.0.0.1:17900/output/layout#tiktok.studio');
  let copiedOutput='';Object.defineProperty(window.navigator,'clipboard',{value:{writeText:async text=>{copiedOutput=text;}}});
  await click('Copiar salida');assert.equal(copiedOutput,'http://127.0.0.1:17900/output/layout#tiktok.studio');
@@ -225,7 +225,7 @@ test('direct module routes survive a fresh mount and TikTok connects from the na
   stream.onmessage({data:JSON.stringify(state)});
   await until(()=>window.document.querySelector('.tiktok-trigger')?.textContent.includes('@nuevo'));
   assert.equal(window.location.pathname,path);
-  assert.equal(window.document.querySelector('.nav-item.active').textContent,{'/layout':'Layout Studio','/tts':'Voz y chat','/ads':'AdQueue'}[path]);
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,{'/layout':'Escenas','/tts':'Voz y chat','/ads':'AdQueue'}[path]);
   assert.equal(window.document.querySelector('.connection-strip'),null);
   if (path === '/tts') {
    const prepare=Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent==='Preparar Pocket TTS');

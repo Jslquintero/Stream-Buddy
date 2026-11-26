@@ -26,6 +26,8 @@ async function setup(t, pathname, mode = 'api', pending = null) {
 test('Spotify panel preserves draft during updates and saves design; copies output', async t => {
   const f = await setup(t, '/spotify'), doc = f.window.document;
   await until(() => doc.querySelector('.spotify-settings'));
+  assert.equal(doc.querySelector('.nav-item[aria-current="page"]').textContent, 'Música');
+  assert.equal(doc.querySelector('.breadcrumb strong').textContent, 'Música');
   const input = doc.querySelector('.spotify-settings input');
   Object.getOwnPropertyDescriptor(f.window.HTMLInputElement.prototype, 'value').set.call(input, 'b'.repeat(32));
   input.dispatchEvent(new f.window.Event('input', { bubbles: true })); await pause(); await f.publish();

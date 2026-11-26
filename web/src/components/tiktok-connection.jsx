@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Radio, X } from 'lucide-react';
+import { ChevronDown, Radio, X } from 'lucide-react';
 import { Badge, Button, Input } from './ui';
 import { Field } from './fields';
 
@@ -24,7 +24,7 @@ export function TikTokConnection({ state, online, api }) {
   const run = async action => { setBusy(true); try { await action(); } finally { setBusy(false); } };
   const locked = !online || busy || t?.installing;
   return <div className="tiktok-connection" ref={root}>
-    <Button ref={trigger} variant="outline" className="tiktok-trigger" aria-expanded={open} aria-controls="tiktok-panel" onClick={() => setOpen(!open)}><Radio size={17} className={live ? "tiktok-live-icon" : online && t?.connecting ? "tiktok-connecting-icon" : "tiktok-offline-icon"}/><span>{state?.settings.Username ? '@' + state.settings.Username.replace(/^@/, '') : 'Conectar TikTok'}</span><Badge className={live ? 'success' : ''}>{status}</Badge></Button>
+    <Button ref={trigger} variant="outline" className="tiktok-trigger" aria-expanded={open} aria-controls="tiktok-panel" onClick={() => setOpen(!open)}><Radio size={17} className={live ? "tiktok-live-icon" : online && t?.connecting ? "tiktok-connecting-icon" : "tiktok-offline-icon"}/><span>{state?.settings.Username ? '@' + state.settings.Username.replace(/^@/, '') : 'Conectar TikTok'}</span><Badge className={live ? 'success' : ''}>{status}</Badge><ChevronDown size={14} aria-hidden="true"/></Button>
     {open && <section id="tiktok-panel" className="tiktok-panel" aria-label="Conexión de TikTok LIVE">
       <div className="section-heading"><h2>TikTok LIVE</h2><Button variant="ghost" size="icon" aria-label="Cerrar conexión" onClick={() => { setOpen(false); trigger.current?.focus(); }}><X size={18}/></Button></div>
       <p className="muted">Conecta tu comunidad a todo el estudio. Tu LIVE debe estar activo y público; no necesitas contraseña.</p>

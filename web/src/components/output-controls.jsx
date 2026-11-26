@@ -1,7 +1,7 @@
 import { Copy, ExternalLink } from 'lucide-react';
 import { Badge, Button, Card } from './ui';
 
-export function CopyLinkButton({ url, notice, message = 'Enlace copiado.', fallback = 'Enlace', children, variant = 'outline', size }) {
+export function CopyLinkButton({ url, notice, message = 'Enlace copiado.', fallback = 'Enlace', children, variant = 'outline', size, 'aria-label': ariaLabel }) {
   async function copy() {
     try {
       await navigator.clipboard.writeText(url);
@@ -10,7 +10,7 @@ export function CopyLinkButton({ url, notice, message = 'Enlace copiado.', fallb
       notice(`${fallback}: ${url}`);
     }
   }
-  return <Button variant={variant} size={size} onClick={copy}>{children}</Button>;
+  return <Button variant={variant} size={size} onClick={copy} aria-label={ariaLabel}>{children}</Button>;
 }
 
 export function OutputLinks({ url, notice, message, fallback, copyLabel = 'Copiar salida', openLabel = 'Abrir salida', iconSize, size, variant = 'outline' }) {

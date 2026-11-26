@@ -45,7 +45,7 @@ export function useStudio(output) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo completar la acción.');
-      return ['spotify/connect','likes/export','likes/save','layout/create','layout/save-composition','layout/rename','layout/save','notifications/upload','notifications/save','notifications/fonts/install'].includes(action)?result:true;
+      return ['spotify/connect','likes/export','likes/save','social/save','layout/create','layout/save-composition','layout/rename','layout/save','notifications/upload','notifications/save','notifications/fonts/install'].includes(action)?result:true;
     } catch (error) {
       setNotice(error.message);
       if(options.throwOnError)throw error;

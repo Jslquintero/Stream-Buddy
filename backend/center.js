@@ -11,6 +11,7 @@ import { createCommandsModule } from '../modules/commands/index.js';
 import { resolveCommandImages } from '../modules/commands/tenor.js';
 import { validateCommands } from '../modules/commands/config.js';
 import { createSpotifyModule } from './modules/spotify.js';
+import { createSocialModule } from '../modules/social/index.js';
 
 export class Center extends EventEmitter {
   constructor({ root, dataDir = path.join(root, 'data'), processes, tools, legacyFile } = {}) {
@@ -21,9 +22,10 @@ export class Center extends EventEmitter {
     this.notifications = createNotificationsModule(context);
     this.spotify = createSpotifyModule(context);
     this.likes = createLikesModule(context);
+    this.social = createSocialModule(context);
     this.commands = createCommandsModule({ ...context, reply: messages => this.tts.sendChat(messages) });
     this.tts = new TTSModule({ ...context, onComment: event => this.commands.receive(event), onLiveEvent: event => event.kind==='like'?this.likes.receive(event,this.settings.read().Username):this.notifications.enqueue(event.kind, event) });
-    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes, commands:this.commands, spotify: this.spotify };
+    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes, commands:this.commands, spotify: this.spotify, social: this.social };
   }
   log(text) {
     this.events.push({ time: new Date().toLocaleTimeString('es-PA', { hour12: false }), text: String(text).slice(0, 1500) });
@@ -54,6 +56,7 @@ export class Center extends EventEmitter {
       case 'likes/save': this.likes.save(body);return {notificationRevision:this.likes.state().revision};
       case 'likes/export': return this.likes.scoreboard();
       case 'likes/reset': this.likes.reset();break;
+      case 'social/save': this.social.save(body);return {notificationRevision:this.social.state().revision};
       case 'notifications/fonts/install': return await this.notifications.fonts.install(body.name);
       case 'notifications/upload': return this.notifications.assets.upload(body);
       case 'notifications/save': this.notifications.save(body); break;
@@ -101,6 +104,7 @@ export class Center extends EventEmitter {
     this.spotify.close();
     this.notifications.close();
     this.likes.close();
+    this.social.close();
     this.commands.close();
     await this.tts.close();
     await this.processes.close();

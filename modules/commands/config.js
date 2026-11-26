@@ -1,6 +1,6 @@
 export const commandsListOutputPath = '/commands?commands-list-output=1#tiktok.studio';
 export const commandsOutputPath = '/commands?commands-output=1#tiktok.studio';
-export const defaultCommands = { enabled: true, listCommand: '!comandos', listCooldown: 20, commands: [
+export const defaultCommands = { enabled: true, listCommand: '!comandos', listCooldown: 20, listAlwaysVisible: false, commands: [
   { id: 'aatrox', command: '!Aatrox', description: 'Muestra un GIF de Aatrox', enabled: false, image: '', audio: '', text: '', duration: 5, volume: 80 },
   { id: 'sion', command: '!Sion', description: 'Reproduce el sonido de la definitiva de Sion', enabled: false, image: '', audio: '', text: '', duration: 5, volume: 80 },
 ] };
@@ -23,7 +23,9 @@ export function validateCommands(value) {
   };
   const listCooldown = cooldown(value.listCooldown ?? 20);
   const names = new Set([listCommand.toLowerCase()]), ids = new Set();
-  return { enabled: value.enabled, listCommand, listCooldown, commands: value.commands.map(row => {
+  const listAlwaysVisible = value.listAlwaysVisible ?? false;
+  if (typeof listAlwaysVisible !== 'boolean') throw new Error('La opción de lista permanente debe estar activada o desactivada');
+  return { enabled: value.enabled, listCommand, listCooldown, listAlwaysVisible, commands: value.commands.map(row => {
     if (!row || typeof row.id !== 'string' || !/^[\w-]{1,80}$/.test(row.id) || ids.has(row.id)) throw new Error('Identificador de comando inválido');
     ids.add(row.id);
     const command = typeof row.command === 'string' ? row.command.trim() : '';
