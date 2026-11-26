@@ -108,6 +108,19 @@ body {
   text-transform: none;
 }
 
+.app-shell .nav-subcategory-label {
+  margin: 0;
+}
+
+.app-shell .nav-subitem-toggle .nav-subitem-chevron {
+  color: var(--studio-subtle);
+}
+
+.app-shell .nav-subitem-toggle.nav-subitem-current {
+  color: var(--studio-text);
+  font-weight: 600;
+}
+
 .app-shell .nav-category-toggle {
   display: flex;
   align-items: center;

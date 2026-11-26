@@ -26,6 +26,12 @@
 .sidebar nav{overflow-y:auto;min-height:0;margin-top:22px}.layout-library{display:grid;gap:14px;margin-bottom:18px}
 .nav-category + .nav-category{margin-top:9px;padding-top:12px;border-top:1px solid #2b2e33}
 .nav-category .nav-label{margin:0 13px 7px;color:#9297a1;font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase}
+.nav-subcategory-label{margin:0}
+.nav-subitem-toggle{margin-bottom:5px}
+.nav-subitem-chevron{margin-left:auto;color:#7f848e;transition:transform .15s ease}
+.nav-subitem-toggle[aria-expanded="false"] .nav-subitem-chevron{transform:rotate(-90deg)}
+.nav-subitem-toggle.nav-subitem-current{color:#c2f78e}
+.nav-subcategory-items{padding-left:22px}
 .layout-library{padding:22px;background:linear-gradient(125deg,#1f2836,#171b23);border-color:#354053;gap:18px}
 .library-heading{display:flex;justify-content:space-between;align-items:center;gap:16px}.library-heading .eyebrow{color:#9cb7e7;margin-bottom:6px}.library-heading h3{font-size:20px}.library-heading .help{margin-top:6px}.library-heading .actions{flex-wrap:wrap}
 .library-save{display:flex;align-items:flex-end;gap:10px;padding:16px;background:#11172280;border:1px solid #303c50;border-radius:9px}.layout-library .library-save label{flex:1;min-width:0;max-width:420px;margin:0}.library-save .input{width:100%}

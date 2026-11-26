@@ -3,6 +3,7 @@ import { FilePicker } from './ui/file-picker';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Input } from './ui';
+import { Palette } from 'lucide-react';
 import { baseThemeCSS, maxCustomThemes, validateThemeCSS } from '../../../shared/custom-themes';
 import baseCSS from './custom-theme-base.css?raw';
 import { readThemeFile, downloadThemeCSS } from '../lib/theme-files';
@@ -60,6 +61,7 @@ export function CustomThemeEditor({ document, change, preview }) {
   };
   return <section className="custom-theme-editor"><div className="section-heading"><div><h3>Temas con CSS</h3><p className="help">Crea un overlay a partir de una plantilla editable.</p></div><div className="actions"><DownloadButton onClick={()=>{try{downloadThemeCSS({name:'plantilla-base',css:baseThemeCSS});}catch(error){setFileError(error.message);}}}>Descargar plantilla</DownloadButton><FilePicker label={importing?'Importando…':'Importar CSS'} inputLabel="Archivo de tema CSS" accept=".css,text/css" disabled={importing||library.length>=maxCustomThemes} onFile={importCSS}/><Button size="sm" variant="outline" disabled={library.length>=maxCustomThemes} onClick={()=>create()}>+ Crear tema CSS</Button></div></div>
     {fileError&&<p className="error" role="alert">{fileError}</p>}{fileMessage&&<p className="help" role="status">{fileMessage}</p>}
+    {library.length===0&&<div className="custom-theme-empty"><span className="custom-theme-empty-icon"><Palette size={18}/></span><div><strong>Todavía no hay temas CSS</strong><p className="help">Crea un tema desde la plantilla base o importa un archivo .css. El CSS queda aislado del panel y se guarda con la escena.</p></div></div>}
     {library.length>0&&<div className="custom-theme-list">{library.map(theme=><button key={theme.id} className={theme.id===document.theme?'active':''} onClick={()=>change({theme:theme.id})}>{theme.name}</button>)}</div>}
     {active&&<><div className="theme-editing-grid"><ThemeCodeEditor key={active.id} theme={active} update={patch=>change({customThemes:library.map(t=>t.id===active.id?{...t,...patch}:t)})}/><div className="theme-live-preview"><h4>Vista previa de la salida</h4><div className={'theme-preview-stage '+document.format}>{preview}</div><p className="help">Mismos elementos y proporciones que la salida del directo.</p></div></div><div className="actions"><Button size="sm" variant="outline" disabled={library.length>=maxCustomThemes} onClick={()=>create(active)}>Duplicar tema</Button><Button size="sm" variant="destructive" onClick={()=>change({theme:'dark',customThemes:library.filter(t=>t.id!==active.id)})}>Eliminar tema CSS</Button></div></>}
   </section>;

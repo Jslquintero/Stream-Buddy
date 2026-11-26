@@ -362,6 +362,25 @@ test('layout properties use pixels and autosave the same geometry in both orient
   await until(()=>requests.at(-1).format==='landscape'&&Math.abs(requests.at(-1).elements[0].w*19.2-1280)<.001);
 });
 
+test('Ctrl+Z undoes layout edits and Ctrl+Shift+Z / Ctrl+Y redo them',async t=>{
+  const requests=[];
+  const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});
+  const title=()=>f.window.document.querySelector('.layout-inspector input');
+  const canvas=f.window.document.querySelector('.layout-stage .layout-canvas');
+  const shortcut=extra=>canvas.dispatchEvent(new f.window.KeyboardEvent('keydown',{key:'z',bubbles:true,cancelable:true,...extra}));
+  const original=defaultLayout.elements[0].title;
+  assert.equal(title().value,original);
+  await f.input('.layout-inspector input','Escena editada');
+  assert.equal(title().value,'Escena editada');
+  shortcut({ctrlKey:true});await pause(40);
+  assert.equal(title().value,original,'Ctrl+Z restores the previous document');
+  shortcut({ctrlKey:true,shiftKey:true});await pause(40);
+  assert.equal(title().value,'Escena editada','Ctrl+Shift+Z reapplies the edit');
+  shortcut({ctrlKey:true});await pause(40);
+  canvas.dispatchEvent(new f.window.KeyboardEvent('keydown',{key:'y',ctrlKey:true,bubbles:true,cancelable:true}));await pause(40);
+  assert.equal(title().value,'Escena editada','Ctrl+Y also redoes the edit');
+});
+
 test('custom canvas dimensions autosave and drive preview and pixel properties',async t=>{
   const requests=[];
   const f=await fixture(t,async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,layoutRevision:100+requests.length})};});

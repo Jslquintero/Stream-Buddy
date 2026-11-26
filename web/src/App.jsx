@@ -1,6 +1,6 @@
 import { CopyLinkButton } from './components/output-controls';
 import { useEffect, useRef, useState } from 'react';
-import { AudioLines, Bell, ChevronDown, ChevronRight, CircleHelp, Clapperboard, Copy, ExternalLink, Gavel, Gift, Heart, LayoutDashboard, Menu, Monitor, Music2, RefreshCw, Share2, ShieldCheck, Sparkles } from 'lucide-react';
+import { AudioLines, Bell, ChevronDown, ChevronRight, CircleHelp, Clapperboard, Copy, ExternalLink, Gavel, Gift, Heart, LayoutDashboard, Menu, Monitor, Music2, RefreshCw, Share2, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
 import { Badge, Button, Card } from './components/ui';
 import { useRoute } from './hooks/use-route';
 import { TikTokConnection } from './components/tiktok-connection';
@@ -28,14 +28,19 @@ const widgets = [
   { id: 'commands', title: 'Comandos de chat', description: 'GIF, sonidos y lista de comandos.', icon: Sparkles, color: 'violet', action: 'Configurar comandos' },
   { id: 'spotify', title: 'Música', description: 'Canción actual, artista y carátula.', icon: Music2, color: 'mint', action: 'Configurar música' },
 ];
+const rankingWidgets = widgets.filter(({ id }) => id === 'likes' || id === 'gifters');
+const widgetItems = widgets.filter(({ id }) => id !== 'likes' && id !== 'gifters');
+widgetItems.splice(widgetItems.findIndex(({ id }) => id === 'auction'), 0, {
+  id: 'rankings', title: 'Rankings', icon: Trophy, items: rankingWidgets,
+});
 const navigationGroups = [
   { id: 'general', title: 'General', items: [
     { id: 'home', title: 'Vista general', icon: LayoutDashboard },
     { id: 'tts', title: 'Voz y chat', icon: AudioLines },
   ] },
-  { id: 'widgets', title: 'Widgets', items: widgets },
+  { id: 'widgets', title: 'Widgets', items: widgetItems },
 ];
-const navigationItems = navigationGroups.flatMap(group => group.items);
+const navigationItems = navigationGroups.flatMap(group => group.items.flatMap(item => item.items ?? [item]));
 export default function App(){
  const {state,notice,toasts,dismissToast,online,api}=useStudio();const [view,setView]=useRoute(),[menu,setMenu]=useState(false); const discovered=useRef(false);
  useEffect(()=>{if(view==='tts'&&state&&!discovered.current&&!state.tts.resources?.task?.running){discovered.current=true;void api('tts/refresh');}},[view,state,api]);
@@ -53,7 +58,7 @@ export default function App(){
  const t=state?.tts;
  return <div className="app-shell"><aside className={menu?'sidebar mobile-open':'sidebar'}><a className="brand" href="/" onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();go('home');}}} aria-label="Stream Buddy inicio"><span className="brand-mark"><AudioLines/></span><span>stream<span className="brand-light"> buddy</span><small>CENTRO DE DIRECTO</small></span></a><div className="workspace"><span className="avatar">SB</span><span>Mi espacio de trabajo<small>Personal · Local</small></span><Badge>LOCAL</Badge></div><SidebarNavigation view={view} go={go}/><div className="sidebar-bottom"><div className="local-card"><span className="online-dot"/><strong>Todo en tu equipo</strong><p>Tu espacio de producción local, siempre a mano.</p><ShieldCheck size={18}/></div><span className="sidebar-foot"><CircleHelp size={16}/> Stream Buddy <small>v0.3</small></span></div></aside>{menu&&<button className="sidebar-scrim" aria-label="Cerrar menú" onClick={()=>setMenu(false)}/>}
  <div className="main-shell"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Abrir menú" onClick={()=>setMenu(true)}><Menu/></Button><span>Espacio de trabajo</span><ChevronRight size={14}/><strong>{currentTitle}</strong></div><TikTokConnection state={state} online={online} api={api}/></header>
- <main>{view !== 'home' && view !== 'notifications' && view !== 'likes' && view !== 'gifters' && view !== 'auction' && view !== 'commands' && view !== 'social' && <div className="page-heading"><div><p className="eyebrow">Tu espacio. Tu directo.</p><h1>{view==='tts'?'La voz de tu comunidad.':view==='spotify'?'La música de tu directo.':(view==='layout'||view?.startsWith('layout:'))?'Tu próxima gran escena.':'Tus anuncios, en orden.'}</h1><p className="muted">{view==='tts'?'Haz que cada mensaje forme parte del directo.': 'Prepara y controla tu herramienta desde tu espacio de trabajo.'}</p></div></div>}
+ <main>{view !== 'home' && view !== 'notifications' && view !== 'likes' && view !== 'gifters' && view !== 'auction' && view !== 'commands' && view !== 'social' && view !== 'layout' && !view?.startsWith('layout:') && <div className="page-heading"><div><p className="eyebrow">Tu espacio. Tu directo.</p><h1>{view==='tts'?'La voz de tu comunidad.':view==='spotify'?'La música de tu directo.':'Tus anuncios, en orden.'}</h1><p className="muted">{view==='tts'?'Haz que cada mensaje forme parte del directo.': 'Prepara y controla tu herramienta desde tu espacio de trabajo.'}</p></div></div>}
  {view==='home'&&<Home widgets={widgets} state={state} online={online} open={open} notice={notice}/>}
  <div hidden={view!=='tts'}>{state?<VoiceStudio state={state} api={api} notice={notice}/>:<Card className="loading" role="status">Conectando con tu estudio…</Card>}</div>
  <div hidden={view!=='layout'}>{state&&<LayoutStudio tool={state.tools.layout} api={api} notice={notice} open={go}/>}</div>
@@ -102,13 +107,18 @@ function SidebarNavigation({ view, go }) {
   useEffect(() => {
     if (previousView.current === view) return;
     previousView.current = view;
-    const group = navigationGroups.find(({ items }) =>
-      items.some(item => item.id === view || (item.id === 'layout' && view?.startsWith('layout:'))));
-    if (!group) return;
+    const open = navigationGroups.flatMap(group => {
+      const topLevel = group.items.some(item =>
+        item.id === view || (item.id === 'layout' && view?.startsWith('layout:')));
+      if (topLevel) return [group.id];
+      const nested = group.items.find(item => item.items?.some(child => child.id === view));
+      return nested ? [group.id, nested.id] : [];
+    });
+    if (!open.length) return;
     setCollapsed(current => {
-      if (!current.has(group.id)) return current;
+      if (!open.some(id => current.has(id))) return current;
       const next = new Set(current);
-      next.delete(group.id);
+      open.forEach(id => next.delete(id));
       writeCollapsedGroups(next);
       return next;
     });
@@ -124,6 +134,15 @@ function SidebarNavigation({ view, go }) {
     });
   }
 
+  const renderItem = ({ id, title, icon: Icon }) => {
+    const active = view === id;
+    const inLayout = id === 'layout' && view?.startsWith('layout:');
+    return <button key={id} type="button" aria-current={active ? 'page' : inLayout ? 'location' : undefined}
+      className={active || inLayout ? 'nav-item active' : 'nav-item'} onClick={() => go(id)}>
+      <Icon size={19} aria-hidden="true"/>{title}{(active || inLayout) && <span className="nav-indicator"/>}
+    </button>;
+  };
+
   return <nav aria-label="Menú principal">
     {navigationGroups.map(group => <section className="nav-category" key={group.id} aria-labelledby={`nav-${group.id}`}>
       <h2 className="nav-label" id={`nav-${group.id}`}>
@@ -133,13 +152,23 @@ function SidebarNavigation({ view, go }) {
         </button>
       </h2>
       <div className="nav-category-items" id={`nav-${group.id}-items`} hidden={collapsed.has(group.id)}>
-        {group.items.map(({ id, title, icon: Icon }) => {
-          const active = view === id;
-          const inLayout = id === 'layout' && view?.startsWith('layout:');
-          return <button key={id} type="button" aria-current={active ? 'page' : inLayout ? 'location' : undefined}
-            className={active || inLayout ? 'nav-item active' : 'nav-item'} onClick={() => go(id)}>
-            <Icon size={19} aria-hidden="true"/>{title}{(active || inLayout) && <span className="nav-indicator"/>}
-          </button>;
+        {group.items.map(item => {
+          if (!item.items) return renderItem(item);
+          const ItemIcon = item.icon;
+          const childActive = item.items.some(({ id }) => id === view);
+          return <section className="nav-subcategory" key={item.id} aria-labelledby={`nav-${item.id}`}>
+            <h3 className="nav-subcategory-label" id={`nav-${item.id}`}>
+              <button type="button" className={childActive ? 'nav-item nav-subitem-toggle nav-subitem-current' : 'nav-item nav-subitem-toggle'}
+                aria-expanded={!collapsed.has(item.id)} aria-controls={`nav-${item.id}-items`}
+                onClick={() => toggleGroup(item.id)}>
+                {ItemIcon && <ItemIcon size={19} aria-hidden="true"/>}{item.title}
+                <ChevronDown className="nav-subitem-chevron" size={14} aria-hidden="true"/>
+              </button>
+            </h3>
+            <div className="nav-category-items nav-subcategory-items" id={`nav-${item.id}-items`} hidden={collapsed.has(item.id)}>
+              {item.items.map(renderItem)}
+            </div>
+          </section>;
         })}
       </div>
     </section>)}

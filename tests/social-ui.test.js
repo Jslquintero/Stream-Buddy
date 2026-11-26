@@ -135,12 +135,14 @@ test('Social Media Rotator adds selected networks through the picker', async t =
   assert.ok(addButton);
   addButton.click();
   await until(() => doc.querySelector('.social-picker-item input[type="checkbox"]'));
-  const checkbox = doc.querySelector('.social-picker-item input[type="checkbox"]');
-  checkbox.click();
-  assert.equal(checkbox.checked, true);
+  const checkboxes = [...doc.querySelectorAll('.social-picker-item input[type="checkbox"]')];
+  checkboxes[0].click();
+  checkboxes[1].click();
+  assert.equal(checkboxes[0].checked, true);
+  assert.equal(checkboxes[1].checked, true);
   const confirm = [...doc.querySelectorAll('.social-picker button')].find(button => button.textContent.includes('Añadir'));
   assert.ok(confirm);
   confirm.click();
-  await until(() => requests.some(request => request.url === '/api/social/save' && request.body.channels?.length === 4));
+  await until(() => requests.some(request => request.url === '/api/social/save' && request.body.channels?.length === 5));
   assert.equal(doc.querySelector('.social-picker'), null);
 });

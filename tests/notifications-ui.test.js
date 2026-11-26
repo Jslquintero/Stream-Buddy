@@ -47,10 +47,12 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   };
   const origin = window.location.origin;
   await until(() => doc.querySelector('.home select'));
-  const menuItems = id => [...doc.querySelectorAll(`nav [aria-labelledby="nav-${id}"] .nav-item`)].map(button => button.textContent);
+  const menuItems = id => [...doc.querySelectorAll(`#nav-${id}-items > .nav-item`)].map(button => button.textContent);
   assert.deepEqual(menuItems('general'), ['Vista general', 'Voz y chat']);
-  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Top gifters', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
-  assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), menuItems('widgets'));
+  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
+  assert.deepEqual(menuItems('rankings'), ['Top likes', 'Top gifters']);
+  assert.ok(doc.querySelector('#nav-widgets-items .nav-subcategory[aria-labelledby="nav-rankings"]'));
+  assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Top gifters', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
   const widgetsToggle = doc.querySelector('[aria-labelledby="nav-widgets"] .nav-category-toggle');
   widgetsToggle.click(); await pause();
   assert.equal(doc.querySelector('#nav-widgets-items').hidden, true);

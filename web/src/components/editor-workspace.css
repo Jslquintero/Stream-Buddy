@@ -3,9 +3,17 @@
 .editor-workspace-title { font-size: 26px; margin: 0; line-height: 1.2; }
 .editor-workspace-header .notifications-toolbar { flex: 1; margin: 0; }
 .editor-mobile-view { display: none; }
-.editor-workspace .notifications-toolbar .actions { margin: 0; }
-.editor-workspace .notifications-toolbar { gap: 12px; padding: 8px 12px; }
-.editor-workspace .notifications-toolbar > div:first-child { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.editor-workspace .notifications-toolbar .actions { margin: 0; gap: 10px; }
+.editor-workspace .notifications-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  padding: 14px 16px;
+}
+.editor-workspace .notifications-toolbar > div:first-child { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; min-width: 0; }
+.editor-workspace .notifications-toolbar .badge { padding: 5px 9px; font-size: 10px; }
 .editor-workspace .notifications-toolbar .help { margin: 0; }
 .editor-workspace .editor-workspace-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 .editor-workspace .editor-workspace-settings,

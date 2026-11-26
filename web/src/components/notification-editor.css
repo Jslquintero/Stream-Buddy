@@ -28,8 +28,8 @@
 .notifications-header .notifications-toolbar {
   flex: 0 1 auto;
   margin: 0;
-  padding: 10px 12px;
-  gap: 12px;
+  padding: 14px 16px;
+  gap: 14px 20px;
   border-radius: 12px;
   background: var(--n-surface);
 }

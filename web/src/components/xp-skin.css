@@ -12,7 +12,7 @@
 .theme-xp .xp-title{height:29px;background:linear-gradient(#3997ff 0%,#0865f5 15%,#0062f1 75%,#0646c0);border-radius:7px 7px 0 0;display:flex;align-items:center;color:white;font:13px Tahoma,Arial;text-shadow:1px 1px #174fa2;padding:0 4px 0 6px;gap:5px;cursor:move;white-space:nowrap;overflow:hidden}
 .theme-xp .xp-title .title-text{flex:1;overflow:hidden}
 .theme-xp .xp-controls{display:flex;gap:3px}
-.theme-xp .xp-controls i{display:inline-block;width:21px;height:21px;border:1px solid white;border-radius:3px;box-shadow:inset 1px 1px 3px #c6ddff;background:linear-gradient(130deg,#75a6fc,#0750d8);font:19px Arial;text-align:center;font-style:normal;line-height:17px}
+.theme-xp .xp-controls i{display:inline-block;width:21px;height:21px;border:1px solid white;border-radius:3px;box-shadow:inset 1px 1px 3px #c6ddff;background:linear-gradient(130deg,#75a6fc,#0750d8);color:#fff;font:19px Arial;text-align:center;font-style:normal;line-height:17px}
 .theme-xp .xp-controls i:last-child{background:linear-gradient(130deg,#ffa379,#df3106)}
 .theme-xp .xp-content{height:calc(100% - 29px);background:#000;display:flex;justify-content:center;align-items:center;color:#ffffff38;font:12px Tahoma}
 .theme-xp .xp-content.clear{background:transparent}

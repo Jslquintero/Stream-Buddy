@@ -34,6 +34,18 @@
   font-size: clamp(14px, calc(var(--social-width, 460px) * 0.035), 26px);
   line-height: 1.2;
   transform-origin: center bottom;
+  isolation: isolate;
+}
+
+.social-glow {
+  position: absolute;
+  inset: -55% 30% auto -25%;
+  height: 110%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, var(--social-channel-glow, #b9f67833), transparent 62%);
+  opacity: .75;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .social-card.social-style-neon {
@@ -72,6 +84,7 @@
   box-shadow: none;
 }
 .social-card.social-flat::after { display: none; }
+.social-card.social-flat .social-glow { display: none; }
 
 .social-icon {
   flex: 0 0 auto;
@@ -133,6 +146,7 @@
   height: 3px;
   background: #ffffff14;
   overflow: hidden;
+  z-index: 2;
 }
 .social-progress i {
   display: block;
@@ -140,6 +154,7 @@
   height: 100%;
   transform-origin: left;
   background: linear-gradient(90deg, var(--social-channel, #b9f678), var(--social-accent, #b9f678));
+  box-shadow: 0 0 8px var(--social-channel-glow, #b9f67833);
   animation: social-progress var(--social-interval, 6s) linear both;
 }
 @keyframes social-progress {
