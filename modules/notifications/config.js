@@ -20,7 +20,7 @@ export const defaultNotifications = {
     share: { enabled: true, title: '¡Gracias por compartir!', message: '{usuario} compartió el directo.' },
   },
 };
-for (const event of Object.values(defaultNotifications.events)) { event.image = ''; event.appearance = null; event.audio = ''; event.volume = 80; event.imageName = ''; event.audioName = ''; }
+for (const event of Object.values(defaultNotifications.events)) { event.image = ''; event.appearance = null; event.audio = ''; event.volume = 80; event.imageName = ''; event.audioName = ''; event.audioStart = 0; event.audioEnd = 0; event.audioDuration = 0; }
 for(const event of Object.values(defaultNotifications.events)){event.video='';event.videoName='';event.videoStart=0;event.videoEnd=6;event.videoDuration=6;event.videoMuted=true;}
 export function notificationDesign(config, type) {
   const merged = { ...designExtras, ...config, ...config.events?.[type]?.appearance };
@@ -61,9 +61,15 @@ export function validateNotifications(value) {
     const audio = event.audio ?? '', volume = event.volume ?? 80;
     if (typeof audio !== 'string' || (audio && !isLocalNotificationAsset('audio', audio))) throw new Error('Audio de alerta inválido');
     if (!Number.isFinite(volume) || volume<0 || volume>100) throw new Error('Volumen inválido');
+    const audioStart = event.audioStart ?? 0, audioEnd = event.audioEnd ?? 0, audioDuration = event.audioDuration ?? 0;
+    if (![audioStart, audioEnd, audioDuration].every(Number.isFinite) || [audioStart, audioEnd, audioDuration].some(value => value < 0 || value > 86400)) throw new Error('Recorte de audio inválido');
+    if (audioEnd > 0 && audioEnd <= audioStart) throw new Error('El fin del audio debe ser posterior al inicio');
+    if (audioDuration > 0 && audioEnd > audioDuration + .001) throw new Error('El fin del audio supera la duración del archivo');
+    if (audioDuration > 0 && audioStart >= audioDuration) throw new Error('El inicio del audio supera la duración del archivo');
+    if (audioEnd > 0 && audioEnd - audioStart > 30.001) throw new Error('Elige un fragmento de audio de hasta 30 segundos');
     const imageName = event.imageName ?? '', audioName = event.audioName ?? '';
     if ([imageName,audioName].some(name=>typeof name!=='string'||name.length>180)) throw new Error('Nombre de archivo inválido');
-    result.events[type] = { enabled: event.enabled, title: event.title, message: event.message, image, audio, volume, imageName, audioName, appearance: event.appearance == null ? null : validateDesign(event.appearance) };
+    result.events[type] = { enabled: event.enabled, title: event.title, message: event.message, image, audio, volume, imageName, audioName, audioStart, audioEnd, audioDuration, appearance: event.appearance == null ? null : validateDesign(event.appearance) };
     const video=event.video??'',videoName=event.videoName??'',videoStart=event.videoStart??0,videoEnd=event.videoEnd??6,videoDuration=event.videoDuration??6,videoMuted=event.videoMuted??true;
     if(typeof video!=='string'||(video&&!isLocalNotificationAsset('video', video)))throw new Error('Video inválido');
     if (video && image) throw new Error('Elige una imagen o un video para ' + eventNames[type]);

@@ -30,10 +30,18 @@ const mediaTypes = {
   audio: { icon: Music2, accept: 'audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg', formats: 'MP3, WAV u OGG · hasta 5 MB' },
 };
 
-export function MediaFileField({ kind, title, src, name, disabled, busy, onFile, children, compact = false, hint, onRemove, removeLabel, className = '' }) {
+export function MediaFileField({ kind, title, src, name, disabled, busy, onFile, children, compact = false, compactPreview = false, hint, onRemove, removeLabel, className = '' }) {
   const [dragging, setDragging] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const videoPreview = useRef(null);
   const { icon: Icon, accept, formats } = mediaTypes[kind];
-  const label = compact ? title : src ? 'Cambiar archivo' : 'Elegir archivo';
+  const label = compact && !compactPreview ? title : src ? 'Cambiar archivo' : 'Elegir archivo';
+  const toggleVideo = () => {
+    const player = videoPreview.current;
+    if (!player) return;
+    if (player.paused) player.play().catch(() => {});
+    else player.pause();
+  };
   function drop(event) {
     event.preventDefault();
     setDragging(false);
@@ -42,11 +50,20 @@ export function MediaFileField({ kind, title, src, name, disabled, busy, onFile,
   }
   return <section className={`media-file-field ${className}`} data-dragging={dragging} aria-label={title}
     onDragOver={event => { event.preventDefault(); setDragging(!disabled); }} onDragLeave={() => setDragging(false)} onDrop={drop}>
+    {compactPreview && <div className="media-file-compact-heading"><Icon size={16}/><strong>{title}</strong><span>{src ? 'Cargado' : 'Opcional'}</span></div>}
     {!compact && <><div className="media-file-heading"><Icon size={18}/><strong>{title}</strong><span>{src ? 'Cargado' : 'Opcional'}</span></div>
     <p className="help">{formats}{hint && ` · ${hint}`} · Puedes arrastrar el archivo aquí.</p></>}
-    <FilePicker label={busy ? 'Procesando…' : label} inputLabel={`Seleccionar ${title}`} icon={compact ? Icon : undefined} title={formats}
+    {compactPreview && <div className={'media-file-preview' + (src ? ' has-media' : '')}>
+      {src ? kind === 'image'
+        ? <img src={src} alt={'Vista previa de ' + title}/>
+        : kind === 'video'
+          ? <><video ref={videoPreview} src={src} muted playsInline preload="metadata" aria-label={'Vista previa de ' + title} title="Reproducir vista previa" onClick={toggleVideo} onPlay={()=>setVideoPlaying(true)} onPause={()=>setVideoPlaying(false)} onEnded={()=>setVideoPlaying(false)}/><span className={'media-file-play' + (videoPlaying ? ' is-playing' : '')} aria-hidden="true"/></>
+          : <audio src={src} controls controlsList="nodownload noplaybackrate" preload="metadata" aria-label={'Escuchar ' + title}/>
+        : <div className="media-file-empty"><Icon size={20}/><span>Arrastra o elige un archivo</span></div>}
+    </div>}
+    <FilePicker label={busy ? 'Procesando…' : label} inputLabel={`Seleccionar ${title}`} icon={compact && !compactPreview ? Icon : undefined} title={formats}
       accept={accept} disabled={disabled} onFile={onFile} preview={!compact && kind === 'image' ? src : undefined}/>
-    {name && src && <small>{name}</small>}
+    {name && src && <small title={name}>{name}</small>}
     {src && onRemove && <Button variant="ghost" size="sm" disabled={disabled} onClick={onRemove}><Trash2 size={14}/>{removeLabel}</Button>}
     {children}
   </section>;

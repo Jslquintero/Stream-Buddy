@@ -409,17 +409,42 @@ test('video trimmer constrains the selected clip to the alert duration and saves
   assert.equal(saved.body.events.follow.videoStart,12);assert.equal(saved.body.events.follow.videoEnd,16);assert.equal(saved.body.events.follow.volume,35);
 });
 
+test('audio trimmer saves the selected fragment and respects the alert duration',async t=>{
+  const {window,requests,publish}=await mount(t,'/notifications');
+  const config=structuredClone(defaultNotifications);
+  Object.assign(config.events.follow,{audio:'/notification-assets/'+'c'.repeat(64)+'.mp3',audioName:'voz.mp3',audioDuration:12,audioStart:0,audioEnd:6,volume:55});
+  publish({token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},notifications:{config,queued:0,current:null}}});
+  await until(()=>window.document.querySelector('.alert-audio-trimmer'));
+  const inputFor=label=>{const node=Array.from(window.document.querySelectorAll('label')).find(l=>l.textContent===label);assert.ok(node,label);return window.document.getElementById(node.htmlFor);};
+  const sliderFor=label=>{const node=window.document.querySelector(`[role="slider"][aria-label="${label}"]`);assert.ok(node,label);return node;};
+  const set=async(label,value)=>{const input=inputFor(label);Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,String(value));input.dispatchEvent(new window.Event('input',{bubbles:true}));await pause();};
+  await set('Inicio del audio · segundos',2);
+  assert.equal(inputFor('Fin del audio · segundos').value,'8');
+  assert.equal(sliderFor('Inicio del audio').getAttribute('aria-valuenow'),'2');
+  assert.equal(sliderFor('Fin del audio').getAttribute('aria-valuenow'),'8');
+  await set('Fin del audio · segundos',20);
+  assert.equal(inputFor('Fin del audio · segundos').value,'8');
+  assert.equal(sliderFor('Fin del audio').getAttribute('aria-valuenow'),'8');
+  await set('Fin del audio · segundos',7);
+  assert.equal(sliderFor('Fin del audio').getAttribute('aria-valuenow'),'7');
+  await until(()=>requests.some(r=>r.url==='/api/notifications/save'&&r.body.events.follow.audioStart===2&&r.body.events.follow.audioEnd===7));
+  const saved=requests.find(r=>r.url==='/api/notifications/save'&&r.body.events.follow.audioStart===2&&r.body.events.follow.audioEnd===7).body.events.follow;
+  assert.equal(saved.audioStart,2);assert.equal(saved.audioEnd,7);assert.equal(saved.audioDuration,12);assert.equal(saved.volume,55);
+});
+
 test('output starts media at the trim point, never replays on SSE and stops on clear',async t=>{
   const {window,publish}=await mount(t,'/?notifications-output=1');
-  const current={id:'media',type:'follow',title:'Hola',message:'Gracias',style:defaultNotifications,video:'/notification-assets/'+'b'.repeat(64)+'.mp4',videoStart:10,videoEnd:16,videoMuted:true,audio:'/notification-assets/'+'c'.repeat(64)+'.mp3',volume:25,expiresAt:Date.now()+6000};
+  const current={id:'media',type:'follow',title:'Hola',message:'Gracias',style:defaultNotifications,video:'/notification-assets/'+'b'.repeat(64)+'.mp4',videoStart:10,videoEnd:16,videoMuted:true,audio:'/notification-assets/'+'c'.repeat(64)+'.mp3',audioStart:3,audioEnd:5,audioDuration:10,volume:25,expiresAt:Date.now()+6000};
   const state={tools:{notifications:{current}}};publish(state);
   await until(()=>window.document.querySelector('video'));
   const video=window.document.querySelector('video'),audio=window.document.querySelector('audio');
   video.dispatchEvent(new window.Event('loadedmetadata'));audio.dispatchEvent(new window.Event('loadedmetadata'));await pause();
   assert.ok(video.currentTime>=10&&video.currentTime<11);assert.equal(audio.volume,.25);
+  assert.ok(audio.currentTime>=3&&audio.currentTime<4);
   assert.equal(video.playCalls,1);assert.equal(audio.playCalls,1);
   publish(state);await pause();assert.equal(video.playCalls,1);assert.equal(audio.playCalls,1);
   video.currentTime=16;video.dispatchEvent(new window.Event('timeupdate'));assert.ok(video.pauseCalls>=1);
+  audio.currentTime=5;audio.dispatchEvent(new window.Event('timeupdate'));assert.ok(audio.pauseCalls>=1);
   publish({tools:{notifications:{current:null}}});await pause();assert.ok(audio.pauseCalls>=1);assert.equal(window.document.querySelector('video'),null);
 });
 

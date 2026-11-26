@@ -43,7 +43,7 @@ export function createNotificationsModule({ dataDir, changed, log }) {
       if (closed || !style.enabled || !style.events[type].enabled) return false;
       if (queue.length >= 30) return false;
       const template = style.events[type];
-      queue.push({ id: randomUUID(), type, image: template.image || '', video:template.video||'', videoStart:template.videoStart??0, videoEnd:template.videoEnd??6, videoMuted:template.videoMuted??true, audio: template.audio || '', volume: template.volume ?? 80, title: notificationText(template.title, data), message: notificationText(template.message, data), style: structuredClone(notificationDesign(style,type)) });
+      queue.push({ id: randomUUID(), type, image: template.image || '', video:template.video||'', videoStart:template.videoStart??0, videoEnd:template.videoEnd??6, videoMuted:template.videoMuted??true, audio: template.audio || '', audioStart:template.audioStart??0, audioEnd:template.audioEnd??0, audioDuration:template.audioDuration??0, volume: template.volume ?? 80, title: notificationText(template.title, data), message: notificationText(template.message, data), style: structuredClone(notificationDesign(style,type)) });
       if (!current) next(); else changed();
       return true;
     },

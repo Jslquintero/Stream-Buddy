@@ -1,5 +1,179 @@
-.notifications-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px;margin-bottom:22px}.notifications-toolbar .help{margin-top:8px}.notifications-grid{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(360px,1.2fr);gap:24px;align-items:start}.notifications-settings{padding:24px}.notification-types{display:flex;flex-wrap:wrap;gap:8px}.notification-types [aria-pressed=true]{border-color:#b9f678;background:#293323;color:#d7f8ba}.notifications-settings h3{margin-top:26px;font-size:16px}.notifications-settings .save-bar{padding:20px 0 0}.notifications-settings .input[type=color]{padding:5px}.notifications-monitor{display:grid;gap:20px}.notifications-monitor>.card{padding:22px}.notification-preview>.help{margin-top:14px}.notification-stage{position:relative;height:360px;overflow:hidden;border-radius:10px;background:conic-gradient(#242832 25%,#1b1e25 0 50%,#242832 0 75%,#1b1e25 0);background-size:24px 24px}.notification-position{position:absolute;inset:0;display:flex;padding:24px;pointer-events:none}.notification-position.top-left{align-items:flex-start;justify-content:flex-start}.notification-position.top-center{align-items:flex-start;justify-content:center}.notification-position.top-right{align-items:flex-start;justify-content:flex-end}.notification-position.bottom-left{align-items:flex-end;justify-content:flex-start}.notification-position.bottom-center{align-items:flex-end;justify-content:center}.notification-position.bottom-right{align-items:flex-end;justify-content:flex-end}.notification-banner{display:flex;align-items:center;gap:18px;padding:24px;max-width:min(680px,100%);border:2px solid var(--alert-accent);box-shadow:0 12px 30px #0004;overflow-wrap:anywhere;line-height:1.3}.notification-banner>div{min-width:0}.notification-banner strong{display:block;font-size:1em;line-height:1.2}.notification-banner p{font-size:.72em;margin-top:8px;line-height:1.45;white-space:pre-wrap}.notification-symbol{display:grid;place-items:center;flex-shrink:0;color:var(--alert-accent)}.notification-symbol svg{width:1.6em;height:1.6em}.animate-slide{animation:alert-slide .45s ease-out both}.animate-fade{animation:alert-fade .5s ease-out both}@keyframes alert-slide{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}@keyframes alert-fade{from{opacity:0}to{opacity:1}}.notifications-help p{margin-top:12px}.notifications-queue h2{margin-bottom:12px}.notifications-output,.notifications-output body,.notifications-output #root{margin:0;width:100%;height:100%;background:transparent!important}.notifications-output .output-stage{width:100vw;height:100vh;border-radius:0;background:transparent}.notifications-output{overflow:hidden}@media(max-width:1150px){.notifications-grid{grid-template-columns:1fr}.notifications-monitor{grid-row:1}.notification-stage{height:320px}}@media(max-width:760px){.notifications-toolbar{flex-direction:column;align-items:flex-start}.notifications-settings,.notifications-monitor>.card{padding:18px}.notification-position{padding:12px}.notification-banner{padding:16px;gap:12px}.notification-types .button{font-size:12px}}@media(prefers-reduced-motion:reduce){.notification-banner{animation:none}}
-.notification-banner{max-width:100%;flex-shrink:0}.notification-image{display:block;max-width:100%;flex-shrink:1;min-width:0}.notification-copy{flex:1}.notification-banner.layout-right{flex-direction:row-reverse}.notification-banner.layout-top,.notification-banner.layout-image-only{flex-direction:column}.notification-banner.layout-bottom{flex-direction:column-reverse}.notification-banner.layout-top .notification-copy,.notification-banner.layout-bottom .notification-copy{width:100%}.notification-media{display:flex;align-items:center;gap:16px;margin:12px 0}.notification-media img{width:90px;height:90px;object-fit:contain;border-radius:8px;background:#101319}.notifications-monitor{position:sticky;top:20px}.animate-zoom{animation:notification-zoom .4s ease-out both}@keyframes notification-zoom{from{opacity:0;transform:scale(.75)}to{opacity:1;transform:scale(1)}}@media(max-width:1150px){.notifications-monitor{position:static}}@media(prefers-reduced-motion:reduce){.animate-zoom{animation:none}}
-.alert-media-picker{margin:22px 0}.alert-media-picker audio{width:100%;height:38px;margin:8px 0}.alert-media-picker input[type=range]{width:100%;accent-color:#b9f678}.alert-video-wrap{min-width:0;max-width:100%}.alert-video-wrap video{display:block;width:100%;max-height:240px;object-fit:contain;border-radius:8px;background:transparent}.alert-video-trimmer>.alert-video-wrap video{background:#080b10}.alert-video-wrap>.button{margin-top:8px;pointer-events:auto}.notification-preview .alert-video-wrap{pointer-events:auto}.alert-enable-sound{position:absolute;bottom:16px;left:16px;z-index:5}.notification-banner .alert-video-wrap{flex-shrink:1}.notification-banner .alert-video-wrap video{max-height:none}.alert-video-trimmer .field{margin:12px 0}
-.notification-banner .alert-video-wrap{position:relative}.notification-banner .alert-video-wrap>.button{position:absolute;bottom:6px;left:6px;max-width:calc(100% - 12px);font-size:11px;white-space:normal}
-.notification-font-installer{background:#12171e;border:1px solid #36404e;border-radius:10px;padding:18px;margin:18px 0}.notification-font-installer .help{margin-top:8px}.animate-slide-down{animation:notification-down .5s ease-out both}.animate-slide-left{animation:notification-left .5s ease-out both}.animate-slide-right{animation:notification-right .5s ease-out both}.animate-bounce{animation:notification-bounce .7s ease-out both}.animate-flip{animation:notification-flip .6s ease-out both;backface-visibility:hidden}.animate-roll{animation:notification-roll .6s ease-out both}.animate-pop{animation:notification-pop .5s ease-out both}@keyframes notification-down{from{opacity:0;transform:translateY(-45px)}to{opacity:1;transform:translateY(0)}}@keyframes notification-left{from{opacity:0;transform:translateX(-70px)}to{opacity:1;transform:translateX(0)}}@keyframes notification-right{from{opacity:0;transform:translateX(70px)}to{opacity:1;transform:translateX(0)}}@keyframes notification-bounce{0%{opacity:0;transform:translateY(-60px)}55%{opacity:1;transform:translateY(12px)}75%{transform:translateY(-8px)}100%{transform:translateY(0)}}@keyframes notification-flip{from{opacity:0;transform:perspective(700px) rotateX(-85deg)}to{opacity:1;transform:perspective(700px) rotateX(0)}}@keyframes notification-roll{from{opacity:0;transform:translateX(-50px) rotate(-15deg)}to{opacity:1;transform:translateX(0) rotate(0)}}@keyframes notification-pop{0%{opacity:0;transform:scale(.5)}70%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}@media(prefers-reduced-motion:reduce){.notification-banner{animation:none!important}}
+/* =========================================================
+   Notificaciones · escenario y alerta
+   Estos estilos se comparten entre la vista previa del editor
+   y la salida transparente que se añade al directo.
+   ========================================================= */
+
+.notification-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: conic-gradient(#ececea 25%, #f8f8f6 0 50%, #ececea 0 75%, #f8f8f6 0);
+  background-size: 20px 20px;
+}
+
+.notification-preview-canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: top left;
+}
+
+.notification-position {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.notification-position.top-left { align-items: flex-start; justify-content: flex-start; }
+.notification-position.top-center { align-items: flex-start; justify-content: center; }
+.notification-position.top-right { align-items: flex-start; justify-content: flex-end; }
+.notification-position.bottom-left { align-items: flex-end; justify-content: flex-start; }
+.notification-position.bottom-center { align-items: flex-end; justify-content: center; }
+.notification-position.bottom-right { align-items: flex-end; justify-content: flex-end; }
+
+.notification-banner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: min(680px, 100%);
+  border: 2px solid var(--alert-accent);
+  box-shadow: 0 12px 30px #0004;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.notification-banner > div { min-width: 0; }
+.notification-banner strong { display: block; font-size: 1em; line-height: 1.2; }
+.notification-banner p { font-size: .72em; margin-top: 8px; line-height: 1.45; white-space: pre-wrap; }
+
+.notification-symbol {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--alert-accent);
+}
+.notification-symbol svg { width: 1.6em; height: 1.6em; }
+
+.notification-image {
+  display: block;
+  max-width: 100%;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.notification-copy { flex: 1; }
+.notification-banner.layout-right { flex-direction: row-reverse; }
+.notification-banner.layout-top,
+.notification-banner.layout-image-only { flex-direction: column; }
+.notification-banner.layout-bottom { flex-direction: column-reverse; }
+.notification-banner.layout-top .notification-copy,
+.notification-banner.layout-bottom .notification-copy { width: 100%; }
+
+/* Reproductor de video dentro de la alerta */
+.alert-video-wrap { min-width: 0; max-width: 100%; }
+.alert-video-wrap video {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: transparent;
+}
+.alert-video-wrap > .button { margin-top: 8px; pointer-events: auto; }
+.alert-video-trimmer > .alert-video-wrap video { background: #080b10; }
+.notification-banner .alert-video-wrap { position: relative; flex-shrink: 1; }
+.notification-banner .alert-video-wrap video { max-height: none; }
+.notification-banner .alert-video-wrap > .button {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  max-width: calc(100% - 12px);
+  font-size: 11px;
+  white-space: normal;
+}
+.alert-enable-sound { position: absolute; bottom: 16px; left: 16px; z-index: 5; }
+
+/* Salida transparente para OBS / TikTok LIVE Studio */
+.notifications-output,
+.notifications-output body,
+.notifications-output #root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+}
+.notifications-output { overflow: hidden; }
+.notifications-output .output-stage {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Animaciones de entrada */
+.animate-slide { animation: alert-slide .45s ease-out both; }
+.animate-fade { animation: alert-fade .5s ease-out both; }
+.animate-slide-down { animation: notification-down .5s ease-out both; }
+.animate-slide-left { animation: notification-left .5s ease-out both; }
+.animate-slide-right { animation: notification-right .5s ease-out both; }
+.animate-zoom { animation: notification-zoom .4s ease-out both; }
+.animate-bounce { animation: notification-bounce .7s ease-out both; }
+.animate-flip { animation: notification-flip .6s ease-out both; backface-visibility: hidden; }
+.animate-roll { animation: notification-roll .6s ease-out both; }
+.animate-pop { animation: notification-pop .5s ease-out both; }
+
+@keyframes alert-slide {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes alert-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes notification-down {
+  from { opacity: 0; transform: translateY(-45px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes notification-left {
+  from { opacity: 0; transform: translateX(-70px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes notification-right {
+  from { opacity: 0; transform: translateX(70px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes notification-zoom {
+  from { opacity: 0; transform: scale(.75); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes notification-bounce {
+  0% { opacity: 0; transform: translateY(-60px); }
+  55% { opacity: 1; transform: translateY(12px); }
+  75% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+@keyframes notification-flip {
+  from { opacity: 0; transform: perspective(700px) rotateX(-85deg); }
+  to { opacity: 1; transform: perspective(700px) rotateX(0); }
+}
+@keyframes notification-roll {
+  from { opacity: 0; transform: translateX(-50px) rotate(-15deg); }
+  to { opacity: 1; transform: translateX(0) rotate(0); }
+}
+@keyframes notification-pop {
+  0% { opacity: 0; transform: scale(.5); }
+  70% { opacity: 1; transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 760px) {
+  .notification-position { padding: 12px; }
+  .notification-banner { padding: 16px; gap: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-banner { animation: none !important; }
+}
