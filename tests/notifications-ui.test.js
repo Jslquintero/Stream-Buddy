@@ -8,6 +8,7 @@ import { defaultLikes } from '../modules/likes/config.js';
 import { defaultGifters } from '../modules/gifters/config.js';
 import { defaultAuction } from '../modules/auction/config.js';
 import { defaultSocial } from '../modules/social/config.js';
+import { defaultBanners } from '../modules/banners/config.js';
 import { defaultCommands } from '../modules/commands/config.js';
 const pause = () => new Promise(resolve => setTimeout(resolve,30));
 test('Home copies widget URLs and the chosen layout without leaving the overview', async t => {
@@ -22,6 +23,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
       gifters: { config: defaultGifters, url: '/?gifters-output=1#tiktok.studio' },
       auction: { config: defaultAuction, url: '/?auction-output=1#tiktok.studio' },
       social: { config: defaultSocial, url: '/?social-output=1#tiktok.studio' },
+      banners: { config: defaultBanners, url: '/?banners-output=1#tiktok.studio' },
       commands: {
         config: defaultCommands, url: '/commands?commands-output=1#tiktok.studio',
         listUrl: '/commands?commands-list-output=1#tiktok.studio',
@@ -49,10 +51,12 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   await until(() => doc.querySelector('.home select'));
   const menuItems = id => [...doc.querySelectorAll(`#nav-${id}-items > .nav-item`)].map(button => button.textContent);
   assert.deepEqual(menuItems('general'), ['Vista general', 'Voz y chat']);
-  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
+  assert.deepEqual(menuItems('widgets'), ['Escenas', 'Notificaciones', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
   assert.deepEqual(menuItems('rankings'), ['Top likes', 'Top gifters']);
+  assert.deepEqual([...doc.querySelectorAll('#nav-publicidad-items > .nav-item')].map(button => button.textContent), ['AdQueue', 'Ad Banner Rotator']);
   assert.ok(doc.querySelector('#nav-widgets-items .nav-subcategory[aria-labelledby="nav-rankings"]'));
-  assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Top gifters', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
+  assert.ok(doc.querySelector('#nav-widgets-items .nav-subcategory[aria-labelledby="nav-publicidad"]'));
+  assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), ['Escenas', 'AdQueue', 'Ad Banner Rotator', 'Notificaciones', 'Top likes', 'Top gifters', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
   const widgetsToggle = doc.querySelector('[aria-labelledby="nav-widgets"] .nav-category-toggle');
   widgetsToggle.click(); await pause();
   assert.equal(doc.querySelector('#nav-widgets-items').hidden, true);
@@ -71,6 +75,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   await copy('Copiar URL de Top gifters', origin + '/?gifters-output=1#tiktok.studio');
   await copy('Copiar URL de Subasta', origin + '/?auction-output=1#tiktok.studio');
   await copy('Copiar URL de Social Media Rotator', origin + '/?social-output=1#tiktok.studio');
+  await copy('Copiar URL de Ad Banner Rotator', origin + '/?banners-output=1#tiktok.studio');
   await copy('Copiar URL de Comandos de chat', origin + '/commands?commands-output=1#tiktok.studio');
   await copy('Copiar URL de la lista de comandos', origin + '/commands?commands-list-output=1#tiktok.studio');
   await copy('Copiar URL de Música', origin + '/?spotify-output=1#tiktok.studio');
@@ -79,7 +84,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   clipboardAvailable = false;
   spotifyCopy.click();
   await until(() => doc.querySelector('.home-copy-fallback code')?.textContent === origin + '/?spotify-output=1#tiktok.studio');
-  assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 10);
+  assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 11);
   assert.equal(window.location.pathname, '/');
   assert.equal(requests.length, 0);
 

@@ -31,6 +31,7 @@ backend/
 modules/tts/                Motores de voz Windows y Pocket TTS
 modules/tiktok/             Conector propio de navegador y lector Webcast local
 modules/social/             Rotador de redes sociales para el directo
+modules/banners/            Espacio publicitario rotativo con imágenes y SVG
 modules/auction/            Subasta en directo con pujas por regalos
 web/src/                    Frontend React y componentes reutilizables
 dist/                       Frontend compilado servido por Node
@@ -98,6 +99,16 @@ El módulo **Social Media Rotator** alterna tus redes en un pop-up animado para 
 Añade hasta 20 redes (Instagram, TikTok, YouTube, Twitch, Kick, X, Facebook, Discord, Telegram, Threads o un sitio web) y edita el nombre, el usuario o texto y el color de cada una. Puedes elegir cada cuánto cambia la red (2–120 segundos), el orden secuencial o aleatorio, la animación de entrada (pop, deslizar, girar, rebote, fundido o sin animación), la posición, el tamaño, los colores, la opacidad, los bordes y la barra de progreso. La vista previa permite avanzar, retroceder y reiniciar la rotación.
 
 El diseño se guarda en `data/social.json` y los cambios pendientes se recuperan desde el navegador. La rotación continúa mientras la salida esté abierta; ocultar el widget con **Mostrar en el directo** detiene la tarjeta sin borrar la configuración.
+
+## Ad Banner Rotator
+
+El módulo **Ad Banner Rotator** crea un espacio publicitario para el directo con una o varias creatividades que se turnan en pantalla. La salida transparente es `http://127.0.0.1:17900/?banners-output=1#tiktok.studio` y se añade como fuente de navegador en TikTok LIVE Studio u OBS; no necesita conectar TikTok.
+
+Sube imágenes PNG, JPG, WebP o GIF, y también SVG con animaciones propias. Los SVG se guardan saneados: se conservan sus animaciones CSS o SMIL, pero se elimina cualquier script o contenido incrustado no permitido. Por defecto, el espacio adopta el tamaño y la proporción real de cada creatividad, sin recortes ni barras negras; si prefieres un espacio fijo, desactiva **Ajustar al tamaño de cada imagen** y define el ancho y el alto en píxeles.
+
+Cada anuncio tiene nombre, texto alternativo, anunciante y mensaje corto. Puedes elegir el tiempo en pantalla (3–300 segundos), animaciones de entrada y salida independientes (elevar, barrido, cortina, zoom, deslizar, giro o fundido), el orden secuencial o aleatorio, la posición, el formato (marco corporativo, a sangre o barra de patrocinador), el tema visual, los colores, el ajuste de la imagen y la etiqueta «PUBLICIDAD». La vista previa permite avanzar, retroceder y repetir la animación.
+
+La configuración se guarda en `data/banners.json` y las imágenes en `data/banner-assets/`. Los cambios pendientes se recuperan desde el navegador. Ocultar el widget con **Mostrar en el directo** detiene la salida sin borrar la configuración.
 
 ## Cierre
 

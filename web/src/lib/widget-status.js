@@ -32,6 +32,8 @@ export function widgetStatus({ id, tool, state, online }) {
 
   if (tool.config?.enabled === false) return { label: 'Oculto', tone: 'muted' };
 
+  if (id === 'banners' && !tool.config?.ads?.length) return { label: 'Sin anuncios', tone: 'warn' };
+
   if (id === 'spotify') {
     if (tool.playback?.playing) return { label: 'Reproduciendo', tone: 'live' };
     if (tool.connected) return { label: 'Esperando reproducción', tone: 'warn' };
@@ -82,6 +84,15 @@ export function widgetSummary({ id, tool, state, now = Date.now() }) {
     const channels = (tool.config?.channels || []).filter(channel => channel?.enabled).length;
     const interval = Number(tool.config?.interval) || 6;
     return channels + (channels === 1 ? ' red' : ' redes') + ' · cambia cada ' + interval + ' s';
+  }
+
+  if (id === 'banners') {
+    const ads = (tool.config?.ads || []).filter(ad => ad?.enabled).length;
+    const width = Number(tool.config?.width) || 728;
+    const height = Number(tool.config?.height) || 90;
+    if (!tool.config?.ads?.length) return 'Sube tu primer banner para empezar.';
+    const size = tool.config?.fitToCreative === false ? width + '×' + height + ' px' : 'tamaño original';
+    return ads + (ads === 1 ? ' anuncio activo' : ' anuncios activos') + ' · ' + size;
   }
 
   if (id === 'commands') {

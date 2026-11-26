@@ -83,7 +83,7 @@ export function useStudio(output) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo completar la acción.');
-      return ['spotify/connect','likes/export','likes/save','gifters/export','gifters/save','auction/export','auction/save','social/save','layout/create','layout/save-composition','layout/rename','layout/save','notifications/upload','notifications/save','notifications/fonts/install'].includes(action)?result:true;
+      return ['spotify/connect','likes/export','likes/save','gifters/export','gifters/save','auction/export','auction/save','social/save','banners/save','banners/upload','layout/create','layout/save-composition','layout/rename','layout/save','notifications/upload','notifications/save','notifications/fonts/install'].includes(action)?result:true;
     } catch (error) {
       notice(error.message, { type: 'error' });
       if(options.throwOnError)throw error;

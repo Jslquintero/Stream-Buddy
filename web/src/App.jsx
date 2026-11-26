@@ -1,6 +1,6 @@
 import { CopyLinkButton } from './components/output-controls';
 import { useEffect, useRef, useState } from 'react';
-import { AudioLines, Bell, ChevronDown, ChevronRight, CircleHelp, Clapperboard, Copy, ExternalLink, Gavel, Gift, Heart, LayoutDashboard, Menu, Monitor, Music2, RefreshCw, Share2, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import { AudioLines, Bell, ChevronDown, ChevronRight, CircleHelp, Clapperboard, Copy, ExternalLink, GalleryHorizontal, Gavel, Gift, Heart, LayoutDashboard, Megaphone, Menu, Monitor, Music2, RefreshCw, Share2, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
 import { Badge, Button, Card } from './components/ui';
 import { useRoute } from './hooks/use-route';
 import { TikTokConnection } from './components/tiktok-connection';
@@ -13,6 +13,7 @@ import { LikesStudio } from './components/likes-studio';
 import { GiftersStudio } from './components/gifters-studio';
 import { AuctionStudio } from './components/auction-studio';
 import { SocialStudio } from './components/social-studio';
+import { BannersStudio } from './components/banners-studio';
 import { SpotifyStudio } from './components/spotify-studio';
 import { Home, adQueueOutputURL } from './components/home';
 import { ToastRegion } from './components/toast';
@@ -20,6 +21,7 @@ import { ToastRegion } from './components/toast';
 const widgets = [
   { id: 'layout', title: 'Escenas', description: 'Escenas y composiciones del directo.', icon: Monitor, color: 'violet', action: 'Abrir editor' },
   { id: 'ads', title: 'AdQueue', description: 'Cola de videos para anuncios.', icon: Clapperboard, color: 'orange', action: 'Gestionar anuncios' },
+  { id: 'banners', title: 'Ad Banner Rotator', description: 'Espacio publicitario con imágenes y SVG animados.', icon: GalleryHorizontal, color: 'violet', action: 'Configurar banners' },
   { id: 'notifications', title: 'Notificaciones', description: 'Alertas de seguidores, regalos y más.', icon: Bell, color: 'mint', action: 'Configurar alertas' },
   { id: 'likes', title: 'Top likes', description: 'Clasificación de likes en directo.', icon: Heart, color: 'orange', action: 'Configurar Top likes' },
   { id: 'gifters', title: 'Top gifters', description: 'Clasificación de regalos en directo.', icon: Gift, color: 'mint', action: 'Configurar Top gifters' },
@@ -28,10 +30,14 @@ const widgets = [
   { id: 'commands', title: 'Comandos de chat', description: 'GIF, sonidos y lista de comandos.', icon: Sparkles, color: 'violet', action: 'Configurar comandos' },
   { id: 'spotify', title: 'Música', description: 'Canción actual, artista y carátula.', icon: Music2, color: 'mint', action: 'Configurar música' },
 ];
+const adWidgets = widgets.filter(({ id }) => id === 'ads' || id === 'banners');
 const rankingWidgets = widgets.filter(({ id }) => id === 'likes' || id === 'gifters');
-const widgetItems = widgets.filter(({ id }) => id !== 'likes' && id !== 'gifters');
+const widgetItems = widgets.filter(({ id }) => id !== 'ads' && id !== 'banners' && id !== 'likes' && id !== 'gifters');
 widgetItems.splice(widgetItems.findIndex(({ id }) => id === 'auction'), 0, {
   id: 'rankings', title: 'Rankings', icon: Trophy, items: rankingWidgets,
+});
+widgetItems.splice(widgetItems.findIndex(({ id }) => id === 'notifications'), 0, {
+  id: 'publicidad', title: 'Publicidad', icon: Megaphone, items: adWidgets,
 });
 const navigationGroups = [
   { id: 'general', title: 'General', items: [
@@ -58,7 +64,7 @@ export default function App(){
  const t=state?.tts;
  return <div className="app-shell"><aside className={menu?'sidebar mobile-open':'sidebar'}><a className="brand" href="/" onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();go('home');}}} aria-label="Stream Buddy inicio"><span className="brand-mark"><AudioLines/></span><span>stream<span className="brand-light"> buddy</span><small>CENTRO DE DIRECTO</small></span></a><div className="workspace"><span className="avatar">SB</span><span>Mi espacio de trabajo<small>Personal · Local</small></span><Badge>LOCAL</Badge></div><SidebarNavigation view={view} go={go}/><div className="sidebar-bottom"><div className="local-card"><span className="online-dot"/><strong>Todo en tu equipo</strong><p>Tu espacio de producción local, siempre a mano.</p><ShieldCheck size={18}/></div><span className="sidebar-foot"><CircleHelp size={16}/> Stream Buddy <small>v0.3</small></span></div></aside>{menu&&<button className="sidebar-scrim" aria-label="Cerrar menú" onClick={()=>setMenu(false)}/>}
  <div className="main-shell"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Abrir menú" onClick={()=>setMenu(true)}><Menu/></Button><span>Espacio de trabajo</span><ChevronRight size={14}/><strong>{currentTitle}</strong></div><TikTokConnection state={state} online={online} api={api}/></header>
- <main>{view !== 'home' && view !== 'notifications' && view !== 'likes' && view !== 'gifters' && view !== 'auction' && view !== 'commands' && view !== 'social' && view !== 'layout' && !view?.startsWith('layout:') && <div className="page-heading"><div><p className="eyebrow">Tu espacio. Tu directo.</p><h1>{view==='tts'?'La voz de tu comunidad.':view==='spotify'?'La música de tu directo.':'Tus anuncios, en orden.'}</h1><p className="muted">{view==='tts'?'Haz que cada mensaje forme parte del directo.': 'Prepara y controla tu herramienta desde tu espacio de trabajo.'}</p></div></div>}
+ <main>{view !== 'home' && view !== 'notifications' && view !== 'likes' && view !== 'gifters' && view !== 'auction' && view !== 'commands' && view !== 'social' && view !== 'banners' && view !== 'layout' && !view?.startsWith('layout:') && <div className="page-heading"><div><p className="eyebrow">Tu espacio. Tu directo.</p><h1>{view==='tts'?'La voz de tu comunidad.':view==='spotify'?'La música de tu directo.':'Tus anuncios, en orden.'}</h1><p className="muted">{view==='tts'?'Haz que cada mensaje forme parte del directo.': 'Prepara y controla tu herramienta desde tu espacio de trabajo.'}</p></div></div>}
  {view==='home'&&<Home widgets={widgets} state={state} online={online} open={open} notice={notice}/>}
  <div hidden={view!=='tts'}>{state?<VoiceStudio state={state} api={api} notice={notice}/>:<Card className="loading" role="status">Conectando con tu estudio…</Card>}</div>
  <div hidden={view!=='layout'}>{state&&<LayoutStudio tool={state.tools.layout} api={api} notice={notice} open={go}/>}</div>
@@ -69,6 +75,7 @@ export default function App(){
  <div hidden={view!=='gifters'}>{state?.tools.gifters?<GiftersStudio tool={state.tools.gifters} api={api} notice={notice} online={online} connected={online&&t?.connected}/>:view==='gifters'&&<Card>Reinicia Stream Buddy para cargar Top gifters.</Card>}</div>
  <div hidden={view!=='auction'}>{state?.tools.auction?<AuctionStudio tool={state.tools.auction} api={api} notice={notice} online={online} connected={online&&t?.connected}/>:view==='auction'&&<Card>Reinicia Stream Buddy para cargar Subasta.</Card>}</div>
  <div hidden={view!=='social'}>{state?.tools.social?<SocialStudio tool={state.tools.social} api={api} notice={notice} online={online}/>:view==='social'&&<Card>Reinicia Stream Buddy para cargar Social Media Rotator.</Card>}</div>
+ <div hidden={view!=='banners'}>{state?.tools.banners?<BannersStudio tool={state.tools.banners} api={api} notice={notice} online={online}/>:view==='banners'&&<Card>Reinicia Stream Buddy para cargar Ad Banner Rotator.</Card>}</div>
  <div hidden={view!=='commands'}>{state?.tools.commands&&<CommandsStudio tool={state.tools.commands} api={api} notice={notice} online={online} connected={online&&t?.connected}/>}</div>
  <div hidden={view!=='spotify'}>{state?.tools.spotify?<SpotifyStudio tool={state.tools.spotify} api={api} notice={notice} online={online}/>:view==='spotify'&&<Card>Reinicia Stream Buddy para cargar Spotify.</Card>}</div>
  <footer><span><span className="online-dot"/> Hecho para tu próximo directo.</span><span>Stream Buddy <span className="footer-separator">/</span> Tu producción, bajo control.</span></footer></main></div><ToastRegion toasts={toasts} onDismiss={dismissToast}/></div>;

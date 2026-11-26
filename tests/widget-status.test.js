@@ -8,6 +8,9 @@ test('widget status distinguishes disconnected sources, hidden outputs and stopp
   assert.equal(widgetStatus({ id: 'likes', tool: { config: { enabled: false } }, state, online: true }).label, 'Oculto');
   assert.equal(widgetStatus({ id: 'layout', tool: { running: false }, state, online: true }).label, 'Detenido');
   assert.equal(widgetStatus({ id: 'social', tool: { config: { enabled: true } }, state, online: true }).label, 'En pantalla');
+  assert.equal(widgetStatus({ id: 'banners', tool: { config: { enabled: true, ads: [] } }, state, online: true }).label, 'Sin anuncios');
+  assert.equal(widgetStatus({ id: 'banners', tool: { config: { enabled: false, ads: [] } }, state, online: true }).label, 'Oculto');
+  assert.equal(widgetStatus({ id: 'banners', tool: { config: { enabled: true, ads: [{}] } }, state, online: true }).label, 'En pantalla');
   assert.equal(widgetStatus({ id: 'layout', tool: { running: true }, state, online: false }).label, 'Sin conexión');
 });
 
@@ -34,4 +37,7 @@ test('widget summaries read counters and relative activity without inventing dat
   assert.match(summary, /2[.,]?400 likes/);
   assert.match(summary, /hace 15 s/);
   assert.equal(widgetSummary({ id: 'likes', tool: {}, state: {}, now }), 'Esperando likes.');
+  assert.equal(widgetSummary({ id: 'banners', tool: { config: { ads: [{ enabled: true }, { enabled: false }], width: 728, height: 90 } }, state: {}, now }), '1 anuncio activo · tamaño original');
+  assert.equal(widgetSummary({ id: 'banners', tool: { config: { fitToCreative: false, ads: [{ enabled: true }], width: 728, height: 90 } }, state: {}, now }), '1 anuncio activo · 728×90 px');
+  assert.equal(widgetSummary({ id: 'banners', tool: { config: { ads: [] } }, state: {}, now }), 'Sube tu primer banner para empezar.');
 });

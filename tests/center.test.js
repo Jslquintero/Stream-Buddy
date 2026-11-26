@@ -20,7 +20,7 @@ function scratch(t) {
   t.after(() => {
     // Only known flat test files are removed; never recurse over user data.
     for (const file of fs.readdirSync(dir)) {
-      if(file==='notification-assets'){const assets=path.join(dir,file);for(const name of fs.readdirSync(assets))fs.unlinkSync(path.join(assets,name));fs.rmdirSync(assets);}
+      if(file==='notification-assets'||file==='banner-assets'){const assets=path.join(dir,file);for(const name of fs.readdirSync(assets))fs.unlinkSync(path.join(assets,name));fs.rmdirSync(assets);}
       else fs.unlinkSync(path.join(dir, file));
     }
     fs.rmdirSync(dir);
@@ -156,7 +156,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
   assert.match(await (await fetch(base)).text(), /Stream Buddy · Centro de control/);
   const html = await (await fetch(base)).text();
-  for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes', '/gifters', '/auction']) {
+  for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes', '/gifters', '/auction', '/banners']) {
     const page = await fetch(base + route);
     assert.equal(page.status, 200);
     assert.equal(await page.text(), html);
@@ -198,6 +198,20 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal(partial.status,206);assert.deepEqual(Buffer.from(await partial.arrayBuffer()),Buffer.from(gif,'base64').subarray(2,6));
   assert.equal((await fetch(base+uploaded.image,{headers:{Range:'bytes=999999-'}})).status,416);
   assert.equal((await fetch(base+'/notification-assets/not-an-image')).status,404);
+  const bannerSvg='<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes pulse{to{opacity:.4}}</style><rect width="8" height="8" onclick="alert(1)"/><script>alert(1)</script></svg>';
+  assert.equal((await post('banners/upload',{data:'data:image/svg+xml;base64,'+Buffer.from(bannerSvg).toString('base64')})).status,403);
+  const bannerUpload=await post('banners/upload',{data:'data:image/svg+xml;base64,'+Buffer.from(bannerSvg).toString('base64')},{'X-Studio':state.token});
+  assert.equal(bannerUpload.status,200);
+  const bannerAsset=await bannerUpload.json();assert.match(bannerAsset.image,/^\/banner-assets\/[a-f0-9]{64}\.svg$/);
+  const bannerResponse=await fetch(base+bannerAsset.image);
+  assert.equal(bannerResponse.headers.get('content-type'),'image/svg+xml');
+  assert.match(bannerResponse.headers.get('content-security-policy'),/default-src 'none'/);
+  const bannerText=await bannerResponse.text();
+  assert.doesNotMatch(bannerText,/script|onclick/i);assert.match(bannerText,/@keyframes pulse/);
+  const bannerSaved=await post('banners/save',{...center.banners.state().config,ads:[{id:'campaign-1',image:bannerAsset.image,name:'Campaña',alt:'Anuncio',advertiser:'Marca',caption:'Visita',enabled:true}]},{'X-Studio':state.token});
+  assert.equal(bannerSaved.status,200);assert.ok((await bannerSaved.json()).notificationRevision);
+  assert.equal(center.banners.state().config.ads[0].name,'Campaña');
+  assert.equal((await fetch(base+'/banner-assets/missing.svg')).status,404);
   assert.equal((await post('notifications/test', {type:'gift'}, {'X-Studio':state.token})).status,200);
   assert.equal(center.notifications.state().current.type,'gift');
   assert.equal((await post('notifications/clear', {}, {'X-Studio':state.token})).status,200);

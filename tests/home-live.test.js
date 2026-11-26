@@ -8,6 +8,7 @@ import { defaultLikes } from '../modules/likes/config.js';
 import { defaultGifters } from '../modules/gifters/config.js';
 import { defaultAuction } from '../modules/auction/config.js';
 import { defaultSocial } from '../modules/social/config.js';
+import { defaultBanners } from '../modules/banners/config.js';
 import { defaultCommands } from '../modules/commands/config.js';
 
 const pause = () => new Promise(resolve => setTimeout(resolve, 30));
@@ -52,6 +53,7 @@ test('home shows live state, onboarding and typed connection notices', async t =
       gifters: { config: structuredClone(defaultGifters), updatedAt: 0, participants: 0, totalGifts: 0, totalDiamonds: 0, url: '/?gifters-output=1#tiktok.studio' },
       auction: { config: structuredClone(defaultAuction), status: 'idle', round: 0, participants: 0, url: '/?auction-output=1#tiktok.studio' },
       social: { config: structuredClone(defaultSocial), url: '/?social-output=1#tiktok.studio' },
+      banners: { config: structuredClone(defaultBanners), url: '/?banners-output=1#tiktok.studio' },
       commands: { config: structuredClone(defaultCommands), url: '/commands?commands-output=1#tiktok.studio' },
       spotify: { config: { enabled: true }, connected: false, playback: null, url: '/?spotify-output=1#tiktok.studio' },
     },
