@@ -13,8 +13,8 @@ function Choices({ title, field, values, config, change, miniature = false }) {
 export function SpotifyAppearance({ draft, setDraft, notice }) {
   const c = { ...appearanceDefaults, ...draft }, change = (key, value) => setDraft(d => ({ ...d, [key]:value }));
   async function upload(file) {
-    if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 500000) { notice('Elige un PNG, JPG o WebP de hasta 500 KB.'); return; }
-    try { const result = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); change('idleCover', result); } catch { notice('No se pudo leer la imagen.'); }
+    if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 500000) { notice('Elige un PNG, JPG o WebP de hasta 500 KB.', { type: 'warning' }); return; }
+    try { const result = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); change('idleCover', result); } catch { notice('No se pudo leer la imagen.', { type: 'error' }); }
   }
   return <div className="spotify-customization">
     <Choices title="Apariencia del reproductor" field="playerStyle" values={playerStyles} config={c} change={change} miniature/>
@@ -58,8 +58,8 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
   if(['shell','amber'].includes(c.playerStyle)) {
     const filled = Math.min(32,Math.max(0,Math.round(playback.duration ? progress / playback.duration * 32 : 0)));
     return <article className={`spotify-now spotify-${playerTheme} player-shell spotify-terminal player-${c.playerStyle}`} style={{'--spotify-accent':color || c.tintColor}}>
-      <header className="spotify-terminal-header"><span>root@livestudio</span><span className="spotify-terminal-controls" aria-hidden="true">− ▫ <b>×</b></span></header>
-      <div className="spotify-terminal-body"><div className="spotify-terminal-command"><span>root@livestudio&gt;</span> ./{player.toLowerCase()} <span>--nowPlaying</span></div>
+      <header className="spotify-terminal-header"><span>root@streambuddy</span><span className="spotify-terminal-controls" aria-hidden="true">− ▫ <b>×</b></span></header>
+      <div className="spotify-terminal-body"><div className="spotify-terminal-command"><span>root@streambuddy&gt;</span> ./{player.toLowerCase()} <span>--nowPlaying</span></div>
         <div className="spotify-terminal-line"><strong>Title:</strong> {title}</div>
         <div className="spotify-terminal-line"><strong>Artist:</strong> <span className="spotify-artist">{playback.artist}</span></div>
         <div className="spotify-progress spotify-terminal-progress" role="progressbar" aria-label="Progreso de la canción" aria-valuemin={0} aria-valuemax={playback.duration} aria-valuenow={progress}>[<span>{'#'.repeat(filled)}</span>{'-'.repeat(32-filled)}]</div>

@@ -116,7 +116,7 @@ export function NotificationsStudio({ tool, api, notice, connected, online }) {
       const metadata=kind==='audio'?{}:await inspectNotificationMedia(data,kind,design.duration);
       const result=await api('notifications/upload',{data,kind},{throwOnError:true});
       if(result?.[kind]) setMedia(target,kind,result[kind],file.name.slice(0,180),metadata);
-    } catch(error){notice(error.message);throw error;} finally{setUploading('');}
+    } catch(error){notice(error.message,{type:'error'});throw error;} finally{setUploading('');}
   };
   return <div className="notifications-studio editor-workspace">
     <header className="editor-workspace-header"><h1 className="editor-workspace-title">Notificaciones</h1>
@@ -124,7 +124,7 @@ export function NotificationsStudio({ tool, api, notice, connected, online }) {
       <OutputLinks notice={notice} url={output} message="Enlace de notificaciones copiado." fallback="Enlace de notificaciones" copyLabel="Copiar enlace" openLabel="Abrir salida" iconSize={15} size="sm"/>
     </OutputToolbar>
     </header>
-    {tool.error && <p className="notice" role="alert">{tool.error}</p>}
+    {tool.error && <p className="error" role="alert">{tool.error}</p>}
     <EditorViewSwitch view={mobileView} change={setMobileView} editorLabel="Editar alerta" monitorLabel="Vista previa y cola"/>
     <div className="notifications-grid editor-workspace-grid" data-view={mobileView}>
       <Card className="notifications-settings editor-workspace-settings">

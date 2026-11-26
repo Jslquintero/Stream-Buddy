@@ -154,7 +154,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   await new Promise(resolve => dashboard.server.listen(0, '127.0.0.1', resolve));
   t.after(() => dashboard.close());
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
-  assert.match(await (await fetch(base)).text(), /LIVE STUDIO/);
+  assert.match(await (await fetch(base)).text(), /Stream Buddy · Centro de control/);
   const html = await (await fetch(base)).text();
   for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes', '/gifters', '/auction']) {
     const page = await fetch(base + route);

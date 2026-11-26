@@ -43,7 +43,7 @@ export function CommandsStudio({ tool, api, notice, online, connected }) {
   const listUrl = new URL(commandsListOutputPath, location.origin).href;
   async function testOutput(id) {
     const output = window.open(id === '!comandos' ? listUrl : url, id === '!comandos' ? 'live-studio-commands-list' : 'live-studio-commands-output');
-    if (!output) { notice('Permite las ventanas emergentes para abrir la salida de comandos.'); return; }
+    if (!output) { notice('Permite las ventanas emergentes para abrir la salida de comandos.', { type: 'warning' }); return; }
     output.focus();
     if (!dirty || await save()) {
       if (await api('commands/test', { id })) notice('Prueba enviada a la ventana de salida.');
@@ -55,7 +55,7 @@ export function CommandsStudio({ tool, api, notice, online, connected }) {
       const next = validateCommands(config);
       if (!await api('commands/save', next)) return false;
       setConfig(next); setDirty(false); notice('Comandos guardados.'); return true;
-    } catch (e) { notice(e.message); return false; }
+    } catch (e) { notice(e.message, { type: 'error' }); return false; }
     finally { setBusy(false); }
   }
   async function upload(id, kind, file) {
@@ -66,7 +66,7 @@ export function CommandsStudio({ tool, api, notice, online, connected }) {
       const data = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('No se pudo leer el archivo')); reader.readAsDataURL(file); });
       const result = await api('notifications/upload', { kind, data });
       if (result?.[kind]) editMedia(id, kind, result[kind]);
-    } catch (e) { notice(e.message); }
+    } catch (e) { notice(e.message, { type: 'error' }); }
     finally { setBusy(false); }
   }
   return <div className="commands-editor editor-workspace">

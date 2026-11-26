@@ -24,7 +24,7 @@ export function IconRowEditor({ row, selectedIcon, selectIcon, updateRow, update
   const upload=async file => {
     const id=icon.id,rowId=row.id;setLoading(true);imageTask(1);
     try{const image=await readIconImage(file);updateIcon(rowId,id,{image});}
-    catch(error){notice(error.message);}finally{setLoading(false);imageTask(-1);}
+    catch(error){notice(error.message,{type:'error'});}finally{setLoading(false);imageTask(-1);}
   };
   const number=(label,value,min,max,onChange)=><label>{label}<Input type="number" min={min} max={max} value={value} onChange={e=>{const next=Number(e.target.value);if(Number.isFinite(next))onChange(Math.min(max,Math.max(min,next)));}}/></label>;
   const reorder=direction=>{const icons=[...row.icons],next=index+direction;[icons[index],icons[next]]=[icons[next],icons[index]];updateRow({icons});};

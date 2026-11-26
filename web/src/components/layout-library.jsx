@@ -26,14 +26,14 @@ export function LayoutLibrary({document,tool,api,notice,open,compositionId,busy,
       const imported=parseLayoutFile(text);
       const result=await api('layout/create',{name:imported.name||file.name.replace(/\.json$/i,'').slice(0,80)||'Layout importado',document:imported.document});
       if(result)notice('Layout importado en Mis composiciones.');
-    }catch(error){notice(error.message);}finally{setWorking(false);}
+    }catch(error){notice(error.message,{type:'error'});}finally{setWorking(false);}
   };
   const exportFile=()=>{
     try{
       const title=current?.name||name.trim()||'Layout principal';
       const filename = (title.replace(/[^\p{L}\p{N}_-]/gu,'-')||'layout')+'.json';
       downloadFile(filename, serializeLayoutFile(title,document), 'application/json');
-    }catch(error){notice(error.message);}
+    }catch(error){notice(error.message,{type:'error'});}
   };
   const manage = async (event, item) => {
     event.preventDefault();

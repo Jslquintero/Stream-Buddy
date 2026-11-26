@@ -15,7 +15,7 @@ dashboard.server.once('error', async error => {
 });
 dashboard.server.listen(port, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${port}`;
-  console.log(`Live Studio · Node ${process.versions.node}\n${url}\nCtrl+C para cerrar el centro y sus procesos.`);
+  console.log(`Stream Buddy · Node ${process.versions.node}\n${url}\nCtrl+C para cerrar el centro y sus procesos.`);
   center.log('Centro Node iniciado · módulos TTS, Layout y AdQueue disponibles');
   void center.poll();
   if (!process.argv.includes('--no-browser') && process.platform === 'win32') {
@@ -27,7 +27,7 @@ dashboard.server.listen(port, '127.0.0.1', () => {
 let closing = false;
 async function close() {
   if (closing) return; closing = true;
-  console.log('Cerrando Live Studio…');
+  console.log('Cerrando Stream Buddy…');
   await dashboard.close();
 }
 process.on('SIGINT', close); process.on('SIGTERM', close);

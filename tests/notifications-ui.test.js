@@ -47,10 +47,17 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   };
   const origin = window.location.origin;
   await until(() => doc.querySelector('.home select'));
-  const menuItems = id => [...doc.querySelectorAll(`nav [aria-labelledby="nav-${id}"] button`)].map(button => button.textContent);
+  const menuItems = id => [...doc.querySelectorAll(`nav [aria-labelledby="nav-${id}"] .nav-item`)].map(button => button.textContent);
   assert.deepEqual(menuItems('general'), ['Vista general', 'Voz y chat']);
   assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Top gifters', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
   assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), menuItems('widgets'));
+  const widgetsToggle = doc.querySelector('[aria-labelledby="nav-widgets"] .nav-category-toggle');
+  widgetsToggle.click(); await pause();
+  assert.equal(doc.querySelector('#nav-widgets-items').hidden, true);
+  assert.equal(widgetsToggle.getAttribute('aria-expanded'), 'false');
+  assert.match(window.localStorage.getItem('live-studio.sidebar.collapsed.v1'), /"widgets":true/);
+  widgetsToggle.click(); await pause();
+  assert.equal(doc.querySelector('#nav-widgets-items').hidden, false);
   await copy('Copiar URL de Escenas', origin + '/output/layout#tiktok.studio');
   const select = doc.querySelector('.home select');
   select.value = 'pausa';
@@ -77,7 +84,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   const homeButtons = [...doc.querySelectorAll('.home button')];
   assert.ok(!homeButtons.some(button => button.textContent.includes('Iniciar herramientas')));
   assert.doesNotMatch(doc.querySelector('.home').textContent, /Voz y chat|Configurar voz/);
-  homeButtons.find(button => button.textContent === 'Gestionar anuncios').click();
+  homeButtons.find(button => button.textContent === 'AdQueue').click();
   await until(() => requests.some(request => request.url === '/api/start' && request.body.tool === 'ads'));
   assert.equal(window.location.pathname, '/ads');
 });

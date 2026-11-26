@@ -11,6 +11,14 @@ export function TikTokConnection({ state, online, api }) {
   const t = state?.tts;
   useEffect(() => { setUsername(state?.settings.Username || ''); }, [state?.settings.Username]);
   useEffect(() => {
+    const openPanel = () => {
+      setOpen(true);
+      window.setTimeout(() => input.current?.focus(), 0);
+    };
+    window.addEventListener('live-studio:connect', openPanel);
+    return () => window.removeEventListener('live-studio:connect', openPanel);
+  }, []);
+  useEffect(() => {
     if (!open) return;
     input.current?.focus();
     const outside = e => { if (!root.current?.contains(e.target)) setOpen(false); };

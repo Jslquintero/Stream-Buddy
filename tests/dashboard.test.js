@@ -156,7 +156,7 @@ test('React dashboard preserves edits across SSE, previews draft settings and co
  window.document.querySelector('[aria-label="Mover icono a la derecha"]').click();await pause();assert.equal(window.document.querySelectorAll('.layout-stage .row-icon-name')[1].textContent,'Mi juego');
  await click('Eliminar icono');assert.equal(window.document.querySelectorAll('.layout-stage .row-shortcut').length,5);
  await click('+ Añadir icono');assert.equal(window.document.querySelectorAll('.layout-stage .row-shortcut').length,6);
- stream.onerror();await until(()=>window.document.body.textContent.includes('Sin conexión con Live Studio'));
+ stream.onerror();await until(()=>window.document.body.textContent.includes('Sin conexión con Stream Buddy'));
 });
 
 test('live output has transparent window interiors in every theme, without editor placeholders', async t => {

@@ -1,6 +1,6 @@
-# Live Studio Center · Node.js
+# Stream Buddy · Centro de directo
 
-Centro local de stream para Windows. Abre **Iniciar.cmd** y conserva la consola abierta. Panel: **http://127.0.0.1:17900**.
+Stream Buddy es un centro local de stream para Windows. Es una herramienta independiente: no está afiliada a TikTok ni a otras plataformas. Abre **Iniciar.cmd** y conserva la consola abierta. Panel: **http://127.0.0.1:17900**.
 
 ## Arranque
 
@@ -71,13 +71,13 @@ El conector propio observa las tramas Webcast recibidas por la página de TikTok
 
 El panel muestra sesión iniciada, disponibilidad de envío y contador de eventos recibidos. Para responder, se escribe en el cuadro de chat de esa misma página y se confirma la respuesta HTTP de TikTok. Si hay un borrador se conserva y no se envía. Los envíos se serializan; un fallo interrumpe la lista y no se reintenta automáticamente para evitar duplicados. No se registran cookies, firmas ni cuerpos de respuestas. Si TikTok solicita una verificación, complétala manualmente en su ventana.
 
-El dashboard, editor y voces locales no necesitan Internet; TikTok y las instalaciones sí. El audio se reproduce en la salida elegida en el dashboard (por defecto, la predeterminada de Windows) y debe capturarse en LIVE Studio.
+El dashboard, editor y voces locales no necesitan Internet; TikTok y las instalaciones sí. El audio se reproduce en la salida elegida en el dashboard (por defecto, la predeterminada de Windows) y debe capturarse en TikTok LIVE Studio.
 
 ## Spotify · Ahora escuchando
 
-El módulo **Spotify** muestra carátula, título, artista y progreso de lo que escuchas en Spotify o AIMP. Incluye vista previa, estilos claro/oscuro y una salida transparente de **600 × 160 px** para una fuente de navegador en LIVE Studio u OBS: `http://127.0.0.1:17900/?spotify-output=1#tiktok.studio`. También admite episodios de podcast. El audio sigue en el reproductor.
+El módulo **Spotify** muestra carátula, título, artista y progreso de lo que escuchas en Spotify o AIMP. Incluye vista previa, estilos claro/oscuro y una salida transparente de **600 × 160 px** para una fuente de navegador en TikTok LIVE Studio u OBS: `http://127.0.0.1:17900/?spotify-output=1#tiktok.studio`. También admite episodios de podcast. El audio sigue en el reproductor.
 
-**Modo local de Windows (predeterminado, sin Premium):** abre Spotify de escritorio o AIMP en este PC y reproduce una canción. Live Studio detecta automáticamente el reproductor que está sonando y da prioridad a Spotify si ambos están reproduciendo. AIMP funciona sin complementos. Usa **Activar lectura local** para reanudar y **Detener lectura local** para detenerla. Esta preferencia se conserva al reiniciar. La carátula y el progreso aparecen si el reproductor los proporciona. Requiere Windows 10 1809 o posterior. Para Spotify Web o reproducción en otro dispositivo, usa el modo de cuenta.
+**Modo local de Windows (predeterminado, sin Premium):** abre Spotify de escritorio o AIMP en este PC y reproduce una canción. Stream Buddy detecta automáticamente el reproductor que está sonando y da prioridad a Spotify si ambos están reproduciendo. AIMP funciona sin complementos. Usa **Activar lectura local** para reanudar y **Detener lectura local** para detenerla. Esta preferencia se conserva al reiniciar. La carátula y el progreso aparecen si el reproductor los proporciona. Requiere Windows 10 1809 o posterior. Para Spotify Web o reproducción en otro dispositivo, usa el modo de cuenta.
 
 **API oficial (opcional):** selecciona Cuenta de Spotify para consultar la reproducción en otros dispositivos:
 
@@ -89,7 +89,7 @@ Solo para el modo API, Spotify [exige Premium al propietario de una app en modo 
 
 La sesión se renueva automáticamente y se guarda en `data/spotify.json`, excluido de Git. Este archivo contiene credenciales de sesión: no lo compartas. Los tokens no se envían al panel ni a las salidas. **Desconectar Spotify** borra la sesión local; puedes revocar el acceso también desde tu cuenta de Spotify.
 
-El servidor consulta la canción cada cinco segundos, compartiendo una sola consulta entre las pestañas y salidas. Respeta los tiempos de espera de Spotify y oculta la canción ante errores, sesiones privadas o ausencia de reproducción. La salida también se oculta al perder conexión con Live Studio. Las pruebas usan respuestas simuladas; la autorización y reproducción reales requieren tu cuenta.
+El servidor consulta la canción cada cinco segundos, compartiendo una sola consulta entre las pestañas y salidas. Respeta los tiempos de espera de Spotify y oculta la canción ante errores, sesiones privadas o ausencia de reproducción. La salida también se oculta al perder conexión con Stream Buddy. Las pruebas usan respuestas simuladas; la autorización y reproducción reales requieren tu cuenta.
 
 ## Social Media Rotator
 
@@ -174,7 +174,7 @@ El m?dulo `/likes` recibe `LikeEvent` del conector TikTok. Suma el `count` de ca
 
 Puedes elegir de 1 a 20 puestos, t?tulo, tama?o, colores, opacidad de fondo y borde, posici?n y total visible. El dise?o se guarda autom?ticamente; los cambios pendientes se recuperan desde el navegador. La vista de ejemplo es local al editor y no a?ade likes a la clasificaci?n real.
 
-La salida `/?likes-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/likes.json` conserva dise?o y conteo, con escritura at?mica, copia `.bak` y guardado del conteo agrupado cada segundo. Reconectar el mismo canal conserva el ranking. ?Reiniciar conteo? pide confirmaci?n y conserva el dise?o; los primeros likes de un canal distinto inician un conteo nuevo. Ocultar la clasificaci?n no detiene el conteo. Reinicia Live Studio y reconecta TikTok tras instalar el m?dulo para cargar el nuevo evento del conector.
+La salida `/?likes-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/likes.json` conserva dise?o y conteo, con escritura at?mica, copia `.bak` y guardado del conteo agrupado cada segundo. Reconectar el mismo canal conserva el ranking. ?Reiniciar conteo? pide confirmaci?n y conserva el dise?o; los primeros likes de un canal distinto inician un conteo nuevo. Ocultar la clasificaci?n no detiene el conteo. Reinicia Stream Buddy y reconecta TikTok tras instalar el m?dulo para cargar el nuevo evento del conector.
 
 El scoreboard de likes conserva tambi?n la URL de la foto de perfil y muestra la foto junto al nombre en el editor y la salida. Si no hay foto o falla su carga, muestra la inicial. Las fotos se actualizan al recibir nuevos likes y requieren acceso a la URL de TikTok; el conteo y los nombres permanecen locales. El panel indica la hora del ?ltimo like y del ?ltimo guardado. ?Descargar scoreboard? exporta todos los participantes a JSON, aunque la salida est? limitada a menos puestos.
 
@@ -194,7 +194,7 @@ En **Subasta** puedes iniciar la ronda, cerrarla para fijar al ganador, pasar a 
 
 Puedes elegir el estilo (cl?sico, foco o compacto), los t?tulos de la subasta y del lote, de 1 a 10 pujas visibles, el tiempo, el tama?o, los colores, la opacidad y los bordes, la posici?n, el reflejo RGB, la corona animada y CSS personalizado. El dise?o se guarda autom?ticamente y los cambios pendientes se recuperan desde el navegador.
 
-La salida `/?auction-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/auction.json` conserva dise?o, ronda, pujas y ganador, con escritura at?mica, copia `.bak` y guardado agrupado cada segundo. La salida se oculta al desconectar Live Studio o al desactivar **Mostrar subasta en el directo**; la ronda y las pujas contin?an guardadas.
+La salida `/?auction-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/auction.json` conserva dise?o, ronda, pujas y ganador, con escritura at?mica, copia `.bak` y guardado agrupado cada segundo. La salida se oculta al desconectar Stream Buddy o al desactivar **Mostrar subasta en el directo**; la ronda y las pujas contin?an guardadas.
 
 # Comandos de chat
 

@@ -33,11 +33,11 @@ export function VoiceStudio({ state, api, notice }) {
    const next={...state.settings,...Object.fromEntries(Object.keys(state.settings).filter(key=>Object.hasOwn(data,key)).map(key=>[key,data[key]]))};
    next.Engine=migrateVoiceEngine(next.Engine);
    if(await api('settings',next)){setSettings(next);setDirty(false);notice('Configuración importada y guardada.');}
-  } catch(error){notice(error.message);}
+  } catch(error){notice(error.message,{type:'error'});}
  };
  return <>
  <div className="section-heading"><div><h2>Estudio de voz</h2><p className="muted">Una voz que suena como tu comunidad.</p></div><Button variant="outline" disabled={task?.running} onClick={()=>api('tts/refresh')}><RefreshCw size={15}/>Detectar voces y audio</Button></div>
- {!r.pocketSetupAvailable&&<p role="alert" className="notice">Reinicia Live Studio para cargar la versión actual del servidor.</p>}
+ {!r.pocketSetupAvailable&&<p role="alert" className="notice notice-warning">Reinicia Stream Buddy para cargar la versión actual del servidor.</p>}
  {task&&<Card className="task" role="status"><strong>{task.name}</strong><p>{task.message}</p><progress max="100" value={task.progress||0}/></Card>}
  <Card className="voice-setup">
   <div><h3>Pocket TTS</h3><p className="muted">{r.configured?'Motor y modelo en español preparados.':r.pocketInstalled?'Ejecutable instalado. Prepara el modelo en español y comprueba la voz guardada.':'Instala el motor local y descarga el modelo en español.'}</p></div>
@@ -52,12 +52,12 @@ export function VoiceStudio({ state, api, notice }) {
   {pocketActive?<>{pocketVoiceReady&&field('PocketVoice','Voz de Pocket TTS',{options:pocketVoices})}<p className="help">{r.pocketInstalled?'Modelo en español · velocidad fija.':'Pulsa Preparar Pocket TTS para instalar el motor de voz.'}</p></>:<>{field('Voice','Voz de Windows',{options:options(r.voices,settings.Voice,'Voz predeterminada de Windows')})}<Button variant="ghost" size="sm" onClick={()=>api('tts/windows-voices')}>Administrar voces de Windows ↗</Button></>}
   <div className="form-row">{!pocketActive&&field('Speed','Velocidad',{type:'number',min:.5,max:2,step:.1,required:true})}{field('Volume','Volumen · 0 a 100',{type:'number',min:0,max:100,required:true})}</div>
   {field('AudioDevice','Salida de audio',{options:options(r.devices,settings.AudioDevice,'Dispositivo predeterminado de Windows')})}
-  <p className="help">Elige el dispositivo que captura LIVE Studio.</p>
+  <p className="help">Elige el dispositivo que captura TikTok LIVE Studio.</p>
  </TabsContent>
  <TabsContent value="rules"><h3>Qué comentarios leer</h3>{toggle('ReadAll','Leer todos los comentarios','Desactívalo para leer solo mensajes con comando.')}{field('Command','Comando de activación',{maxLength:30,placeholder:'!tts'})}<div className="form-row">{field('Cooldown','Espera por usuario · segundos',{type:'number',min:0,max:3600,required:true})}{field('MaxLength','Máximo de caracteres',{type:'number',min:1,max:500,required:true})}</div>{field('MaxQueue','Límite de mensajes en cola',{type:'number',min:1,max:200,required:true})}{toggle('BlockLinks','Bloquear enlaces')}{field('Blocked','Palabras o frases bloqueadas · una por línea',{multiline:true})}{field('BlockedUsers','Usuarios bloqueados · uno por línea',{multiline:true,placeholder:'Usuario sin @'})}</TabsContent>
  <TabsContent value="library">
   <h3>Copia de configuración</h3>
-  <div className="actions"><DownloadButton onClick={()=>downloadFile('live-studio-tts.json',JSON.stringify(state.settings,null,2),'application/json')}>Exportar ajustes</DownloadButton><FilePicker label="Importar ajustes" accept=".json,application/json" onFile={importSettings}/></div>
+  <div className="actions"><DownloadButton onClick={()=>downloadFile('stream-buddy-tts.json',JSON.stringify(state.settings,null,2),'application/json')}>Exportar ajustes</DownloadButton><FilePicker label="Importar ajustes" accept=".json,application/json" onFile={importSettings}/></div>
  </TabsContent></Tabs>
  <div className="save-bar"><span className={dirty?'unsaved':'help'}>{dirty?'Cambios sin guardar':'Configuración guardada'}</span><Button type="submit" disabled={saving}><Save size={15}/>{saving?'Guardando…':'Guardar cambios'}</Button></div>
  </form></Card>

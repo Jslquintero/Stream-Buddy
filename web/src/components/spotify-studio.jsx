@@ -38,7 +38,7 @@ export function SpotifyStudio({ tool, api, notice, online }) {
     <Card className="spotify-settings">
       <div className="section-heading"><h2>Spotify</h2><Badge className={tool.connected ? 'success' : ''}>{tool.connecting ? 'Esperando autorización' : tool.connected ? tool.config.mode === 'local' ? localStatus : 'Cuenta conectada' : tool.config.mode === 'local' ? tool.config.enabled ? 'Esperando Spotify o AIMP' : 'Lectura detenida' : 'Sin conectar'}</Badge></div>
       <label>Cómo obtener la canción<Select value={draft.mode || 'local'} onChange={e => setDraft({ ...draft, mode: e.target.value, enabled: true })}><option value="local">Desde Windows · Spotify o AIMP</option><option value="api">Cuenta de Spotify · API oficial</option></Select></label>
-      {local ? <div className="spotify-local-help"><h3>Escucha en este PC</h3><p className="muted">Abre Spotify de escritorio o AIMP y reproduce una canción. Live Studio detecta la reproducción automáticamente. Si los dos están sonando, muestra Spotify.</p><p className="help">No necesitas Premium, Client ID ni complementos. La carátula y el progreso aparecen cuando el reproductor los proporciona.</p></div> : <>
+      {local ? <div className="spotify-local-help"><h3>Escucha en este PC</h3><p className="muted">Abre Spotify de escritorio o AIMP y reproduce una canción. Stream Buddy detecta la reproducción automáticamente. Si los dos están sonando, muestra Spotify.</p><p className="help">No necesitas Premium, Client ID ni complementos. La carátula y el progreso aparecen cuando el reproductor los proporciona.</p></div> : <>
       <p className="muted">Muestra lo que escuchas en Spotify desde cualquier dispositivo de tu cuenta.</p>
       <details open={!tool.connected}>
         <summary>Configuración inicial</summary>
@@ -68,7 +68,7 @@ export function SpotifyStudio({ tool, api, notice, online }) {
       <div className="actions"><Button variant="outline" onClick={() => { setPreviewVisible(true); setPreviewKey(k => k + 1); }}>Probar entrada</Button><Button variant="outline" onClick={() => setPreviewVisible(false)}>Probar salida</Button></div>
       <p className="help">La vista previa usa una canción de ejemplo si no hay música. Cada cambio se guarda automáticamente y se aplica al directo.</p>
       <h3>En tu directo</h3>
-      <p className="muted">Añade una fuente de navegador en LIVE Studio u OBS de <strong>{dimensions[0]} × {dimensions[1]} px</strong> y pega este enlace. El fondo es transparente.</p>
+      <p className="muted">Añade una fuente de navegador en TikTok LIVE Studio u OBS de <strong>{dimensions[0]} × {dimensions[1]} px</strong> y pega este enlace. El fondo es transparente.</p>
       <code>{output}</code>
       <div className="actions"><OutputLinks url={output} notice={notice} copyLabel="Copiar salida de Spotify" openLabel="Ver salida de Spotify" iconSize={15}/></div>
       <p className="help">La salida muestra los datos de la canción. El audio sigue en el reproductor.</p>

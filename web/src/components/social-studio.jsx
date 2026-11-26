@@ -205,7 +205,7 @@ export function SocialStudio({ tool, api, notice, online }) {
 
   function removeChannel(id) {
     if (config.channels.length <= 1) {
-      notice('La rotación necesita al menos una red.');
+      notice('La rotación necesita al menos una red.', { type: 'warning' });
       return;
     }
     update('channels', config.channels.filter(channel => channel.id !== id));

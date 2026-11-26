@@ -1,0 +1,111 @@
+.notice-warning {
+  border-color: #ecdcc6;
+  background: #fbf5e8;
+  color: #7a5a1f;
+}
+
+.toast-region {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 120;
+  display: grid;
+  gap: 10px;
+  width: min(390px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid #e3e3df;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #171716;
+  box-shadow: 0 12px 36px #1717161f;
+  pointer-events: auto;
+  animation: toast-in .18s ease-out;
+}
+
+.toast > svg {
+  margin-top: 1px;
+  color: #2f6d4f;
+}
+
+.toast p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.toast-error {
+  border-color: #e8c8c8;
+  background: #ffffff;
+  color: #5a2020;
+}
+
+.toast-error > svg {
+  color: #a23a3a;
+}
+
+.toast-warning {
+  border-color: #ecdcc6;
+  background: #ffffff;
+  color: #5a451f;
+}
+
+.toast-warning > svg {
+  color: #8a6425;
+}
+
+.toast-info {
+  border-color: #cfe0ef;
+  background: #ffffff;
+  color: #244a6b;
+}
+
+.toast-info > svg {
+  color: #2f5d8a;
+}
+
+.toast-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: .65;
+}
+
+.toast-close:hover {
+  opacity: 1;
+  background: #0000000a;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 760px) {
+  .toast-region {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

@@ -7,7 +7,7 @@ export function CopyLinkButton({ url, notice, message = 'Enlace copiado.', fallb
       await navigator.clipboard.writeText(url);
       notice(message);
     } catch {
-      notice(`${fallback}: ${url}`);
+      notice(`${fallback}: ${url}`, { type: 'warning', sticky: true });
     }
   }
   return <Button variant={variant} size={size} onClick={copy} aria-label={ariaLabel}>{children}</Button>;
