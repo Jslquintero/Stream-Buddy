@@ -156,7 +156,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
   assert.match(await (await fetch(base)).text(), /LIVE STUDIO/);
   const html = await (await fetch(base)).text();
-  for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes']) {
+  for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes', '/gifters']) {
     const page = await fetch(base + route);
     assert.equal(page.status, 200);
     assert.equal(await page.text(), html);
@@ -204,11 +204,19 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   center.tts.onLiveEvent({kind:'follow',user:'Nuevo seguidor'});
   center.tts.onLiveEvent({kind:'like',userId:'viewer-1',user:'Ana',count:12,messageId:'like-1'});
   assert.equal(center.likes.state().ranking[0].likes,12);
+  center.tts.onLiveEvent({kind:'gift',userId:'gifter-1',user:'Carlos',gift:'Rosa',count:3,diamonds:30,messageId:'gift-1'});
+  assert.equal(center.gifters.state().ranking[0].gifts,3);
+  assert.equal(center.gifters.state().ranking[0].diamonds,30);
   const likesSaved=await post('likes/save',{...center.likes.state().config,title:'Top de prueba'},{'X-Studio':state.token});
   assert.equal(likesSaved.status,200);assert.ok((await likesSaved.json()).notificationRevision);
   assert.equal((await post('likes/export',{})).status,403);
   const scoreboard=await post('likes/export',{}, {'X-Studio':state.token});
   assert.equal(scoreboard.status,200);assert.equal((await scoreboard.json()).users[0].likes,12);
+  const giftersSaved=await post('gifters/save',{...center.gifters.state().config,metric:'diamonds'},{'X-Studio':state.token});
+  assert.equal(giftersSaved.status,200);assert.ok((await giftersSaved.json()).notificationRevision);
+  assert.equal((await post('gifters/export',{})).status,403);
+  const giftersScoreboard=await post('gifters/export',{}, {'X-Studio':state.token});
+  assert.equal(giftersScoreboard.status,200);assert.equal((await giftersScoreboard.json()).users[0].diamonds,30);
   assert.match(center.notifications.state().current.message,/Nuevo seguidor/);
   const revisionBefore=center.tools.layout.state().revision;
   const saved=await post('layout/save',{...defaultLayout,theme:'custom-http',customThemes:[{id:'custom-http',name:'HTTP theme',css:'.layout-title { color: cyan; }'}]},{'X-Studio':state.token});

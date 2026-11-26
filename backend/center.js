@@ -7,6 +7,7 @@ import { createLayoutModule } from './modules/layout.js';
 import { createAdsModule } from './modules/ads.js';
 import { createNotificationsModule } from '../modules/notifications/index.js';
 import { createLikesModule } from '../modules/likes/index.js';
+import { createGiftersModule } from '../modules/gifters/index.js';
 import { createCommandsModule } from '../modules/commands/index.js';
 import { resolveCommandImages } from '../modules/commands/tenor.js';
 import { validateCommands } from '../modules/commands/config.js';
@@ -22,10 +23,16 @@ export class Center extends EventEmitter {
     this.notifications = createNotificationsModule(context);
     this.spotify = createSpotifyModule(context);
     this.likes = createLikesModule(context);
+    this.gifters = createGiftersModule(context);
     this.social = createSocialModule(context);
     this.commands = createCommandsModule({ ...context, reply: messages => this.tts.sendChat(messages) });
-    this.tts = new TTSModule({ ...context, onComment: event => this.commands.receive(event), onLiveEvent: event => event.kind==='like'?this.likes.receive(event,this.settings.read().Username):this.notifications.enqueue(event.kind, event) });
-    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes, commands:this.commands, spotify: this.spotify, social: this.social };
+    this.tts = new TTSModule({ ...context, onComment: event => this.commands.receive(event), onLiveEvent: event => {
+      const owner = this.settings.read().Username;
+      if (event.kind === 'like') this.likes.receive(event, owner);
+      else if (event.kind === 'gift') { this.gifters.receive(event, owner); this.notifications.enqueue(event.kind, event); }
+      else this.notifications.enqueue(event.kind, event);
+    } });
+    this.tools = { ...(tools || { layout: createLayoutModule(context), ads: createAdsModule(context) }), notifications: this.notifications, likes:this.likes, gifters:this.gifters, commands:this.commands, spotify: this.spotify, social: this.social };
   }
   log(text) {
     this.events.push({ time: new Date().toLocaleTimeString('es-PA', { hour12: false }), text: String(text).slice(0, 1500) });
@@ -56,6 +63,9 @@ export class Center extends EventEmitter {
       case 'likes/save': this.likes.save(body);return {notificationRevision:this.likes.state().revision};
       case 'likes/export': return this.likes.scoreboard();
       case 'likes/reset': this.likes.reset();break;
+      case 'gifters/save': this.gifters.save(body);return {notificationRevision:this.gifters.state().revision};
+      case 'gifters/export': return this.gifters.scoreboard();
+      case 'gifters/reset': this.gifters.reset();break;
       case 'social/save': this.social.save(body);return {notificationRevision:this.social.state().revision};
       case 'notifications/fonts/install': return await this.notifications.fonts.install(body.name);
       case 'notifications/upload': return this.notifications.assets.upload(body);
@@ -104,6 +114,7 @@ export class Center extends EventEmitter {
     this.spotify.close();
     this.notifications.close();
     this.likes.close();
+    this.gifters.close();
     this.social.close();
     this.commands.close();
     await this.tts.close();

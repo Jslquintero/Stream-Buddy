@@ -155,9 +155,14 @@ async def main():
         async def gifted(event):
             if getattr(event, 'streaking', False):
                 return
+            user = getattr(event, 'user', None)
+            identity = getattr(user, 'id', None) or getattr(user, 'unique_id', None)
             gift = getattr(event, 'gift', None)
-            emit('gift', user=alert_user(event), gift=str(getattr(gift, 'name', None) or 'Regalo')[:80],
-                 count=max(1, int(getattr(event, 'repeat_count', 1) or 1)))
+            count = max(1, int(getattr(event, 'repeat_count', 1) or 1))
+            diamonds = max(0, int(getattr(gift, 'diamond_count', 0) or 0)) * count
+            emit('gift', userId=str(identity) if identity else '', user=alert_user(event),
+                 avatar=avatar_url(user), gift=str(getattr(gift, 'name', None) or 'Regalo')[:80],
+                 count=count, diamonds=diamonds)
 
         async def monitor():
             while True:

@@ -176,6 +176,15 @@ Puedes elegir de 1 a 20 puestos, t?tulo, tama?o, colores, opacidad de fondo y bo
 La salida `/?likes-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/likes.json` conserva dise?o y conteo, con escritura at?mica, copia `.bak` y guardado del conteo agrupado cada segundo. Reconectar el mismo canal conserva el ranking. ?Reiniciar conteo? pide confirmaci?n y conserva el dise?o; los primeros likes de un canal distinto inician un conteo nuevo. Ocultar la clasificaci?n no detiene el conteo. Reinicia Live Studio y reconecta TikTok tras instalar el m?dulo para cargar el nuevo evento del conector.
 
 El scoreboard de likes conserva tambi?n la URL de la foto de perfil y muestra la foto junto al nombre en el editor y la salida. Si no hay foto o falla su carga, muestra la inicial. Las fotos se actualizan al recibir nuevos likes y requieren acceso a la URL de TikTok; el conteo y los nombres permanecen locales. El panel indica la hora del ?ltimo like y del ?ltimo guardado. ?Descargar scoreboard? exporta todos los participantes a JSON, aunque la salida est? limitada a menos puestos.
+
+### Top usuarios por regalos
+
+El m?dulo `/gifters` recibe `GiftEvent` del conector TikTok y suma los regalos por ID estable del usuario. Cada evento final de una racha aporta su `repeat_count` y su valor en diamantes (`diamond_count`). Los mensajes con un mismo ID se cuentan una sola vez (ventana de los ?ltimos 2000 IDs). Solo incluye regalos recibidos mientras el conector est? conectado.
+
+Puedes ordenar la clasificaci?n por **regalos enviados** o por **diamantes enviados**, y elegir de 1 a 20 puestos, t?tulo, tama?o, colores, opacidad de fondo y borde, posici?n y total visible. El dise?o se guarda autom?ticamente y los cambios pendientes se recuperan desde el navegador. La vista de ejemplo es local al editor y no a?ade regalos a la clasificaci?n real.
+
+La salida `/?gifters-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/gifters.json` conserva dise?o y conteo, con escritura at?mica, copia `.bak` y guardado agrupado cada segundo. Reconectar el mismo canal conserva el ranking; los primeros regalos de un canal distinto inician un conteo nuevo. **Descargar scoreboard** exporta todos los participantes a JSON y **Reiniciar conteo** pide confirmaci?n sin borrar el dise?o.
+
 # Comandos de chat
 
 `!comandos` muestra los nombres de los comandos activos, uno por línea, en una salida independiente: `/commands?commands-list-output=1#tiktok.studio`. La lista cambia de página cada ocho segundos cuando hay más de seis comandos. Es un comando reservado y respeta el interruptor general del módulo. **Probar !comandos** abre esta salida y muestra la lista sin necesitar conexión a TikTok. No publica mensajes en el chat ni interrumpe las imágenes o los audios.

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 
 const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
-const outputTools = new Set(['spotify', 'likes', 'notifications', 'commands', 'layout', 'social']);
+const outputTools = new Set(['spotify', 'likes', 'gifters', 'notifications', 'commands', 'layout', 'social']);
 const outputStreamLifetime = 3000;
 
 export function createDashboardServer(center) {
@@ -116,7 +116,7 @@ export function createDashboardServer(center) {
       const action = url.pathname.startsWith('/api/') ? url.pathname.slice(5) : '';
       const result = await center.command(action, body, { origin });
       if (!result) return json(res, 404, { error: 'No encontrado' });
-      json(res, 200, { ok: true, ...(['spotify/connect','notifications/upload','notifications/fonts/install','likes/save','likes/export','social/save','layout/create','layout/save-composition','layout/rename'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
+      json(res, 200, { ok: true, ...(['spotify/connect','notifications/upload','notifications/fonts/install','likes/save','likes/export','gifters/save','gifters/export','social/save','layout/create','layout/save-composition','layout/rename'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
     } catch (error) {
       if (!res.headersSent) json(res, 400, { error: error.message });
       else res.end();

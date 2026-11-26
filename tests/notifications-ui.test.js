@@ -5,6 +5,7 @@ import { JSDOM } from 'jsdom';
 import { defaults } from '../backend/settings.js';
 import { defaultNotifications } from '../modules/notifications/config.js';
 import { defaultLikes } from '../modules/likes/config.js';
+import { defaultGifters } from '../modules/gifters/config.js';
 import { defaultSocial } from '../modules/social/config.js';
 import { defaultCommands } from '../modules/commands/config.js';
 const pause = () => new Promise(resolve => setTimeout(resolve,30));
@@ -17,6 +18,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
       ads: { available: true, running: false, url: 'http://127.0.0.1:17843' },
       notifications: { config: defaultNotifications, url: '/?notifications-output=1#tiktok.studio' },
       likes: { config: defaultLikes, url: '/?likes-output=1#tiktok.studio' },
+      gifters: { config: defaultGifters, url: '/?gifters-output=1#tiktok.studio' },
       social: { config: defaultSocial, url: '/?social-output=1#tiktok.studio' },
       commands: {
         config: defaultCommands, url: '/commands?commands-output=1#tiktok.studio',
@@ -45,7 +47,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   await until(() => doc.querySelector('.home select'));
   const menuItems = id => [...doc.querySelectorAll(`nav [aria-labelledby="nav-${id}"] button`)].map(button => button.textContent);
   assert.deepEqual(menuItems('general'), ['Vista general', 'Voz y chat']);
-  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Social Media Rotator', 'Comandos de chat', 'Música']);
+  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Top gifters', 'Social Media Rotator', 'Comandos de chat', 'Música']);
   assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), menuItems('widgets'));
   await copy('Copiar URL de Escenas', origin + '/output/layout#tiktok.studio');
   const select = doc.querySelector('.home select');
@@ -55,6 +57,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   await copy('Copiar URL de AdQueue', 'http://127.0.0.1:17843/output#tiktok.studio');
   await copy('Copiar URL de Notificaciones', origin + '/?notifications-output=1#tiktok.studio');
   await copy('Copiar URL de Top likes', origin + '/?likes-output=1#tiktok.studio');
+  await copy('Copiar URL de Top gifters', origin + '/?gifters-output=1#tiktok.studio');
   await copy('Copiar URL de Social Media Rotator', origin + '/?social-output=1#tiktok.studio');
   await copy('Copiar URL de Comandos de chat', origin + '/commands?commands-output=1#tiktok.studio');
   await copy('Copiar URL de la lista de comandos', origin + '/commands?commands-list-output=1#tiktok.studio');
@@ -64,7 +67,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   clipboardAvailable = false;
   spotifyCopy.click();
   await until(() => doc.querySelector('.home-copy-fallback code')?.textContent === origin + '/?spotify-output=1#tiktok.studio');
-  assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 8);
+  assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 9);
   assert.equal(window.location.pathname, '/');
   assert.equal(requests.length, 0);
 
@@ -214,6 +217,33 @@ test('Top likes output updates ranks, escapes names and hides when disconnected 
   state.tools.likes.ranking[0].avatar='https://example.com/luis-new.jpg';publish(state);await until(()=>window.document.querySelector('.likes-avatar img')?.src==='https://example.com/luis-new.jpg');
   state.tools.likes.config={...defaultLikes,enabled:false};publish(state);await until(()=>!window.document.querySelector('.likes-board'));
   state.tools.likes.config=defaultLikes;publish(state);await until(()=>window.document.querySelector('.likes-board'));disconnect();await until(()=>!window.document.querySelector('.likes-board'));
+});
+test('Top gifters output switches metrics, renders gifts and hides when disconnected',async t=>{
+  const {window,publish,disconnect}=await mount(t,'/?gifters-output=1');
+  const ranking=[{id:'1',name:'Ana',gifts:2,diamonds:50,avatar:'https://example.com/ana.jpg'},{id:'2',name:'Luis',gifts:9,diamonds:20}];
+  const state={tools:{gifters:{config:{...defaultGifters,metric:'diamonds'},ranking,total:50,totalGifts:11,totalDiamonds:70}}};
+  publish(state);await until(()=>window.document.querySelector('.gifters-board'));
+  assert.deepEqual([...window.document.querySelectorAll('.gifters-name')].map(name=>name.textContent),['Ana','Luis']);
+  assert.equal(window.document.querySelector('.gifters-avatar img').src,'https://example.com/ana.jpg');
+  assert.equal(window.document.querySelector('.gifters-gift').textContent,'◆');
+  assert.match(window.document.querySelector('.gifters-board footer').textContent,/50 diamantes/);
+  assert.equal(window.document.documentElement.classList.contains('gifters-output'),true);
+  state.tools.gifters.config={...defaultGifters,metric:'gifts'};state.tools.gifters.total=11;
+  state.tools.gifters.ranking=[{id:'2',name:'Luis',gifts:9,diamonds:20},{id:'1',name:'Ana',gifts:2,diamonds:50,avatar:'https://example.com/ana.jpg'}];
+  publish(state);await until(()=>window.document.querySelector('.gifters-gift').textContent==='🎁');
+  assert.deepEqual([...window.document.querySelectorAll('.gifters-name')].map(name=>name.textContent),['Luis','Ana']);
+  assert.match(window.document.querySelector('.gifters-board footer').textContent,/11 regalos/);
+  disconnect();await until(()=>!window.document.querySelector('.gifters-board'));
+});
+test('Top gifters route exposes the design editor and autosaves the chosen metric',async t=>{
+  const {window,publish,requests}=await mount(t,'/gifters');
+  const state={token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},gifters:{config:structuredClone(defaultGifters),ranking:[],total:0,totalGifts:0,totalDiamonds:0,participants:0}}};
+  publish(state);await until(()=>window.document.querySelector('.gifters-settings'));
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Top gifters');
+  const label=Array.from(window.document.querySelectorAll('.gifters-settings label')).find(el=>el.textContent==='Métrica');assert.ok(label);
+  const select=window.document.getElementById(label.htmlFor);select.value='diamonds';select.dispatchEvent(new window.Event('change',{bubbles:true}));
+  await until(()=>requests.some(r=>r.url==='/api/gifters/save'));
+  assert.equal(requests.find(r=>r.url==='/api/gifters/save').body.metric,'diamonds');
 });
 test('Super Fan editor restores older pending settings and sends a customized preview', async t => {
   const {window,requests,publish}=await mount(t,'/notifications');

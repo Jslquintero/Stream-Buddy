@@ -57,10 +57,10 @@ test('local event mapping counts likes and final gift streaks and separates foll
   assert.equal(decodeEvent('WebcastLikeMessage',join(integer(2,12),bytes(5,user))).count,12);
   assert.equal(decodeEvent('WebcastSocialMessage',join(integer(4,1),bytes(2,user))).kind,'follow');
   assert.equal(decodeEvent('WebcastSocialMessage',join(integer(4,3),bytes(2,user))).kind,'share');
-  const gift=join(integer(11,1),bytes(16,'Rosa'));
+  const gift=join(integer(11,1),bytes(16,'Rosa'),integer(12,25));
   assert.equal(decodeEvent('WebcastGiftMessage',join(bytes(7,user),bytes(15,gift),integer(5,4))),null);
   const final=decodeEvent('WebcastGiftMessage',join(bytes(7,user),bytes(15,gift),integer(5,4),integer(9,1)));
-  assert.equal(final.gift,'Rosa');assert.equal(final.count,4);
+  assert.equal(final.gift,'Rosa');assert.equal(final.count,4);assert.equal(final.diamonds,100);
   const superfan=join(bytes(24,join(bytes(1,'ttlive_superfan_purchase'),bytes(4,bytes(21,bytes(1,user))))));
   assert.equal(decodeEvent('WebcastBarrageMessage',superfan).kind,'superfan');
   assert.equal(decodeEvent('WebcastBarrageMessage',bytes(5,bytes(1,'ttlive_superfan_commentnotif_superfanjoined'))),null);

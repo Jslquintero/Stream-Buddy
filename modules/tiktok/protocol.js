@@ -57,7 +57,8 @@ export function decodeEvent(method, bytes, messageId = '') {
   if (method === 'WebcastGiftMessage') {
     const gift = nested(data, 15);
     if (number(gift, 11) === 1 && number(data, 9) !== 1) return null;
-    return { ...base, kind: 'gift', ...user(nested(data, 7)), gift: (text(gift, 16) || 'Regalo').slice(0, 80), count: Math.max(1, number(data, 5)) };
+    const count = Math.max(1, number(data, 5));
+    return { ...base, kind: 'gift', ...user(nested(data, 7)), gift: (text(gift, 16) || 'Regalo').slice(0, 80), count, diamonds: Math.max(0, number(gift, 12)) * count };
   }
   if (method === 'WebcastBarrageMessage') {
     const content = nested(data, 5), fallback = nested(data, 24);

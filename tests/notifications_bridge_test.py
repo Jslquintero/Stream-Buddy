@@ -40,7 +40,7 @@ class NotificationBridgeTest(unittest.TestCase):
                         content = SimpleNamespace(pieces=[SimpleNamespace(user_value=SimpleNamespace(user=user))])
                         await self.handlers['SuperFanEvent'](SimpleNamespace(**{field: content}))
                     for streaking, count in [(True, 1), (True, 2), (False, 3)]:
-                        await self.handlers['GiftEvent'](SimpleNamespace(user=user, gift=SimpleNamespace(name='Rosa'), streaking=streaking, repeat_count=count))
+                        await self.handlers['GiftEvent'](SimpleNamespace(user=user, gift=SimpleNamespace(name='Rosa', diamond_count=5), streaking=streaking, repeat_count=count))
                     await self.handlers['GiftEvent'](SimpleNamespace(user=user, gift=SimpleNamespace(name='Corazón'), streaking=False, repeat_count=1))
                 return asyncio.create_task(playback())
 
@@ -53,7 +53,8 @@ class NotificationBridgeTest(unittest.TestCase):
         self.assertEqual([record['kind'] for record in alerts], ['follow', 'share', 'superfan', 'superfan', 'gift', 'gift'])
         self.assertEqual(alerts[2], dict(kind='superfan', user='Ana'))
         self.assertEqual(alerts[3], dict(kind='superfan', user='Ana'))
-        self.assertEqual(alerts[4], dict(kind='gift', user='Ana', gift='Rosa', count=3))
+        self.assertEqual(alerts[4], dict(kind='gift', userId='ana', user='Ana', avatar='https://example.com/ana.jpg', gift='Rosa', count=3, diamonds=15))
+        self.assertEqual(alerts[5], dict(kind='gift', userId='ana', user='Ana', avatar='https://example.com/ana.jpg', gift='Corazón', count=1, diamonds=0))
 
 
 if __name__ == '__main__':
