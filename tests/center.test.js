@@ -156,7 +156,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   const base = `http://127.0.0.1:${dashboard.server.address().port}`;
   assert.match(await (await fetch(base)).text(), /LIVE STUDIO/);
   const html = await (await fetch(base)).text();
-  for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes', '/gifters']) {
+  for (const route of ['/tts', '/layout', '/layout/', '/output/layout', '/ads', '/notifications', '/likes', '/gifters', '/auction']) {
     const page = await fetch(base + route);
     assert.equal(page.status, 200);
     assert.equal(await page.text(), html);
@@ -202,11 +202,14 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal(center.notifications.state().current.type,'gift');
   assert.equal((await post('notifications/clear', {}, {'X-Studio':state.token})).status,200);
   center.tts.onLiveEvent({kind:'follow',user:'Nuevo seguidor'});
+  center.auction.begin();
   center.tts.onLiveEvent({kind:'like',userId:'viewer-1',user:'Ana',count:12,messageId:'like-1'});
   assert.equal(center.likes.state().ranking[0].likes,12);
   center.tts.onLiveEvent({kind:'gift',userId:'gifter-1',user:'Carlos',gift:'Rosa',count:3,diamonds:30,messageId:'gift-1'});
   assert.equal(center.gifters.state().ranking[0].gifts,3);
   assert.equal(center.gifters.state().ranking[0].diamonds,30);
+  assert.equal(center.auction.state().leader.diamonds,30);
+  assert.equal(center.auction.state().total,30);
   const likesSaved=await post('likes/save',{...center.likes.state().config,title:'Top de prueba'},{'X-Studio':state.token});
   assert.equal(likesSaved.status,200);assert.ok((await likesSaved.json()).notificationRevision);
   assert.equal((await post('likes/export',{})).status,403);
@@ -217,6 +220,12 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal((await post('gifters/export',{})).status,403);
   const giftersScoreboard=await post('gifters/export',{}, {'X-Studio':state.token});
   assert.equal(giftersScoreboard.status,200);assert.equal((await giftersScoreboard.json()).users[0].diamonds,30);
+  const auctionSaved=await post('auction/save',{...center.auction.state().config,itemTitle:'Lote de prueba'},{'X-Studio':state.token});
+  assert.equal(auctionSaved.status,200);assert.ok((await auctionSaved.json()).notificationRevision);
+  assert.equal((await post('auction/export',{})).status,403);
+  const auctionResults=await post('auction/export',{}, {'X-Studio':state.token});
+  assert.equal(auctionResults.status,200);assert.equal((await auctionResults.json()).users[0].diamonds,30);
+  assert.equal(center.auction.state().itemTitle,'Lote sorpresa','The running lot title stays pinned when the design changes');
   assert.match(center.notifications.state().current.message,/Nuevo seguidor/);
   const revisionBefore=center.tools.layout.state().revision;
   const saved=await post('layout/save',{...defaultLayout,theme:'custom-http',customThemes:[{id:'custom-http',name:'HTTP theme',css:'.layout-title { color: cyan; }'}]},{'X-Studio':state.token});

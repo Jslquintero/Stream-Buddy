@@ -31,6 +31,7 @@ backend/
 modules/tts/                Motores de voz Windows y Pocket TTS
 modules/tiktok/             Conector propio de navegador y lector Webcast local
 modules/social/             Rotador de redes sociales para el directo
+modules/auction/            Subasta en directo con pujas por regalos
 web/src/                    Frontend React y componentes reutilizables
 dist/                       Frontend compilado servido por Node
 data/tts.json               Configuración del usuario
@@ -184,6 +185,16 @@ El m?dulo `/gifters` recibe `GiftEvent` del conector TikTok y suma los regalos p
 Puedes ordenar la clasificaci?n por **regalos enviados** o por **diamantes enviados**, y elegir de 1 a 20 puestos, t?tulo, tama?o, colores, opacidad de fondo y borde, posici?n y total visible. El dise?o se guarda autom?ticamente y los cambios pendientes se recuperan desde el navegador. La vista de ejemplo es local al editor y no a?ade regalos a la clasificaci?n real.
 
 La salida `/?gifters-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/gifters.json` conserva dise?o y conteo, con escritura at?mica, copia `.bak` y guardado agrupado cada segundo. Reconectar el mismo canal conserva el ranking; los primeros regalos de un canal distinto inician un conteo nuevo. **Descargar scoreboard** exporta todos los participantes a JSON y **Reiniciar conteo** pide confirmaci?n sin borrar el dise?o.
+
+### Subasta en directo
+
+El m?dulo `/auction` permite al anfitri?n abrir rondas de subasta y recibir pujas con regalos. Mientras una ronda est? **En vivo**, cada `GiftEvent` del conector suma a ese usuario el valor en diamantes del regalo (`diamond_count`; si no lo trae, se usa el n?mero de regalos). El participante con m?s diamantes acumulados ocupa la **mejor puja** y aparece coronado en la salida. Los mensajes con un mismo ID se cuentan una sola vez (ventana de los ?ltimos 2000 IDs).
+
+En **Subasta** puedes iniciar la ronda, cerrarla para fijar al ganador, pasar a la **siguiente ronda** o reiniciar la subasta. Cada ronda vac?a las pujas anteriores y conserva el dise?o. La duraci?n es configurable (0 significa sin l?mite); al agotarse el tiempo la ronda se cierra y las pujas tard?as se ignoran. El bot?n **Descargar resultados** exporta la ronda y todos sus participantes a JSON.
+
+Puedes elegir el estilo (cl?sico, foco o compacto), los t?tulos de la subasta y del lote, de 1 a 10 pujas visibles, el tiempo, el tama?o, los colores, la opacidad y los bordes, la posici?n, el reflejo RGB, la corona animada y CSS personalizado. El dise?o se guarda autom?ticamente y los cambios pendientes se recuperan desde el navegador.
+
+La salida `/?auction-output=1#tiktok.studio` tiene fondo transparente y se a?ade como fuente de enlace. `data/auction.json` conserva dise?o, ronda, pujas y ganador, con escritura at?mica, copia `.bak` y guardado agrupado cada segundo. La salida se oculta al desconectar Live Studio o al desactivar **Mostrar subasta en el directo**; la ronda y las pujas contin?an guardadas.
 
 # Comandos de chat
 

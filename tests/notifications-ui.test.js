@@ -6,6 +6,7 @@ import { defaults } from '../backend/settings.js';
 import { defaultNotifications } from '../modules/notifications/config.js';
 import { defaultLikes } from '../modules/likes/config.js';
 import { defaultGifters } from '../modules/gifters/config.js';
+import { defaultAuction } from '../modules/auction/config.js';
 import { defaultSocial } from '../modules/social/config.js';
 import { defaultCommands } from '../modules/commands/config.js';
 const pause = () => new Promise(resolve => setTimeout(resolve,30));
@@ -19,6 +20,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
       notifications: { config: defaultNotifications, url: '/?notifications-output=1#tiktok.studio' },
       likes: { config: defaultLikes, url: '/?likes-output=1#tiktok.studio' },
       gifters: { config: defaultGifters, url: '/?gifters-output=1#tiktok.studio' },
+      auction: { config: defaultAuction, url: '/?auction-output=1#tiktok.studio' },
       social: { config: defaultSocial, url: '/?social-output=1#tiktok.studio' },
       commands: {
         config: defaultCommands, url: '/commands?commands-output=1#tiktok.studio',
@@ -47,7 +49,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   await until(() => doc.querySelector('.home select'));
   const menuItems = id => [...doc.querySelectorAll(`nav [aria-labelledby="nav-${id}"] button`)].map(button => button.textContent);
   assert.deepEqual(menuItems('general'), ['Vista general', 'Voz y chat']);
-  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Top gifters', 'Social Media Rotator', 'Comandos de chat', 'Música']);
+  assert.deepEqual(menuItems('widgets'), ['Escenas', 'AdQueue', 'Notificaciones', 'Top likes', 'Top gifters', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
   assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), menuItems('widgets'));
   await copy('Copiar URL de Escenas', origin + '/output/layout#tiktok.studio');
   const select = doc.querySelector('.home select');
@@ -58,6 +60,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   await copy('Copiar URL de Notificaciones', origin + '/?notifications-output=1#tiktok.studio');
   await copy('Copiar URL de Top likes', origin + '/?likes-output=1#tiktok.studio');
   await copy('Copiar URL de Top gifters', origin + '/?gifters-output=1#tiktok.studio');
+  await copy('Copiar URL de Subasta', origin + '/?auction-output=1#tiktok.studio');
   await copy('Copiar URL de Social Media Rotator', origin + '/?social-output=1#tiktok.studio');
   await copy('Copiar URL de Comandos de chat', origin + '/commands?commands-output=1#tiktok.studio');
   await copy('Copiar URL de la lista de comandos', origin + '/commands?commands-list-output=1#tiktok.studio');
@@ -67,7 +70,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   clipboardAvailable = false;
   spotifyCopy.click();
   await until(() => doc.querySelector('.home-copy-fallback code')?.textContent === origin + '/?spotify-output=1#tiktok.studio');
-  assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 9);
+  assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 10);
   assert.equal(window.location.pathname, '/');
   assert.equal(requests.length, 0);
 
@@ -245,6 +248,42 @@ test('Top gifters route exposes the design editor and autosaves the chosen metri
   await until(()=>requests.some(r=>r.url==='/api/gifters/save'));
   assert.equal(requests.find(r=>r.url==='/api/gifters/save').body.metric,'diamonds');
 });
+test('Auction output shows the leading bid, countdown and winner, then hides when disabled or disconnected',async t=>{
+  const {window,publish,disconnect}=await mount(t,'/?auction-output=1');
+  const leader={id:'1',name:'Ana',diamonds:2500,gifts:6};
+  const state={tools:{auction:{config:{...defaultAuction,style:'spotlight'},status:'live',round:2,itemTitle:'Guitarra',endsAt:Date.now()+60000,ranking:[leader,{id:'2',name:'Luis',diamonds:900,gifts:3}],leader,total:3400,participants:2,winner:null}}};
+  publish(state);await until(()=>window.document.querySelector('.auction-board'));
+  const board=window.document.querySelector('.auction-board');
+  assert.equal(window.document.querySelector('.auction-title').textContent,defaultAuction.title);
+  assert.match(board.textContent,/Guitarra/);assert.match(board.textContent,/Ronda 2/);
+  assert.equal(board.querySelector('.auction-winner').textContent,'Ana');
+  assert.match(board.querySelector('.auction-clock').textContent,/\d+:\d{2}/);
+  assert.equal(board.querySelector('.auction-status').textContent,'En vivo');
+  assert.equal(window.document.documentElement.classList.contains('auction-output'),true);
+  assert.deepEqual([...board.querySelectorAll('.auction-name')].map(name=>name.textContent),['Ana','Luis']);
+  state.tools.auction.status='ended';state.tools.auction.winner=leader;state.tools.auction.endsAt=0;
+  publish(state);await until(()=>window.document.querySelector('.auction-status')?.textContent==='Cerrada');
+  assert.match(window.document.querySelector('.auction-sold').textContent,/Gana Ana/);
+  state.tools.auction.config={...defaultAuction,enabled:false};publish(state);await until(()=>!window.document.querySelector('.auction-board'));
+  state.tools.auction.config=defaultAuction;publish(state);await until(()=>window.document.querySelector('.auction-board'));
+  disconnect();await until(()=>!window.document.querySelector('.auction-board'));
+});
+
+test('Auction route exposes the design editor, autosaves the lot title and starts a round',async t=>{
+  const {window,publish,requests}=await mount(t,'/auction');
+  const state={token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},auction:{config:structuredClone(defaultAuction),revision:1,status:'idle',round:0,itemTitle:'',ranking:[],total:0,totalGifts:0,participants:0,winner:null}}};
+  publish(state);await until(()=>window.document.querySelector('.auction-settings'));
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Subasta');
+  const label=Array.from(window.document.querySelectorAll('.auction-settings label')).find(el=>el.textContent==='Título del lote');assert.ok(label);
+  const input=window.document.getElementById(label.htmlFor);
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'Guitarra');
+  input.dispatchEvent(new window.Event('input',{bubbles:true}));
+  await until(()=>requests.some(r=>r.url==='/api/auction/save'));
+  assert.equal(requests.find(r=>r.url==='/api/auction/save').body.itemTitle,'Guitarra');
+  const start=Array.from(window.document.querySelectorAll('button')).find(b=>b.textContent==='Iniciar subasta');assert.ok(start);
+  start.click();await until(()=>requests.some(r=>r.url==='/api/auction/start'));
+});
+
 test('Super Fan editor restores older pending settings and sends a customized preview', async t => {
   const {window,requests,publish}=await mount(t,'/notifications');
   const legacy=structuredClone(defaultNotifications);delete legacy.events.superfan;
