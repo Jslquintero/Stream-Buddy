@@ -112,11 +112,14 @@ test('command dashboard preserves the chosen view and saves descriptions', async
   window.localStorage.setItem('studio.commands.view','list');
   publish({token:'test',settings:defaults,tts:{resources:{}},events:[],tools:{layout:{},ads:{},commands:{config:structuredClone(defaultCommands)}}});
   await until(()=>window.document.querySelector('.commands-view-list'));
+  window.document.querySelector('.command-row-main').click();
+  await until(()=>window.document.querySelector('.commands-dialog-editor'));
   const label=Array.from(window.document.querySelectorAll('label')).find(el=>el.textContent==='Descripción corta');
   const input=window.document.getElementById(label.htmlFor);
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'Invoca a Aatrox'); input.dispatchEvent(new window.Event('input',{bubbles:true}));await pause();
-  Array.from(window.document.querySelectorAll('button')).find(el=>el.textContent==='Cuadrícula').click();await until(()=>window.document.querySelector('.commands-view-grid'));
+  Array.from(window.document.querySelectorAll('button')).find(el=>el.getAttribute('aria-label')==='Vista de cuadrícula').click();await until(()=>window.document.querySelector('.commands-view-grid'));
   assert.equal(window.localStorage.getItem('studio.commands.view'),'grid');assert.equal(input.value,'Invoca a Aatrox');
+  window.document.querySelector('[aria-label="Cerrar editor"]').click();await pause();
   Array.from(window.document.querySelectorAll('button')).find(el=>el.textContent==='Guardar comandos').click();
   await until(()=>requests.some(r=>r.url==='/api/commands/save'));
   assert.equal(requests.find(r=>r.url==='/api/commands/save').body.commands[0].description,'Invoca a Aatrox');
@@ -131,7 +134,9 @@ test('dropping audio on a command uploads it through the audio field', async t =
   const { window, publish, requests } = await mount(t, '/commands');
   publish({ token: 'test', settings: defaults, tts: { resources: {} }, events: [],
     tools: { layout: {}, ads: {}, commands: { config: structuredClone(defaultCommands) } } });
-  const field = () => window.document.querySelector('section[aria-label="Sonido"]');
+  const field = () => window.document.querySelector('.commands-dialog-editor section[aria-label="Sonido"]');
+  await until(() => window.document.querySelector('.command-row-main'));
+  window.document.querySelector('.command-row-main').click();
   await until(field);
   const drop = new window.Event('drop', { bubbles: true, cancelable: true });
   Object.defineProperty(drop, 'dataTransfer', { value: { files: [new window.File(['audio'], 'alerta.mp3', { type: 'audio/mpeg' })] } });
@@ -141,6 +146,41 @@ test('dropping audio on a command uploads it through the audio field', async t =
   assert.equal(upload.body.kind, 'audio');
   assert.match(upload.body.data, /^data:audio\/mpeg;base64,/);
   assert.equal(drop.defaultPrevented, true);
+});
+test('command dialogs add, duplicate and delete commands before saving', async t => {
+  const { window, publish, requests } = await mount(t, '/commands');
+  publish({ token: 'test', settings: defaults, tts: { resources: {} }, events: [],
+    tools: { layout: {}, ads: {}, commands: { config: structuredClone(defaultCommands) } } });
+  await until(() => window.document.querySelector('.commands-savebar'));
+  const click = text => {
+    const button = Array.from(window.document.querySelectorAll('button')).find(item => item.textContent.trim() === text);
+    assert.ok(button, 'Missing button: ' + text);
+    button.click();
+  };
+  Array.from(window.document.querySelectorAll('button')).find(button => button.textContent.includes('Nuevo comando')).click();
+  await until(() => window.document.querySelector('.commands-dialog-editor'));
+  assert.equal(window.document.querySelectorAll('.command-row').length, 3);
+  const label = Array.from(window.document.querySelectorAll('label')).find(element => element.textContent === 'Palabra del comando');
+  const input = window.document.getElementById(label.htmlFor);
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, '!Nuevo');
+  input.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await pause();
+  click('Duplicar');
+  await pause();
+  assert.equal(window.document.querySelectorAll('.command-row').length, 4);
+  window.document.querySelector('[aria-label="Cerrar editor"]').click();
+  await pause();
+  const rows = window.document.querySelectorAll('.command-row');
+  rows[rows.length - 1].querySelector('[aria-label^="Eliminar"]').click();
+  await until(() => window.document.querySelector('.commands-dialog-confirm'));
+  click('Eliminar comando');
+  await pause();
+  assert.equal(window.document.querySelectorAll('.command-row').length, 3);
+  assert.match(window.document.querySelector('.commands-savebar').textContent, /Cambios sin guardar/);
+  click('Guardar comandos');
+  await until(() => requests.some(request => request.url === '/api/commands/save'));
+  const saved = requests.find(request => request.url === '/api/commands/save').body;
+  assert.deepEqual(saved.commands.map(row => row.command), ['!Aatrox', '!Sion', '!Nuevo']);
 });
 test('command help lists only command names and paginates large lists', async t => {
   const {window,publish}=await mount(t,'/commands?commands-list-output');
