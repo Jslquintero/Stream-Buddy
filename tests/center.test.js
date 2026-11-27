@@ -20,7 +20,7 @@ function scratch(t) {
   t.after(() => {
     // Only known flat test files are removed; never recurse over user data.
     for (const file of fs.readdirSync(dir)) {
-      if(file==='notification-assets'||file==='banner-assets'){const assets=path.join(dir,file);for(const name of fs.readdirSync(assets))fs.unlinkSync(path.join(assets,name));fs.rmdirSync(assets);}
+      if(file==='notification-assets'||file==='banner-assets'||file==='social-assets'){const assets=path.join(dir,file);for(const name of fs.readdirSync(assets))fs.unlinkSync(path.join(assets,name));fs.rmdirSync(assets);}
       else fs.unlinkSync(path.join(dir, file));
     }
     fs.rmdirSync(dir);
@@ -212,6 +212,25 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal(bannerSaved.status,200);assert.ok((await bannerSaved.json()).notificationRevision);
   assert.equal(center.banners.state().config.ads[0].name,'Campaña');
   assert.equal((await fetch(base+'/banner-assets/missing.svg')).status,404);
+  const socialUpload=await post('social/upload',{data:'data:image/gif;base64,'+gif},{'X-Studio':state.token});
+  assert.equal(socialUpload.status,200);
+  const socialAsset=await socialUpload.json();
+  assert.match(socialAsset.image,/^\/social-assets\/[a-f0-9]{64}\.gif$/);
+  const socialResponse=await fetch(base+socialAsset.image);
+  assert.equal(socialResponse.headers.get('content-type'),'image/gif');
+  assert.deepEqual(Buffer.from(await socialResponse.arrayBuffer()),Buffer.from(gif,'base64'));
+  assert.equal((await fetch(base+'/social-assets/missing.gif')).status,404);
+  const socialConfig = center.social.state().config;
+  const rules = '.social-label{letter-spacing:.1em}\n'.repeat(300);
+  const customCss = Object.fromEntries(['clean', 'neon', 'glass', 'soft'].map(style => [style, rules]));
+  const individualDesigns = {
+    ...socialConfig,
+    channels: socialConfig.channels.map(channel => ({ ...channel, design: { customCss } })),
+  };
+  assert.ok(Buffer.byteLength(JSON.stringify(individualDesigns)) > 80000);
+  const socialSaved = await post('social/save', individualDesigns, { 'X-Studio': state.token });
+  assert.equal(socialSaved.status, 200);
+  assert.equal(center.social.state().config.channels[1].design.customCss.clean, rules.trim());
   assert.equal((await post('notifications/test', {type:'gift'}, {'X-Studio':state.token})).status,200);
   assert.equal(center.notifications.state().current.type,'gift');
   assert.equal((await post('notifications/clear', {}, {'X-Studio':state.token})).status,200);

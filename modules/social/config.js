@@ -1,3 +1,5 @@
+import { googleFontId } from '../../shared/google-fonts.js';
+
 export const socialOutputPath = '/?social-output=1#tiktok.studio';
 
 export const socialPlatforms = [
@@ -34,6 +36,13 @@ export const socialAnimations = [
   ['none', 'Sin animación'],
 ];
 
+export const socialTextAnimations = [
+  ...socialAnimations.filter(([id]) => id !== 'none'),
+  ['reveal', 'Revelar'],
+  ['blur', 'Enfoque'],
+  ['none', 'Sin animación'],
+];
+
 export const socialPositions = [
   ['top-left', 'Arriba · izquierda'],
   ['top-center', 'Arriba · centro'],
@@ -51,19 +60,61 @@ export const socialBorderStyles = [
   ['none', 'Sin borde'],
 ];
 
+export const socialCornerStyles = [
+  ['auto', 'Según el formato'],
+  ['rounded', 'Redondeadas'],
+  ['square', 'Rectas'],
+  ['custom', 'Por esquina'],
+];
+
+export const socialBorderEffects = [
+  ['none', 'Normal'],
+  ['rgb', 'RGB animado'],
+  ['glow', 'RGB con brillo'],
+];
+
+export const socialImageFits = [
+  ['cover', 'Rellenar y recortar'],
+  ['contain', 'Mostrar completa'],
+];
+
+export const socialImageCorners = [
+  ['all', 'Todas'],
+  ['none', 'Ninguna'],
+  ['top', 'Superiores'],
+  ['bottom', 'Inferiores'],
+  ['left', 'Izquierdas'],
+  ['right', 'Derechas'],
+  ['custom', 'Personalizadas'],
+];
+
 export const socialStyles = [
   ['clean', 'Limpio'],
   ['neon', 'Neón'],
   ['glass', 'Cristal'],
   ['soft', 'Suave'],
   ['retro', 'Retro'],
+  ['aurora', 'Aurora'],
+  ['holo', 'Holográfico'],
+  ['noir', 'Noir'],
+  ['outline', 'Contorno'],
+  ['candy', 'Pastel'],
+  ['matrix', 'Matrix'],
 ];
 
 export const socialLayouts = [
   ['card', 'Tarjeta · completa'],
+  ['hero', 'Destacada'],
   ['minimal', 'Mínima'],
   ['slim', 'Compacta'],
   ['pill', 'Píldora'],
+  ['badge', 'Insignia'],
+  ['photo-left', 'Lower third · foto izquierda'],
+  ['photo-right', 'Lower third · foto derecha'],
+  ['photo-cover', 'Lower third · foto completa'],
+  ['photo-top', 'Lower third · foto superior'],
+  ['photo-caption', 'Lower third · pie sobre foto'],
+  ['custom', 'Tarjeta personalizada'],
   ['stacked', 'Vertical'],
   ['banner', 'Franja'],
   ['announcement', 'Anuncio'],
@@ -71,20 +122,40 @@ export const socialLayouts = [
   ['ribbon', 'Cinta'],
 ];
 
+const socialLayoutIds = new Set(socialLayouts.map(([id]) => id));
+
+export function resolveSocialLayout(config, channel) {
+  return channel?.layout ?? config?.layout ?? defaultSocial.layout;
+}
+
+export function resolveSocialDesign(config, channel) {
+  return { ...defaultSocial, ...config, ...channel?.design, layout: resolveSocialLayout(config, channel) };
+}
+
 export function socialPlatform(id) {
   return socialPlatforms.find(platform => platform.id === id) ?? socialPlatforms[0];
+}
+
+const socialAssetPath = /^\/social-assets\/[a-f0-9]{64}\.(png|gif|jpg|webp|svg)$/;
+
+function validateSocialImage(image) {
+  if (typeof image !== 'string' || (image && !socialAssetPath.test(image))) throw new Error('Foto de red inválida');
+  return image;
 }
 
 export const defaultSocial = {
   enabled: true,
   heading: 'SÍGUEME EN',
   channels: [
-    { id: 'instagram', platform: 'instagram', label: 'Instagram', handle: '@tuusuario', url: '', color: '#e1306c', enabled: true },
-    { id: 'tiktok', platform: 'tiktok', label: 'TikTok', handle: '@tuusuario', url: '', color: '#25f4ee', enabled: true },
-    { id: 'youtube', platform: 'youtube', label: 'YouTube', handle: '@tucanal', url: '', color: '#ff0033', enabled: true },
+    { id: 'instagram', platform: 'instagram', label: 'Instagram', handle: '@tuusuario', url: '', color: '#e1306c', enabled: true, image: '' },
+    { id: 'tiktok', platform: 'tiktok', label: 'TikTok', handle: '@tuusuario', url: '', color: '#25f4ee', enabled: true, image: '' },
+    { id: 'youtube', platform: 'youtube', label: 'YouTube', handle: '@tucanal', url: '', color: '#ff0033', enabled: true, image: '' },
   ],
   interval: 6,
   animation: 'pop',
+  textAnimation: 'none',
+  textAnimationDuration: 500,
+  fontFamily: 'theme',
   position: 'bottom-left',
   layout: 'card',
   style: 'clean',
@@ -96,22 +167,54 @@ export const defaultSocial = {
   borderOpacity: 100,
   borderStyle: 'solid',
   borderWidth: 1,
+  borderEffect: 'none',
+  cornerStyle: 'auto',
   radius: 24,
+  radiusTL: 24,
+  radiusTR: 24,
+  radiusBR: 24,
+  radiusBL: 24,
   showIcon: true,
   showLabel: true,
   showHandle: true,
   showProgress: true,
   random: false,
   iconSize: 56,
+  image: '',
+  customHeight: 250,
+  imagePositionX: 50,
+  imagePositionY: 50,
+  imageWidth: 230,
+  imageHeight: 250,
+  imageGap: 18,
+  imageFit: 'cover',
+  imageOffsetX: 0,
+  imageOffsetY: 0,
+  imageZoom: 100,
+  imageRadius: 20,
+  imageCorners: 'all',
+  imageRadiusTL: 20,
+  imageRadiusTR: 20,
+  imageRadiusBR: 20,
+  imageRadiusBL: 20,
+  imageShadow: true,
   textShadow: false,
   shadowColor: '#000000',
-  customCss: '',
+  customCss: {},
+  cssEnabled: true,
+  cssTemplates: [],
 };
 
 export function migrateSocial(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
   const next = { ...input };
+  delete next.layoutMode;
   if (typeof next.iconSize === 'number' && (next.iconSize < 24 || next.iconSize > 96)) next.iconSize = defaultSocial.iconSize;
+  if (typeof next.customCss === 'string') {
+    const style = socialStyles.some(([id]) => id === next.style) ? next.style : 'clean';
+    next.customCss = next.customCss.trim() ? { [style]: next.customCss } : {};
+  }
+  if (next.cssEnabled === undefined) next.cssEnabled = true;
   return next;
 }
 
@@ -127,35 +230,90 @@ function safeUrl(value) {
   }
 }
 
-export function validateSocial(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Configuración inválida');
-  const value = { ...defaultSocial, ...input }, result = {};
-  for (const key of ['enabled', 'showIcon', 'showLabel', 'showHandle', 'showProgress', 'random', 'textShadow']) {
+function validateSocialDesign(value) {
+  const result = {};
+  for (const key of ['showIcon', 'showLabel', 'showHandle', 'textShadow', 'imageShadow']) {
     if (typeof value[key] !== 'boolean') throw new Error('Estado inválido');
     result[key] = value[key];
   }
   if (!socialAnimations.some(([id]) => id === value.animation)) throw new Error('Animación inválida');
   result.animation = value.animation;
+  if (!socialTextAnimations.some(([id]) => id === value.textAnimation)) throw new Error('Animación de texto inválida');
+  result.textAnimation = value.textAnimation;
+  if (value.fontFamily !== 'theme' && !googleFontId(value.fontFamily)) {
+    throw new Error('Tipografía inválida');
+  }
+  result.fontFamily = value.fontFamily;
   if (!socialPositions.some(([id]) => id === value.position)) throw new Error('Posición inválida');
   result.position = value.position;
-  if (!socialLayouts.some(([id]) => id === value.layout)) throw new Error('Diseño inválido');
-  result.layout = value.layout;
   if (!socialStyles.some(([id]) => id === value.style)) throw new Error('Tema visual inválido');
   result.style = value.style;
   if (!socialBorderStyles.some(([id]) => id === value.borderStyle)) throw new Error('Tipo de borde inválido');
   result.borderStyle = value.borderStyle;
+  if (!socialCornerStyles.some(([id]) => id === value.cornerStyle)) throw new Error('Estilo de esquinas inválido');
+  result.cornerStyle = value.cornerStyle;
+  if (!socialBorderEffects.some(([id]) => id === value.borderEffect)) throw new Error('Efecto de borde inválido');
+  result.borderEffect = value.borderEffect;
+  if (!socialImageFits.some(([id]) => id === value.imageFit)) throw new Error('Encuadre de foto inválido');
+  result.imageFit = value.imageFit;
+  if (!socialImageCorners.some(([id]) => id === value.imageCorners)) throw new Error('Esquinas de foto inválidas');
+  result.imageCorners = value.imageCorners;
   if (typeof value.heading !== 'string' || value.heading.length > 40 || /[\r\n]/.test(value.heading)) throw new Error('El texto superior debe tener hasta 40 caracteres en una línea');
   result.heading = value.heading.trim();
-  for (const [key, min, max] of [['interval', 2, 120], ['width', 240, 900], ['iconSize', 24, 96], ['opacity', 0, 100], ['borderOpacity', 0, 100], ['borderWidth', 0, 8], ['radius', 0, 80]]) {
+  for (const [key, min, max] of [
+    ['width', 240, 900], ['iconSize', 24, 96], ['opacity', 0, 100],
+    ['textAnimationDuration', 100, 2000],
+    ['borderOpacity', 0, 100], ['borderWidth', 0, 8], ['radius', 0, 80],
+    ['radiusTL', 0, 80], ['radiusTR', 0, 80], ['radiusBR', 0, 80], ['radiusBL', 0, 80],
+    ['customHeight', 80, 900], ['imagePositionX', 0, 100], ['imagePositionY', 0, 100],
+    ['imageWidth', 80, 900], ['imageHeight', 80, 900], ['imageGap', 0, 64],
+    ['imageOffsetX', -50, 50], ['imageOffsetY', -50, 50], ['imageZoom', 100, 200],
+    ['imageRadius', 0, 120], ['imageRadiusTL', 0, 120], ['imageRadiusTR', 0, 120],
+    ['imageRadiusBR', 0, 120], ['imageRadiusBL', 0, 120],
+  ]) {
     if (!Number.isInteger(value[key]) || value[key] < min || value[key] > max) throw new Error('Valor inválido: ' + key);
     result[key] = value[key];
   }
-  if (typeof value.customCss !== 'string' || value.customCss.length > 4000) throw new Error('CSS personalizado inválido');
-  result.customCss = value.customCss.trim();
+  if (typeof value.cssEnabled !== 'boolean') throw new Error('Estado del CSS personalizado inválido');
+  result.cssEnabled = value.cssEnabled;
+  if (!value.customCss || typeof value.customCss !== 'object' || Array.isArray(value.customCss)) throw new Error('CSS personalizado inválido');
+  const styleIds = socialStyles.map(([id]) => id);
+  result.customCss = {};
+  for (const [style, css] of Object.entries(value.customCss)) {
+    if (!styleIds.includes(style)) throw new Error('Tema de CSS personalizado inválido');
+    if (typeof css !== 'string' || css.length > 12000) throw new Error('CSS personalizado inválido: máximo 12 000 caracteres');
+    if (css.trim()) result.customCss[style] = css.trim();
+  }
   for (const key of ['background', 'color', 'accent', 'shadowColor']) {
     if (!/^#[a-f0-9]{6}$/i.test(value[key])) throw new Error('Color inválido');
     result[key] = value[key];
   }
+  return result;
+}
+
+export function validateSocial(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Configuración inválida');
+  const value = { ...defaultSocial, ...input };
+  const result = validateSocialDesign(value);
+  result.image = validateSocialImage(value.image);
+  for (const key of ['enabled', 'showProgress', 'random']) {
+    if (typeof value[key] !== 'boolean') throw new Error('Estado inválido');
+    result[key] = value[key];
+  }
+  if (!Number.isInteger(value.interval) || value.interval < 2 || value.interval > 120) throw new Error('Valor inválido: interval');
+  result.interval = value.interval;
+  if (!socialLayoutIds.has(value.layout)) throw new Error('Diseño inválido');
+  result.layout = value.layout;
+  if (!Array.isArray(value.cssTemplates) || value.cssTemplates.length > 20) throw new Error('Plantillas CSS inválidas: máximo 20');
+  const templateIds = new Set();
+  result.cssTemplates = value.cssTemplates.map(template => {
+    if (!template || typeof template !== 'object' || Array.isArray(template)) throw new Error('Plantilla CSS inválida');
+    if (typeof template.id !== 'string' || !/^[\w-]{1,80}$/.test(template.id) || templateIds.has(template.id)) throw new Error('Identificador de plantilla CSS inválido');
+    templateIds.add(template.id);
+    if (typeof template.name !== 'string' || !template.name.trim() || template.name.trim().length > 60 || /[\r\n]/.test(template.name)) throw new Error('El nombre de la plantilla CSS debe tener hasta 60 caracteres');
+    if (typeof template.css !== 'string' || !template.css.trim() || template.css.length > 12000) throw new Error('El CSS de la plantilla no es válido');
+    return { id: template.id, name: template.name.trim(), css: template.css };
+  });
   if (!Array.isArray(value.channels) || value.channels.length < 1 || value.channels.length > 20) throw new Error('Añade entre 1 y 20 redes');
   const ids = new Set();
   result.channels = value.channels.map(channel => {
@@ -170,6 +328,14 @@ export function validateSocial(input) {
     if (typeof handle !== 'string' || handle.trim().length > 80 || /[\r\n]/.test(handle)) throw new Error('El usuario debe tener hasta 80 caracteres');
     const color = channel.color === undefined || channel.color === null ? platform.color : channel.color;
     if (typeof color !== 'string' || !/^#[a-f0-9]{6}$/i.test(color)) throw new Error('Color de red inválido');
+    const image = validateSocialImage(channel.image ?? '');
+    if (channel.layout !== undefined && !socialLayoutIds.has(channel.layout)) throw new Error('Formato de red inválido');
+    let design;
+    if (channel.design !== undefined) {
+      if (!channel.design || typeof channel.design !== 'object' || Array.isArray(channel.design)) throw new Error('Diseño de red inválido');
+      const validated = validateSocialDesign({ ...result, ...channel.design });
+      design = Object.fromEntries(Object.entries(validated).filter(([key]) => Object.hasOwn(channel.design, key)));
+    }
     return {
       id: channel.id,
       platform: platform.id,
@@ -178,6 +344,9 @@ export function validateSocial(input) {
       url: safeUrl(channel.url),
       color,
       enabled: channel.enabled === undefined ? true : channel.enabled,
+      image,
+      ...(channel.layout === undefined ? {} : { layout: channel.layout }),
+      ...(design && Object.keys(design).length ? { design } : {}),
     };
   });
   if (result.channels.some(channel => typeof channel.enabled !== 'boolean')) throw new Error('Estado de red inválido');

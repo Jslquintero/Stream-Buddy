@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
   Check,
-  ChevronDown,
   Copy,
   Pencil,
   Plus,
@@ -15,33 +14,35 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Badge, Button, Card, Dialog, Input, Select, Switch, Textarea } from './ui';
-import { Field, NumberSettings, OverlayColors, Toggle } from './fields';
+import { Badge, Button, Card, Dialog, Input, Select, Switch, Tabs, TabsContent, TabsList, TabsTrigger } from './ui';
+import { Field, Toggle } from './fields';
 import { OutputLinks, OutputToolbar } from './output-controls';
 import { EditorViewSwitch } from './editor-view-switch';
 import { useNotificationSettings } from '../hooks/use-notification-settings';
 import { useStudio } from '../hooks/use-studio';
+import { NotificationFontResource } from './notification-fonts';
+import { googleFontStack } from '../../../shared/google-fonts';
 import {
   defaultSocial,
   validateSocial,
+  migrateSocial,
   socialOutputPath,
   socialPlatforms,
   socialPlatform,
-  socialAnimations,
-  socialPositions,
   socialLayouts,
-  socialStyles,
-  socialBorderStyles,
+  resolveSocialLayout,
+  resolveSocialDesign,
 } from '../../../modules/social/config';
+import { socialCustomCss } from '../../../modules/social/css';
+import { SocialCssEditor } from './social-css-editor';
+import { SocialFormatSettings, SocialImageSettings, SocialStyleSettings, SocialTextSettings, socialPhotoCovers, socialPhotoLayouts } from './social-channel-design';
 import { SocialPlatformIcon } from './social-icons';
 import './editor-workspace.css';
 import './social.css';
 import './social-editor.css';
 
-const storage = { key: 'live-studio.social.pending.v1', validate: validateSocial, migrate: validateSocial, action: 'social/save' };
-const positionLabel = id => socialPositions.find(([value]) => value === id)?.[1] ?? 'Abajo · izquierda';
+const storage = { key: 'live-studio.social.pending.v1', validate: validateSocial, migrate: migrateSocial, action: 'social/save' };
 const layoutLabel = id => socialLayouts.find(([value]) => value === id)?.[1] ?? 'Tarjeta · completa';
-const styleLabel = id => socialStyles.find(([value]) => value === id)?.[1] ?? 'Limpio';
 
 function safeColor(value, fallback) {
   return typeof value === 'string' && /^#[a-f0-9]{6}$/i.test(value) ? value : fallback;
@@ -56,6 +57,25 @@ function randomStep(previous, length) {
   let next = previous;
   while (next === previous) next = Math.floor(Math.random() * length);
   return next;
+}
+
+const maxSocialImageBytes = 10 * 1024 * 1024;
+const maxSocialSvgBytes = 3 * 1024 * 1024;
+
+function imageMime(file) {
+  if (/^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(file.type)) return file.type;
+  const extension = /\.(png|jpe?g|webp|gif|svg)$/i.exec(file.name)?.[1].toLowerCase();
+  if (!extension) return '';
+  return 'image/' + ({ svg: 'svg+xml', jpg: 'jpeg' }[extension] ?? extension);
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function useDialogDismiss(open, onClose) {
@@ -129,14 +149,18 @@ export function useSocialRotation(config, { auto = true } = {}) {
   };
 }
 
-export function SocialCard({ channel, config, cycle = 0, progress = true }) {
-  const settings = { ...defaultSocial, ...config };
+export function SocialCard({ channel, config, cycle = 0, progress = true, textCycle = 0 }) {
+  const settings = resolveSocialDesign(config, channel);
+  const layout = settings.layout;
   const meta = socialPlatform(channel.platform);
   const channelColor = safeColor(channel.color, meta.color);
   const background = safeColor(settings.background, '#0f1218');
   const accent = safeColor(settings.accent, '#b9f678');
   const shadowColor = safeColor(settings.shadowColor, '#000000');
   const flat = Math.max(0, Number(settings.opacity) || 0) <= 0;
+  const imageCover = socialPhotoCovers.includes(layout);
+  const image = socialPhotoLayouts.includes(layout) && (channel.image || settings.image);
+  const defaultTextShadow = imageCover && image ? '0 2px 12px #000e, 0 0 3px #000b' : 'none';
   const label = channel.label || meta.name;
   const style = {
     '--social-width': (Number(settings.width) || 460) + 'px',
@@ -145,21 +169,46 @@ export function SocialCard({ channel, config, cycle = 0, progress = true }) {
     '--social-border-width': (Number(settings.borderWidth) || 0) + 'px',
     '--social-border-style': settings.borderStyle || 'solid',
     '--social-color': safeColor(settings.color, '#ffffff'),
-    '--social-text-shadow': settings.textShadow ? `0 0.1em 0.4em ${alpha(shadowColor, 0.65)}` : 'none',
+    '--social-font-family': googleFontStack(settings.fontFamily),
+    '--social-text-duration': settings.textAnimationDuration + 'ms',
+    '--social-text-shadow': settings.textShadow ? `0 0.1em 0.4em ${alpha(shadowColor, 0.65)}` : defaultTextShadow,
     '--social-accent': accent,
     '--social-channel': channelColor,
     '--social-channel-bg': alpha(channelColor, 0.16),
     '--social-channel-border': alpha(channelColor, 0.5),
     '--social-channel-glow': alpha(channelColor, 0.24),
     '--social-radius': (Number(settings.radius) || 0) + 'px',
+    '--social-card-tl': (Number(settings.radiusTL) || 0) + 'px',
+    '--social-card-tr': (Number(settings.radiusTR) || 0) + 'px',
+    '--social-card-br': (Number(settings.radiusBR) || 0) + 'px',
+    '--social-card-bl': (Number(settings.radiusBL) || 0) + 'px',
     '--social-interval': (Number(settings.interval) || 6) + 's',
     '--social-icon-size': (Number(settings.iconSize) || 56) + 'px',
+    '--social-image-width': (Number(settings.imageWidth) || 230) + 'px',
+    '--social-image-height': (Number(settings.imageHeight) || 250) + 'px',
+    '--social-image-gap': (Number(settings.imageGap) || 0) + 'px',
+    '--social-custom-height': (Number(settings.customHeight) || 250) + 'px',
+    '--social-image-x': settings.imagePositionX + '%',
+    '--social-image-y': settings.imagePositionY + '%',
+    '--social-image-fit': settings.imageFit || 'cover',
+    '--social-image-position': `calc(50% + ${Number(settings.imageOffsetX) || 0}%) calc(50% + ${Number(settings.imageOffsetY) || 0}%)`,
+    '--social-image-zoom': (Number(settings.imageZoom) || 100) / 100,
+    '--social-image-radius': (Number(settings.imageRadius) || 0) + 'px',
+    '--social-image-tl': (Number(settings.imageRadiusTL) || 0) + 'px',
+    '--social-image-tr': (Number(settings.imageRadiusTR) || 0) + 'px',
+    '--social-image-br': (Number(settings.imageRadiusBR) || 0) + 'px',
+    '--social-image-bl': (Number(settings.imageRadiusBL) || 0) + 'px',
   };
-  return <article className={'social-card social-layout-' + (settings.layout || 'card') + ' social-style-' + (settings.style || 'clean') + ' social-animation-' + (settings.animation || 'pop') + (flat ? ' social-flat' : '')} style={style}
+  return <article className={'social-card social-layout-' + layout + ' social-style-' + (settings.style || 'clean') + ' social-corners-' + (settings.cornerStyle || 'auto') + ' social-border-' + (settings.borderEffect || 'none') + ' social-image-corners-' + (settings.imageCorners || 'all') + (settings.imageShadow ? ' social-image-shadow' : '') + ' social-animation-' + (settings.animation || 'pop') + (flat ? ' social-flat' : '')} style={style}
     aria-label={[label, channel.handle].filter(Boolean).join(', ')} data-cycle={cycle}>
+    <NotificationFontResource family={settings.fontFamily}/>
+    {image && <span className={'social-media' + (imageCover ? ' social-media-background' : '')} aria-hidden="true">
+      <img className={imageCover ? 'social-media-cover' : undefined} src={image} alt="" loading="eager"/>
+      {imageCover && <span className="social-media-scrim"/>}
+    </span>}
     <span className="social-glow" aria-hidden="true"/>
     {settings.showIcon && <span className="social-icon"><SocialPlatformIcon platform={channel.platform} size={38}/></span>}
-    <span className="social-copy">
+    <span className={'social-copy social-animation-' + settings.textAnimation} key={textCycle}>
       {settings.heading && <span className="social-heading">{settings.heading}</span>}
       {settings.showLabel && <strong className="social-label">{label}</strong>}
       {settings.showHandle && channel.handle && <span className="social-handle">{channel.handle}</span>}
@@ -173,6 +222,7 @@ export function SocialOutput() {
   const tool = state?.tools.social;
   const config = tool?.config;
   const rotation = useSocialRotation(config, { auto: true });
+  const design = resolveSocialDesign(config, rotation.channel);
 
   useEffect(() => {
     document.documentElement.classList.add('social-output');
@@ -184,19 +234,51 @@ export function SocialOutput() {
   }, []);
 
   return <>
-    <CustomCss value={config?.customCss}/>
-    <div className={'social-stage ' + (config?.position || 'bottom-left')}>
+    <CustomCss value={design.cssEnabled ? socialCustomCss(design) : ''}/>
+    <div className={'social-stage ' + design.position}>
       {online && config?.enabled && rotation.channel && <SocialCard key={rotation.channel.id + '-' + rotation.cycle}
         channel={rotation.channel} config={config} cycle={rotation.cycle} progress={rotation.count > 1}/>}
     </div>
   </>;
 }
 
-function CustomCss({ value }) {
-  return value ? <style>{value}</style> : null;
+function CustomCss({ value, scope }) {
+  if (!value) return null;
+  return <style>{scope ? `@scope (${scope}) {\n${value}\n}` : value}</style>;
 }
 
-function ChannelRow({ channel, index, count, active, onPreview, onEdit, onMove, onRemove, onToggle }) {
+function SocialPreview({ channel, config, cycle, progress, textCycle }) {
+  const frame = useRef(null);
+  const previewId = useId();
+  const design = resolveSocialDesign(config, channel);
+  const position = design.position;
+  const cardWidth = Number(design.width) || defaultSocial.width;
+  const previewWidth = Math.max(540, cardWidth + 40);
+
+  useLayoutEffect(() => {
+    const element = frame.current;
+    const resize = () => {
+      if (!element.clientWidth) return;
+      element.style.setProperty('--social-preview-scale', Math.min(1, element.clientWidth / previewWidth));
+    };
+    resize();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(resize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [previewWidth]);
+
+  return <div ref={frame} className="social-preview" data-preview={previewId} style={{ '--social-preview-width': previewWidth + 'px' }}>
+    <CustomCss value={design.cssEnabled ? socialCustomCss(design) : ''} scope={`.social-preview[data-preview="${previewId}"]`}/>
+    <div className={'social-stage ' + position}>
+      {channel
+        ? <SocialCard key={channel.id + '-' + cycle} channel={channel} config={config} cycle={cycle} progress={progress} textCycle={textCycle}/>
+        : <p className="social-empty">Activa una red para verla aquí.</p>}
+    </div>
+  </div>;
+}
+
+function ChannelRow({ channel, format, index, count, active, onPreview, onEdit, onMove, onToggle }) {
   const meta = socialPlatform(channel.platform);
   const label = channel.label || meta.name;
   const showPlatform = label.trim().toLowerCase() !== meta.name.toLowerCase();
@@ -215,6 +297,7 @@ function ChannelRow({ channel, index, count, active, onPreview, onEdit, onMove, 
           <span>{channel.handle || meta.placeholder}</span>
           {showPlatform && <span aria-hidden="true">·</span>}
           {showPlatform && <span>{meta.name}</span>}
+          {format && <span className="social-channel-format">{format}</span>}
         </span>
       </span>
     </button>
@@ -227,16 +310,18 @@ function ChannelRow({ channel, index, count, active, onPreview, onEdit, onMove, 
       </span>
       <Switch checked={channel.enabled} aria-label={'Mostrar ' + label + ' en el directo'}
         onCheckedChange={value => onToggle(channel.id, value)}/>
-      <Button variant="ghost" size="icon" aria-label={'Editar ' + label} title="Editar" onClick={() => onEdit(channel.id)}><Pencil size={15}/></Button>
-      <Button variant="ghost" size="icon" aria-label={'Eliminar ' + label} title={count <= 1 ? 'La rotación necesita al menos una red' : 'Eliminar'}
-        disabled={count <= 1} onClick={() => onRemove(channel.id)}><Trash2 size={15}/></Button>
+      <Button variant="outline" size="sm" aria-label={'Editar ' + label} onClick={() => onEdit(channel.id)}><Pencil size={14}/>Editar</Button>
     </div>
   </article>;
 }
 
-function ChannelEditorDialog({ open, channel, config, index, count, locked, saving, dirty, error, onClose, onEdit, onDelete, onDuplicate }) {
+function ChannelEditorDialog({ open, channel, config, count, cycle, progress, fonts, api, notice, online,
+  saving, dirty, error, uploadingId, onClose, onEdit, onDelete, onDuplicate, onUpload, updateShared, updateDesign }) {
   useDialogDismiss(open, onClose);
   const first = useRef(null);
+  const [tab, setTab] = useState('network');
+  const [replay, setReplay] = useState(0);
+  const [textReplay, setTextReplay] = useState(0);
   useEffect(() => {
     if (!open) return;
     const timer = window.setTimeout(() => first.current?.focus(), 40);
@@ -246,13 +331,14 @@ function ChannelEditorDialog({ open, channel, config, index, count, locked, savi
   const meta = socialPlatform(channel.platform);
   const label = channel.label || meta.name;
   const color = safeColor(channel.color, meta.color);
+  const design = resolveSocialDesign(config, channel);
+  const update = (key, value) => updateDesign(channel.id, key, value);
   return <Dialog open={open} onClose={onClose} className="social-dialog social-dialog-editor" backdropClassName="social-dialog-backdrop" aria-labelledby="social-channel-title">
     <header className="social-dialog-header">
       <div className="social-dialog-heading">
         <span className="social-dialog-icon" style={{ '--social-channel': color }}><SocialPlatformIcon platform={channel.platform} size={18}/></span>
         <div>
-          <h2 id="social-channel-title">{label || 'Editar red'}</h2>
-          <p className="help">Personaliza cómo aparece esta red cuando le toca el turno.</p>
+          <h2 id="social-channel-title">Editar {label}</h2>
         </div>
       </div>
       <div className="social-dialog-header-actions">
@@ -261,49 +347,72 @@ function ChannelEditorDialog({ open, channel, config, index, count, locked, savi
       </div>
     </header>
     <div className="social-dialog-body">
-      <fieldset className="social-dialog-form" disabled={locked}>
-        <section className="social-dialog-section">
-          <div className="social-dialog-section-heading">
-            <h3>Red social</h3>
-            <Toggle name="enabled" label={channel.enabled ? 'Visible' : 'Oculta'} settings={channel} update={(_, value) => onEdit(channel.id, { enabled: value })}/>
-          </div>
-          <div className="social-dialog-fields">
-            <Field label="Plataforma">{id => <Select id={id} value={channel.platform} onChange={event => onEdit(channel.id, { platform: event.target.value })}>
-              {socialPlatforms.map(platform => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
-            </Select>}</Field>
-            <Field label="Color">{id => <span className="social-color-field">
-              <Input id={id} type="color" value={color} onChange={event => onEdit(channel.id, { color: event.target.value })}/>
-              <code>{color.toUpperCase()}</code>
-              <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(channel.id, { color: meta.color })}>Restablecer</Button>
-            </span>}</Field>
-          </div>
-          <Field label="Nombre visible" hint="Aparece como título principal de la tarjeta.">{id => <Input ref={first} id={id} value={channel.label ?? ''} maxLength={50}
-            onChange={event => onEdit(channel.id, { label: event.target.value })}/>}</Field>
-          <div className="social-dialog-fields">
-            <Field label="Usuario o texto" hint={'Ej.: ' + meta.placeholder}>{id => <Input id={id} value={channel.handle ?? ''} maxLength={80} placeholder={meta.placeholder}
-              onChange={event => onEdit(channel.id, { handle: event.target.value })}/>}</Field>
-            <Field label="Enlace (opcional)" hint="Solo como referencia; la tarjeta no lo muestra.">{id =>
-              <Input id={id} type="url" value={channel.url ?? ''} maxLength={2048} placeholder="https://..."
-                onChange={event => onEdit(channel.id, { url: event.target.value })}/>}</Field>
-          </div>
-        </section>
-        <div className="social-dialog-note">
-          <span className="social-dialog-note-index">{index + 1}<small>/{count}</small></span>
-          <p className="help">Es la posición de esta red en la rotación. Usa las flechas de la lista para cambiarla.</p>
-        </div>
-      </fieldset>
+      <Tabs value={tab} onValueChange={setTab} className="social-dialog-tabs">
+        <TabsList aria-label="Ajustes de la red">
+          {[
+            ['network', 'Red'], ['format', 'Formato'], ['image', 'Imagen'],
+            ['text', 'Texto'], ['style', 'Estilo'], ['css', 'CSS'],
+          ].map(([value, name]) => <TabsTrigger key={value} value={value}>{name}</TabsTrigger>)}
+        </TabsList>
+        <TabsContent value="network">
+          <fieldset className="social-dialog-form" disabled={!online}>
+            <div className="social-dialog-section-heading">
+              <h3>Red social</h3>
+              <Toggle name="enabled" label="Mostrar esta red" settings={channel} update={(_, value) => onEdit(channel.id, { enabled: value })}/>
+            </div>
+            <div className="social-dialog-fields">
+              <Field label="Plataforma">{id => <Select id={id} value={channel.platform} onChange={event => onEdit(channel.id, { platform: event.target.value })}>
+                {socialPlatforms.map(platform => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
+              </Select>}</Field>
+              <Field label="Color de la red">{id => <span className="social-color-field">
+                <Input id={id} type="color" value={color} onChange={event => onEdit(channel.id, { color: event.target.value })}/>
+                <code>{color.toUpperCase()}</code>
+                <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(channel.id, { color: meta.color })}>Restablecer</Button>
+              </span>}</Field>
+            </div>
+            <Field label="Nombre visible" hint="Aparece como título principal de la tarjeta.">{id => <Input ref={first} id={id} value={channel.label ?? ''} maxLength={50}
+              onChange={event => onEdit(channel.id, { label: event.target.value })}/>}</Field>
+            <div className="social-dialog-fields">
+              <Field label="Usuario o texto" hint={'Ej.: ' + meta.placeholder}>{id => <Input id={id} value={channel.handle ?? ''} maxLength={80} placeholder={meta.placeholder}
+                onChange={event => onEdit(channel.id, { handle: event.target.value })}/>}</Field>
+              <Field label="Enlace (opcional)" hint="Solo como referencia; la tarjeta no lo muestra.">{id =>
+                <Input id={id} type="url" value={channel.url ?? ''} maxLength={2048} placeholder="https://..."
+                  onChange={event => onEdit(channel.id, { url: event.target.value })}/>}</Field>
+            </div>
+          </fieldset>
+        </TabsContent>
+        <TabsContent value="format">
+          <SocialFormatSettings design={design} update={update} openImage={() => setTab('image')}/>
+        </TabsContent>
+        <TabsContent value="image">
+          <SocialImageSettings design={design} channel={channel} label={label} update={update} editChannel={onEdit}
+            updateShared={updateShared} uploadingId={uploadingId} onUpload={onUpload} online={online} chooseFormat={() => setTab('format')}/>
+        </TabsContent>
+        <TabsContent value="text">
+          <SocialTextSettings design={design} update={update} fonts={fonts} api={api} online={online}/>
+        </TabsContent>
+        <TabsContent value="style">
+          <SocialStyleSettings design={design} update={update}/>
+        </TabsContent>
+        <TabsContent value="css">
+          <SocialCssEditor config={config} channel={channel} update={update} notice={notice}/>
+        </TabsContent>
+      </Tabs>
       <aside className="social-dialog-preview">
         <div className="social-dialog-section-heading"><h3>Vista previa</h3></div>
-        <div className="social-dialog-preview-stage">
-          <SocialCard channel={channel} config={config} cycle={0} progress={false}/>
+        <SocialPreview key={replay} channel={channel} config={config} cycle={cycle} progress={progress} textCycle={textReplay}/>
+        <div className="social-dialog-preview-actions">
+          <Button type="button" size="sm" variant="ghost" onClick={() => setReplay(value => value + 1)}><RotateCcw size={14}/>Repetir entrada</Button>
+          {design.textAnimation !== 'none' && <Button type="button" size="sm" variant="ghost" onClick={() => setTextReplay(value => value + 1)}>
+            Repetir animación del texto
+          </Button>}
         </div>
-        <p className="help">La salida del directo usa el tamaño y la posición configurados en el panel principal.</p>
       </aside>
     </div>
     <footer className="social-dialog-footer">
-      <Button variant="ghost" disabled={locked || count <= 1} title={count <= 1 ? 'La rotación necesita al menos una red' : 'Eliminar red'} onClick={() => onDelete(channel.id)}><Trash2 size={15}/>Eliminar</Button>
+      <Button variant="ghost" disabled={!online || count <= 1} title={count <= 1 ? 'La rotación necesita al menos una red' : 'Eliminar red'} onClick={() => onDelete(channel.id)}><Trash2 size={15}/>Eliminar</Button>
       <div className="actions">
-        <Button variant="ghost" disabled={locked || count >= 20} onClick={() => onDuplicate(channel.id)}><Copy size={15}/>Duplicar</Button>
+        <Button variant="ghost" disabled={!online || count >= 20} onClick={() => onDuplicate(channel.id)}><Copy size={15}/>Duplicar</Button>
         <span className={error ? 'social-save-error' : 'help'} role="status">
           {error || (saving ? 'Guardando…' : dirty ? 'Guardando cambios…' : 'Cambios guardados')}
         </span>
@@ -380,7 +489,7 @@ function NetworkPickerDialog({ open, available, selection, query, locked, onQuer
   </Dialog>;
 }
 
-export function SocialStudio({ tool, api, notice, online }) {
+export function SocialStudio({ tool, fonts, api, notice, online }) {
   const { config, setConfig, dirty, saving, error, save } = useNotificationSettings(tool.config, tool.revision, api, online, storage);
   const [mobileView, setMobileView] = useState('editor');
   const [autoRotate, setAutoRotate] = useState(true);
@@ -389,17 +498,35 @@ export function SocialStudio({ tool, api, notice, online }) {
   const [selection, setSelection] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [removingId, setRemovingId] = useState(null);
-  const rotation = useSocialRotation(config, { auto: autoRotate });
+  const [uploadingId, setUploadingId] = useState(null);
+  const uploadInFlight = useRef(false);
+  const rotation = useSocialRotation(config, { auto: autoRotate && !editingId });
   const update = (key, value) => setConfig(previous => ({ ...previous, [key]: value }));
   const editChannel = (id, patch) => setConfig(previous => ({
     ...previous,
     channels: previous.channels.map(channel => channel.id === id ? { ...channel, ...patch } : channel),
   }));
+  function updateDesign(id, key, value) {
+    if (key === 'cssTemplates') {
+      update(key, value);
+      return;
+    }
+    if (key === 'layout') {
+      editChannel(id, { layout: value });
+      return;
+    }
+    setConfig(previous => ({
+      ...previous,
+      channels: previous.channels.map(channel => channel.id === id
+        ? { ...channel, design: { ...channel.design, [key]: value } }
+        : channel),
+    }));
+  }
   const url = new URL(socialOutputPath, location.origin).href;
   const active = config.channels.filter(channel => channel.enabled).length;
   const selected = rotation.count ? (rotation.index % rotation.count) + 1 : 0;
-  const interval = Number(config.interval) || 6;
   const editing = config.channels.find(channel => channel.id === editingId) ?? null;
+  const previewed = editing ?? rotation.channel;
   const removing = config.channels.find(channel => channel.id === removingId) ?? null;
 
   const availablePlatforms = socialPlatforms.filter(platform => !config.channels.some(channel => channel.platform === platform.id));
@@ -479,13 +606,52 @@ export function SocialStudio({ tool, api, notice, online }) {
     });
   }
 
+  function openChannelEditor(id) {
+    rotation.select(id);
+    setEditingId(id);
+  }
+
+  function closeChannelEditor() {
+    if (rotation.channel?.id !== editingId) rotation.select(editingId);
+    setEditingId(null);
+  }
+
   function previewChannel(channel) {
     if (!channel.enabled) {
-      setEditingId(channel.id);
+      openChannelEditor(channel.id);
       return;
     }
     rotation.select(channel.id);
     setMobileView('monitor');
+  }
+
+  async function uploadImage(file, id = null) {
+    if (!online || !file || uploadInFlight.current) return;
+    const mime = imageMime(file);
+    if (!mime) {
+      notice('Elige una foto PNG, JPG, WebP, GIF o SVG.', { type: 'warning' });
+      return;
+    }
+    const isSvg = mime === 'image/svg+xml';
+    if (file.size > (isSvg ? maxSocialSvgBytes : maxSocialImageBytes)) {
+      notice(file.name + ' supera ' + (isSvg ? '3 MB.' : '10 MB.'), { type: 'warning' });
+      return;
+    }
+    uploadInFlight.current = true;
+    setUploadingId(id ?? '');
+    try {
+      const data = await readAsDataUrl(file.slice(0, file.size, mime));
+      const result = await api('social/upload', { data }, { throwOnError: true });
+      if (!result?.image) throw new Error('No se pudo guardar la foto');
+      if (id === null) update('image', result.image);
+      else editChannel(id, { image: result.image });
+      notice(id === null ? 'Imagen compartida cargada.' : 'Foto añadida a la red.');
+    } catch (error) {
+      notice(error.message || 'No se pudo subir la foto.', { type: 'error' });
+    } finally {
+      uploadInFlight.current = false;
+      setUploadingId(null);
+    }
   }
 
   async function saveNow() {
@@ -510,8 +676,8 @@ export function SocialStudio({ tool, api, notice, online }) {
       <Card className="social-settings editor-workspace-settings">
         <div className="social-summary">
           <div className="social-summary-copy">
-            <h2>Redes y rotación</h2>
-            <p className="help">Pulsa una red para verla en la vista previa. Cada {interval} segundos cambia el turno.</p>
+            <h2>Redes</h2>
+            <p className="help">Selecciona una red para verla. Usa Editar para cambiar su tarjeta.</p>
           </div>
           <div className="social-summary-side">
             <div className="social-stats" aria-label="Resumen de la rotación">
@@ -524,20 +690,13 @@ export function SocialStudio({ tool, api, notice, online }) {
         </div>
 
         <section className="social-section">
-          <div className="social-section-heading">
-            <div>
-              <h3>Redes en la rotación</h3>
-              <p className="help">Cambia el orden con las flechas. Las redes ocultas se conservan sin salir al directo.</p>
-            </div>
-            <Badge>{config.channels.length} / 20</Badge>
-          </div>
           <div className="social-channel-list">
             {config.channels.map((channel, index) => <ChannelRow key={channel.id} channel={channel} index={index} count={config.channels.length}
-              active={channel.enabled && rotation.channel?.id === channel.id}
+              format={layoutLabel(resolveSocialLayout(config, channel))}
+              active={previewed?.id === channel.id}
               onPreview={previewChannel}
-              onEdit={setEditingId}
+              onEdit={openChannelEditor}
               onMove={moveChannel}
-              onRemove={setRemovingId}
               onToggle={(id, value) => editChannel(id, { enabled: value })}/>)}
           </div>
           {config.channels.length === 0 && <div className="social-empty-state">
@@ -549,123 +708,14 @@ export function SocialStudio({ tool, api, notice, online }) {
         </section>
 
         <section className="social-section">
-          <div className="social-section-heading">
-            <div>
-              <h3>Ritmo y posición</h3>
-              <p className="help">Controla cuánto dura cada red y dónde aparece la tarjeta.</p>
-            </div>
-            <Badge>{positionLabel(config.position)}</Badge>
-          </div>
-          <div className="social-fields">
-            <Field label="Cambiar cada · segundos" hint="Entre 2 y 120 segundos.">{id => <Input id={id} type="number" min="2" max="120" value={config.interval}
+          <div className="social-section-heading"><h3>Rotación</h3></div>
+          <div className="social-rotation-controls">
+            <Field label="Intervalo · segundos">{id => <Input id={id} type="number" min="2" max="120" value={config.interval}
               onChange={event => update('interval', event.target.value === '' ? '' : Number(event.target.value))}/>}</Field>
-            <Field label="Animación de entrada">{id => <Select id={id} value={config.animation} onChange={event => update('animation', event.target.value)}>
-              {socialAnimations.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </Select>}</Field>
-            <Field label="Posición en pantalla">{id => <Select id={id} value={config.position} onChange={event => update('position', event.target.value)}>
-              {socialPositions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </Select>}</Field>
-            <Field label="Tamaño del icono · px">{id => <Input id={id} type="number" min="24" max="96" value={config.iconSize}
-              onChange={event => update('iconSize', event.target.value === '' ? '' : Number(event.target.value))}/>}</Field>
-            <Field label="Texto superior" hint="Déjalo vacío para ocultarlo.">{id => <Input id={id} value={config.heading} maxLength={40} placeholder="SÍGUEME EN"
-              onChange={event => update('heading', event.target.value)}/>}</Field>
-          </div>
-          <div className="social-toggle-grid">
             <Toggle name="random" label="Orden aleatorio" settings={config} update={update}/>
             <Toggle name="showProgress" label="Barra de progreso" settings={config} update={update}/>
           </div>
         </section>
-
-        <details className="social-design-section" open>
-          <summary>
-            <span className="social-design-summary">
-              <span>
-                <strong>Formato y contenido</strong>
-                <small>{layoutLabel(config.layout)}</small>
-              </span>
-            </span>
-            <ChevronDown className="social-design-chevron" size={16} aria-hidden="true"/>
-          </summary>
-          <div className="social-design-body">
-            <fieldset className="social-choices">
-              <legend>Formato de la tarjeta</legend>
-              <div>
-                {socialLayouts.map(([value, label]) => (
-                  <button type="button" key={value} aria-pressed={config.layout === value} onClick={() => update('layout', value)}>
-                    <span className={'social-mini social-mini-' + value} aria-hidden="true"><i/><b/><em/></span>
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <div className="social-toggle-grid">
-              <Toggle name="showIcon" label="Mostrar icono" settings={config} update={update}/>
-              <Toggle name="showLabel" label="Mostrar nombre" settings={config} update={update}/>
-              <Toggle name="showHandle" label="Mostrar usuario" settings={config} update={update}/>
-            </div>
-          </div>
-        </details>
-
-        <details className="social-design-section">
-          <summary>
-            <span className="social-design-summary">
-              <span>
-                <strong>Diseño</strong>
-                <small>{styleLabel(config.style)} · {config.width} px</small>
-              </span>
-            </span>
-            <ChevronDown className="social-design-chevron" size={16} aria-hidden="true"/>
-          </summary>
-          <div className="social-design-body">
-            <fieldset className="social-choices social-style-choices">
-              <legend>Tema visual</legend>
-              <div>
-                {socialStyles.map(([value, label]) => (
-                  <button type="button" key={value} aria-pressed={config.style === value} onClick={() => update('style', value)}>
-                    <span className={'social-swatch social-swatch-' + value} aria-hidden="true"><i/><b/></span>
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <OverlayColors settings={config} update={update}/>
-            <NumberSettings fields={[
-              ['opacity', 'Opacidad del fondo · %', 0, 100],
-              ['borderOpacity', 'Opacidad del borde · %', 0, 100],
-              ['borderWidth', 'Grosor del borde · px', 0, 8],
-              ['radius', 'Bordes redondeados · px', 0, 80],
-              ['width', 'Ancho · px', 240, 900],
-            ]} settings={config} update={update}/>
-            <div className="social-fields">
-              <Field label="Tipo de borde">{id => <Select id={id} value={config.borderStyle} onChange={event => update('borderStyle', event.target.value)}>
-                {socialBorderStyles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </Select>}</Field>
-              <Field label="Color de la sombra">{id => <Input id={id} type="color" value={safeColor(config.shadowColor, '#000000')}
-                onChange={event => update('shadowColor', event.target.value)}/>}</Field>
-            </div>
-            <div className="social-toggle-grid">
-              <Toggle name="textShadow" label="Sombra de texto" settings={config} update={update}/>
-            </div>
-          </div>
-        </details>
-
-        <details className="social-design-section">
-          <summary>
-            <span className="social-design-summary">
-              <span>
-                <strong>CSS personalizado</strong>
-                <small>{config.customCss ? 'Con reglas propias' : 'Opcional'}</small>
-              </span>
-            </span>
-            <ChevronDown className="social-design-chevron" size={16} aria-hidden="true"/>
-          </summary>
-          <div className="social-design-body">
-            <p className="help">Añade reglas que sobreescriban el aspecto del pop-up; se aplican en el directo y en esta vista previa.</p>
-            <Field>{id => <Textarea id={id} className="social-css-input" value={config.customCss ?? ''} rows={8} spellCheck={false}
-              placeholder={'.social-card {\n  border-radius: 40px;\n}\n\n.social-stage { justify-content: center; }'}
-              onChange={event => update('customCss', event.target.value)}/>}</Field>
-          </div>
-        </details>
 
         <div className={'social-savebar' + (error ? ' has-error' : '')}>
           <span role="status" className={error ? 'social-save-error' : dirty ? 'social-save-dirty' : 'help'}>
@@ -684,22 +734,7 @@ export function SocialStudio({ tool, api, notice, online }) {
             </div>
             <Badge className={config.enabled && rotation.count ? 'success' : ''}>{!config.enabled ? 'Oculta en directo' : rotation.count ? selected + ' / ' + rotation.count : 'Sin activas'}</Badge>
           </div>
-          <div className="social-preview" data-position={config.position}>
-            <CustomCss value={config.customCss}/>
-            {rotation.channel
-              ? <SocialCard key={rotation.channel.id + '-' + rotation.cycle} channel={rotation.channel} config={config} cycle={rotation.cycle} progress={rotation.count > 1}/>
-              : <p className="social-empty">Activa una red para verla aquí.</p>}
-          </div>
-          {rotation.count > 0 && <div className="social-preview-channels" role="group" aria-label="Elegir red en la vista previa">
-            {config.channels.filter(channel => channel.enabled).map(channel => {
-              const meta = socialPlatform(channel.platform);
-              const activeChannel = rotation.channel?.id === channel.id;
-              return <button type="button" key={channel.id} className="social-preview-channel" aria-pressed={activeChannel}
-                style={{ '--social-channel': safeColor(channel.color, meta.color) }} onClick={() => rotation.select(channel.id)}>
-                <SocialPlatformIcon platform={channel.platform} size={13}/>{channel.label || meta.name}
-              </button>;
-            })}
-          </div>}
+          <SocialPreview channel={previewed} config={config} cycle={rotation.cycle} progress={rotation.count > 1}/>
           <div className="social-preview-controls">
             <Button variant="outline" size="sm" disabled={!rotation.count} onClick={rotation.previous}><SkipBack size={14}/>Anterior</Button>
             <Button variant="outline" size="sm" disabled={!rotation.count} onClick={rotation.next}>Siguiente<SkipForward size={14}/></Button>
@@ -709,33 +744,16 @@ export function SocialStudio({ tool, api, notice, online }) {
             <Toggle name="auto" label="Rotación automática en la vista previa" settings={{ auto: autoRotate }} update={(_, value) => setAutoRotate(value)}/>
           </div>
         </Card>
-
-        <Card className="social-facts-card">
-          <div className="social-panel-heading">
-            <div>
-              <h2>Resumen</h2>
-              <p className="help">La rotación continúa mientras la salida esté abierta.</p>
-            </div>
-            <Badge className={config.enabled && active > 0 ? 'success' : ''}>{config.enabled && active > 0 ? 'En directo' : 'Oculta'}</Badge>
-          </div>
-          <dl className="social-facts">
-            <div><dt>Redes activas</dt><dd>{active}</dd></div>
-            <div><dt>Tiempo por red</dt><dd>{interval} s</dd></div>
-            <div><dt>Posición</dt><dd>{positionLabel(config.position)}</dd></div>
-            <div><dt>Formato</dt><dd>{layoutLabel(config.layout)}</dd></div>
-            <div><dt>Tema</dt><dd>{styleLabel(config.style)}</dd></div>
-            <div><dt>Orden</dt><dd>{config.random ? 'Aleatorio' : 'En lista'}</dd></div>
-          </dl>
-          <p className="help">Los cambios se guardan y se aplican automáticamente. Si editas el CSS, comprueba la vista previa antes de salir al directo.</p>
-        </Card>
       </div>
 
-      <ChannelEditorDialog open={Boolean(editing)} channel={editing} config={config} index={editing ? config.channels.findIndex(channel => channel.id === editing.id) : 0}
-        count={config.channels.length} locked={!online} saving={saving} dirty={dirty} error={error}
-        onClose={() => setEditingId(null)}
+      <ChannelEditorDialog key={editingId} open={Boolean(editing)} channel={editing} config={config}
+        count={config.channels.length} cycle={rotation.cycle} progress={rotation.count > 1} fonts={fonts} api={api} notice={notice} online={online}
+        saving={saving} dirty={dirty} error={error} uploadingId={uploadingId} updateShared={update} updateDesign={updateDesign}
+        onClose={closeChannelEditor}
         onEdit={(id, patch) => patch.platform ? changePlatform(config.channels.find(channel => channel.id === id), patch.platform) : editChannel(id, patch)}
         onDelete={id => { setEditingId(null); setRemovingId(id); }}
-        onDuplicate={duplicateChannel}/>
+        onDuplicate={duplicateChannel}
+        onUpload={uploadImage}/>
       <DeleteChannelDialog channel={removing} count={config.channels.length} locked={!online}
         onCancel={() => setRemovingId(null)} onConfirm={() => removing && removeChannel(removing.id)}/>
       <NetworkPickerDialog open={pickerOpen} available={availablePlatforms} selection={selection} query={pickerQuery} locked={!online}

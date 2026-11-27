@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { defaultSocial, migrateSocial, validateSocial, socialOutputPath } from './config.js';
+import { socialAssets } from './assets.js';
 
 export function createSocialModule({ dataDir, changed, log } = {}) {
   const file = path.join(dataDir, 'social.json');
+  const assets = socialAssets(dataDir);
   let config = structuredClone(defaultSocial), revision = Date.now(), error = '';
 
   function read(target) {
@@ -24,6 +26,7 @@ export function createSocialModule({ dataDir, changed, log } = {}) {
   }
 
   return {
+    assets,
     state() {
       return { available: true, running: true, config, revision, error, url: socialOutputPath };
     },

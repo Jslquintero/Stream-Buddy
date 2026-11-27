@@ -57,13 +57,12 @@ export function sanitizeSvg(text) {
   return svg;
 }
 
-export function bannerAssets(dataDir) {
-  const directory = path.join(dataDir, 'banner-assets');
+export function createImageAssets(directory, publicPath) {
   const store = (bytes, format) => {
     const name = createHash('sha256').update(bytes).digest('hex') + '.' + format;
     fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(directory, name), bytes);
-    return '/banner-assets/' + name;
+    return publicPath + '/' + name;
   };
   return {
     upload({ data } = {}) {
@@ -97,4 +96,8 @@ export function bannerAssets(dataDir) {
       }
     },
   };
+}
+
+export function bannerAssets(dataDir) {
+  return createImageAssets(path.join(dataDir, 'banner-assets'), '/banner-assets');
 }

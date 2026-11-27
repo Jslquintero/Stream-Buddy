@@ -2,7 +2,7 @@ import { Field, NumberSettings, OverlayColors, Toggle } from './fields';
 import { Input, Button, Select } from './ui';
 import { resizeNotification } from '../../../modules/notifications/size';
 import { notificationAnimations } from '../../../modules/notifications/config';
-import { systemFonts, NotificationFonts } from './notification-fonts';
+import { systemFonts, googleFontOptions, NotificationFonts } from './notification-fonts';
 
 export function NotificationDesign({ design, update, resize, fonts, api, online }) {
   const select = (key,label,options) => <Field key={key} label={label}>{id => <Select id={id} value={design[key]} onChange={e => update(key,e.target.value)}>{options.map(([value,text]) => <option key={value} value={value}>{text}</option>)}</Select>}</Field>;
@@ -42,7 +42,7 @@ export function NotificationDesign({ design, update, resize, fonts, api, online 
     <details className="notification-design-section notification-design-group" name="notification-design">
       <summary><span>Texto y tipografía</span><span className="help">Fuente, tamaño y alineación</span></summary>
       <div className="notification-design-grid">
-        {select('fontFamily','Tipografía',[...systemFonts,...(fonts?.items||[]).map(font=>['google:'+font.id,font.name+' · instalada']),...(/^google:/.test(design.fontFamily)&&!(fonts?.items||[]).some(f=>'google:'+f.id===design.fontFamily)?[[design.fontFamily,'Fuente de Google seleccionada']]:[])])}
+        {select('fontFamily','Tipografía',[...systemFonts,...googleFontOptions(fonts, design.fontFamily)])}
         {select('fontWeight','Grosor del título',[['400','Normal'],['600','Seminegrita'],['700','Negrita'],['900','Muy gruesa']])}
         <Field label="Tamaño de texto · px">{id => <Input id={id} type="number" min="16" max="96" required value={design.fontSize} onChange={e => update('fontSize',e.target.value === '' ? '' : Number(e.target.value))}/>}</Field>
         {select('textAlign','Alineación de texto',[['left','Izquierda'],['center','Centro'],['right','Derecha']])}

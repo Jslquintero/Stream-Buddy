@@ -96,7 +96,9 @@ El servidor consulta la canción cada cinco segundos, compartiendo una sola cons
 
 El módulo **Social Media Rotator** alterna tus redes en un pop-up animado para destacar cada canal durante el directo. La salida transparente es `http://127.0.0.1:17900/?social-output=1#tiktok.studio` y se añade como fuente de navegador en TikTok LIVE Studio u OBS; funciona sin conectar TikTok.
 
-Añade hasta 20 redes (Instagram, TikTok, YouTube, Twitch, Kick, X, Facebook, Discord, Telegram, Threads o un sitio web) y edita el nombre, el usuario o texto y el color de cada una. Puedes elegir cada cuánto cambia la red (2–120 segundos), el orden secuencial o aleatorio, la animación de entrada (pop, deslizar, girar, rebote, fundido o sin animación), la posición, el tamaño, los colores, la opacidad, los bordes y la barra de progreso. La vista previa permite avanzar, retroceder y reiniciar la rotación.
+Añade hasta 20 redes y pulsa **Editar** junto a una de ellas. En el diálogo puedes personalizar el formato, la tipografía de Google Fonts, las animaciones, los colores y los bordes de esa red. En **Imagen** puedes elegir un archivo propio o una imagen de respaldo compartida.
+
+La pestaña **CSS** permite editar las reglas del tema activo, consultar el CSS de la tarjeta y guardar plantillas reutilizables entre redes. En el panel principal puedes ajustar el intervalo (2–120 segundos), el orden y la barra de progreso, y recorrer la rotación en la vista previa.
 
 El diseño se guarda en `data/social.json` y los cambios pendientes se recuperan desde el navegador. La rotación continúa mientras la salida esté abierta; ocultar el widget con **Mostrar en el directo** detiene la tarjeta sin borrar la configuración.
 

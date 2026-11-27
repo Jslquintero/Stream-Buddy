@@ -77,6 +77,7 @@ export class Center extends EventEmitter {
       case 'auction/reset': this.auction.reset();break;
       case 'auction/export': return this.auction.results();
       case 'social/save': this.social.save(body);return {notificationRevision:this.social.state().revision};
+      case 'social/upload': return this.social.assets.upload(body);
       case 'banners/save': this.banners.save(body);return {notificationRevision:this.banners.state().revision};
       case 'banners/upload': return this.banners.assets.upload(body);
       case 'notifications/fonts/install': return await this.notifications.fonts.install(body.name);
