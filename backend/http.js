@@ -9,11 +9,14 @@ const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'tex
 const outputTools = new Set(['spotify', 'likes', 'gifters', 'auction', 'notifications', 'commands', 'layout', 'social', 'banners']);
 const outputStreamLifetime = 3000;
 
-export function createDashboardServer(center) {
-  const token = randomBytes(32).toString('hex');
+export function createDashboardServer(center, profiles) {
+  let token = randomBytes(32).toString('hex');
   const clients = new Map();
+  const commands = new Set();
   let publishTimer;
-  const snapshot = () => ({ ...center.snapshot(), token });
+  let transition;
+  let activeProfileId = profiles?.state().activeId;
+  const snapshot = () => ({ ...center.snapshot(), token, ...(profiles && { profiles: { ...profiles.state(), activeId: activeProfileId } }) });
   const eventData = output => {
     const data = output ? { tools: { [output]: center.tools[output].state() } } : snapshot();
     return `data: ${JSON.stringify(data)}\n\n`;
@@ -34,6 +37,30 @@ export function createDashboardServer(center) {
     }, 30);
   };
   center.on('state', publish);
+  async function activateProfile(id) {
+    if (id === profiles.state().activeId) return;
+    await Promise.allSettled(commands);
+    const next = profiles.open(id);
+    try {
+      profiles.activate(id);
+    } catch (error) {
+      await next.close();
+      throw error;
+    }
+    const previous = center;
+    previous.off('state', publish);
+    await previous.close().catch(error => next.log(error.message));
+    center = next;
+    activeProfileId = id;
+    token = randomBytes(32).toString('hex');
+    center.on('state', publish);
+    publish();
+  }
+  async function deleteProfile(id) {
+    if (id === activeProfileId && id !== 'default') await activateProfile('default');
+    profiles.remove(id);
+    publish();
+  }
   function json(res, code, value) {
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify(value));
@@ -130,9 +157,24 @@ export function createDashboardServer(center) {
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Solicitud inválida');
       const action = url.pathname.startsWith('/api/') ? url.pathname.slice(5) : '';
-      const result = await center.command(action, body, { origin });
+      if (req.headers['x-studio'] !== token || transition) return json(res, 409, { error: 'El perfil activo está cambiando. Intenta de nuevo.' });
+      if (profiles && action === 'profiles/create') {
+        profiles.create(body.name);
+        publish();
+        return json(res, 200, { ok: true });
+      }
+      if (profiles && (action === 'profiles/activate' || action === 'profiles/delete')) {
+        transition = action === 'profiles/activate' ? activateProfile(body.id) : deleteProfile(body.id);
+        try { await transition; } finally { transition = null; }
+        return json(res, 200, { ok: true });
+      }
+      const activeCenter = center;
+      const command = activeCenter.command(action, body, { origin });
+      commands.add(command);
+      let result;
+      try { result = await command; } finally { commands.delete(command); }
       if (!result) return json(res, 404, { error: 'No encontrado' });
-      json(res, 200, { ok: true, ...(['spotify/connect','notifications/upload','notifications/fonts/install','likes/save','likes/export','gifters/save','gifters/export','auction/save','auction/export','social/save','social/upload','banners/save','banners/upload','layout/create','layout/save-composition','layout/rename'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:center.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:center.tools.layout.state().revision}:{}) });
+      json(res, 200, { ok: true, ...(['spotify/connect','notifications/upload','notifications/fonts/install','likes/save','likes/export','gifters/save','gifters/export','auction/save','auction/export','social/save','social/upload','banners/save','banners/upload','layout/create','layout/save-composition','layout/rename'].includes(action)?result:{}), ...(action==='notifications/save'?{notificationRevision:activeCenter.notifications.state().revision}:{}), ...(action==='layout/save'?{layoutRevision:activeCenter.tools.layout.state().revision}:{}) });
     } catch (error) {
       if (!res.headersSent) json(res, 400, { error: error.message });
       else res.end();
@@ -146,11 +188,13 @@ export function createDashboardServer(center) {
   return {
     server,
     async close() {
-      clearInterval(heartbeat); clearInterval(poller); clearTimeout(publishTimer);
-      center.off('state', publish);
+      clearInterval(heartbeat); clearInterval(poller);
       for (const client of clients.keys()) client.end();
       const closed = new Promise(resolve => server.close(resolve));
       server.closeAllConnections();
+      await transition?.catch(() => {});
+      clearTimeout(publishTimer);
+      center.off('state', publish);
       await center.close(); await closed;
     }
   };

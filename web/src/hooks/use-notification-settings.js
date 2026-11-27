@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { validateNotifications, migrateNotifications } from '../../../modules/notifications/config';
+import { StudioProfileContext } from './use-studio-profile';
 const defaults={key:'live-studio.notifications.pending.v1',validate:validateNotifications,migrate:migrateNotifications,action:'notifications/save'};
 function restore(remote,key,migrate){
   try{const saved=JSON.parse(localStorage.getItem(key));if(saved?.config)return migrate(saved.config);}catch{}
   return remote;
 }
 export function useNotificationSettings(remote,revision,api,online,options=defaults){
-  const {key,validate,migrate,action}=options;
+  const {key: baseKey,validate,migrate,action}=options;
+  const profileId = useContext(StudioProfileContext);
+  const key = profileId === 'default' ? baseKey : baseKey + '.profile.' + profileId;
   const [config,setValue]=useState(()=>restore(remote,key,migrate));
   const [dirty,setDirty]=useState(()=>config!==remote),[saving,setSaving]=useState(false),[error,setError]=useState('');
   const current=useRef(config),edited=useRef(dirty),version=useRef(0),inFlight=useRef(false),minimum=useRef(0),awaiting=useRef(null),connected=useRef(online);

@@ -17,6 +17,8 @@ import { BannersStudio } from './components/banners-studio';
 import { SpotifyStudio } from './components/spotify-studio';
 import { Home, adQueueOutputURL } from './components/home';
 import { ToastRegion } from './components/toast';
+import { ProfilePicker } from './components/profile-picker';
+import { StudioProfileContext } from './hooks/use-studio-profile';
 
 const widgets = [
   { id: 'layout', title: 'Escenas', description: 'Escenas y composiciones del directo.', icon: Monitor, color: 'violet', action: 'Abrir editor' },
@@ -48,8 +50,11 @@ const navigationGroups = [
 ];
 const navigationItems = navigationGroups.flatMap(group => group.items.flatMap(item => item.items ?? [item]));
 export default function App(){
- const {state,notice,toasts,dismissToast,online,api}=useStudio();const [view,setView]=useRoute(),[menu,setMenu]=useState(false); const discovered=useRef(false);
- useEffect(()=>{if(view==='tts'&&state&&!discovered.current&&!state.tts.resources?.task?.running){discovered.current=true;void api('tts/refresh');}},[view,state,api]);
+ const {state,notice,toasts,dismissToast,online,api}=useStudio();const [view,setView]=useRoute(),[menu,setMenu]=useState(false); const discovered=useRef(null);
+ const appShell = useRef(null);
+ const profileId = state?.profiles?.activeId ?? 'default';
+ const connection = state?.token ?? profileId;
+ useEffect(()=>{if(view==='tts'&&state&&discovered.current!==connection&&!state.tts.resources?.task?.running){discovered.current=connection;void api('tts/refresh');}},[view,state,api,connection]);
  useEffect(() => {
    if (state && view?.startsWith('layout:') && !state.tools.layout.compositions?.some(item => item.id === view.slice(7))) {
      setView('layout', { replace: true });
@@ -62,8 +67,12 @@ export default function App(){
  useEffect(()=>{document.documentElement.scrollTop=0;document.body.scrollTop=0;},[view]);
  const go=id=>{setView(id);setMenu(false);}; const open=async id=>{go(id);if(id!=='tts')await api('start',{tool:id});};
  const t=state?.tts;
- return <div className="app-shell"><aside className={menu?'sidebar mobile-open':'sidebar'}><a className="brand" href="/" onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();go('home');}}} aria-label="Stream Buddy inicio"><span className="brand-mark"><AudioLines/></span><span>stream<span className="brand-light"> buddy</span><small>CENTRO DE DIRECTO</small></span></a><div className="workspace"><span className="avatar">SB</span><span>Mi espacio de trabajo<small>Personal · Local</small></span><Badge>LOCAL</Badge></div><SidebarNavigation view={view} go={go}/><div className="sidebar-bottom"><div className="local-card"><span className="online-dot"/><strong>Todo en tu equipo</strong><p>Tu espacio de producción local, siempre a mano.</p><ShieldCheck size={18}/></div><span className="sidebar-foot"><CircleHelp size={16}/> Stream Buddy <small>v0.3</small></span></div></aside>{menu&&<button className="sidebar-scrim" aria-label="Cerrar menú" onClick={()=>setMenu(false)}/>}
- <div className="main-shell"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Abrir menú" onClick={()=>setMenu(true)}><Menu/></Button><span>Espacio de trabajo</span><ChevronRight size={14}/><strong>{currentTitle}</strong></div><TikTokConnection state={state} online={online} api={api}/></header>
+ return <div className="app-shell" ref={appShell}><aside className={menu?'sidebar mobile-open':'sidebar'}><a className="brand" href="/" onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();go('home');}}} aria-label="Stream Buddy inicio"><span className="brand-mark"><AudioLines/></span><span>stream<span className="brand-light"> buddy</span><small>CENTRO DE DIRECTO</small></span></a>
+ {state?.profiles ? <ProfilePicker key={profileId} profiles={state.profiles} online={online} connected={Boolean(t?.connected || t?.connecting)} api={api} notice={notice} dialogRoot={appShell}/>
+   : <div className="workspace"><span className="avatar">SB</span><span>Mi espacio de trabajo<small>Personal · Local</small></span><Badge>LOCAL</Badge></div>}
+ <SidebarNavigation view={view} go={go}/><div className="sidebar-bottom"><div className="local-card"><span className="online-dot"/><strong>Todo en tu equipo</strong><p>Tu espacio de producción local, siempre a mano.</p><ShieldCheck size={18}/></div><span className="sidebar-foot"><CircleHelp size={16}/> Stream Buddy <small>v0.3</small></span></div></aside>{menu&&<button className="sidebar-scrim" aria-label="Cerrar menú" onClick={()=>setMenu(false)}/>}
+ <div className="main-shell"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Abrir menú" onClick={()=>setMenu(true)}><Menu/></Button><span>Espacio de trabajo</span><ChevronRight size={14}/><strong>{currentTitle}</strong></div><TikTokConnection key={profileId} state={state} online={online} api={api}/></header>
+ <StudioProfileContext.Provider key={profileId} value={profileId}>
  <main>{view !== 'home' && view !== 'spotify' && view !== 'notifications' && view !== 'likes' && view !== 'gifters' && view !== 'auction' && view !== 'commands' && view !== 'social' && view !== 'banners' && view !== 'layout' && !view?.startsWith('layout:') && <div className="page-heading"><div><p className="eyebrow">Tu espacio. Tu directo.</p><h1>{view==='tts'?'La voz de tu comunidad.':'Tus anuncios, en orden.'}</h1><p className="muted">{view==='tts'?'Haz que cada mensaje forme parte del directo.': 'Prepara y controla tu herramienta desde tu espacio de trabajo.'}</p></div></div>}
  {view==='home'&&<Home widgets={widgets} state={state} online={online} open={open} notice={notice}/>}
  <div hidden={view!=='tts'}>{state?<VoiceStudio state={state} api={api} notice={notice}/>:<Card className="loading" role="status">Conectando con tu estudio…</Card>}</div>
@@ -78,7 +87,7 @@ export default function App(){
  <div hidden={view!=='banners'}>{state?.tools.banners?<BannersStudio tool={state.tools.banners} api={api} notice={notice} online={online}/>:view==='banners'&&<Card>Reinicia Stream Buddy para cargar Ad Banner Rotator.</Card>}</div>
  <div hidden={view!=='commands'}>{state?.tools.commands&&<CommandsStudio tool={state.tools.commands} api={api} notice={notice} online={online} connected={online&&t?.connected}/>}</div>
  <div hidden={view!=='spotify'}>{state?.tools.spotify?<SpotifyStudio tool={state.tools.spotify} api={api} notice={notice} online={online}/>:view==='spotify'&&<Card className="loading" role="status">{state?'Reinicia Stream Buddy para cargar el módulo de música.':'Conectando con tu estudio…'}</Card>}</div>
- <footer><span><span className="online-dot"/> Hecho para tu próximo directo.</span><span>Stream Buddy <span className="footer-separator">/</span> Tu producción, bajo control.</span></footer></main></div><ToastRegion toasts={toasts} onDismiss={dismissToast}/></div>;
+ <footer><span><span className="online-dot"/> Hecho para tu próximo directo.</span><span>Stream Buddy <span className="footer-separator">/</span> Tu producción, bajo control.</span></footer></main></StudioProfileContext.Provider></div><ToastRegion toasts={toasts} onDismiss={dismissToast}/></div>;
 }
 function ToolView({id,tool,api,notice}){const url=tool?.url||(id==='layout'?'http://localhost:8787':'http://127.0.0.1:17843');return <Card className="tool-view"><div className="tool-toolbar"><strong>{id==='layout'?'Layout Studio':'AdQueue'}</strong><div className="actions"><Button variant="outline" size="sm" onClick={()=>api('start',{tool:id})} disabled={tool?.starting}><RefreshCw size={14}/>Iniciar / reconectar</Button><Button asChild variant="outline" size="sm"><a href={url} target="_blank" rel="noopener noreferrer">Abrir aparte<ExternalLink size={14}/></a></Button>{id==='ads'&&<CopyLinkButton url={adQueueOutputURL(url)} notice={notice} message="Enlace de salida copiado." size="sm"><Copy size={14}/>Copiar salida</CopyLinkButton>}</div></div>{tool?.running?<iframe src={url} title={id==='layout'?'Layout Studio':'AdQueue'} allow="autoplay; clipboard-write"/>:<div className="tool-empty"><Monitor size={38}/><h2>{tool?.starting?'Preparando tu herramienta…':'Tu herramienta está detenida'}</h2><p>{tool?.error||(!tool?.available?'No se encontraron los archivos de la herramienta. Revisa su instalación.':'Inicia la herramienta para abrir su espacio de trabajo.')}</p></div>}</Card>;}
 

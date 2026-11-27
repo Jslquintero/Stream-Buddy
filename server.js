@@ -1,14 +1,15 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { Center } from './backend/center.js';
+import { StudioProfiles } from './backend/profiles.js';
 import { createDashboardServer } from './backend/http.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.STUDIO_PORT || 17900);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('STUDIO_PORT debe estar entre 1024 y 65535');
-const center = new Center({ root });
-const dashboard = createDashboardServer(center);
+const profiles = new StudioProfiles(root);
+const center = profiles.open();
+const dashboard = createDashboardServer(center, profiles);
 dashboard.server.once('error', async error => {
   console.error(error.code === 'EADDRINUSE' ? `El puerto ${port} está ocupado. Cierra la versión anterior antes de iniciar Node.` : error.message);
   await dashboard.close(); process.exitCode = 1;

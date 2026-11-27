@@ -1,6 +1,7 @@
 import { MediaFileField } from './ui/file-picker';
 import { OutputLinks, OutputToolbar } from './output-controls';
 import { useEffect, useRef, useState } from 'react';
+import { useProfileChangeGuard } from '../hooks/use-studio-profile';
 import {
   Copy,
   Film,
@@ -272,6 +273,7 @@ export function CommandsStudio({ tool, api, notice, online, connected }) {
   const [saved, setSaved] = useState(tool.config);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  useProfileChangeGuard(dirty || busy);
   const [selectedId, setSelectedId] = useState(tool.config.commands[0]?.id ?? null);
   const [editorId, setEditorId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);

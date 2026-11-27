@@ -73,12 +73,14 @@ export function useStudio(output) {
     return () => stream.close();
   }, [output, notice]);
 
+  const token = state?.token;
   const api = useCallback(async (action, body = {}, options = {}) => {
     try {
       if (!current.current) throw new Error('Espera a que el centro termine de conectar.');
+      if (current.current.token !== token) throw new Error('El perfil activo ha cambiado.');
       const response = await fetch('/api/' + action, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Studio': current.current.token },
+        headers: { 'Content-Type': 'application/json', 'X-Studio': token },
         body: JSON.stringify(body),
       });
       const result = await response.json();
@@ -89,7 +91,7 @@ export function useStudio(output) {
       if(options.throwOnError)throw error;
       return false;
     }
-  }, [notice]);
+  }, [notice, token]);
 
   return { state, notice, toasts, dismissToast, online, api };
 }

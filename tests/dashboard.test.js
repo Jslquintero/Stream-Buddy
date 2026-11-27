@@ -243,9 +243,18 @@ test('direct module routes survive a fresh mount and TikTok connects from the na
   }
   window.document.querySelector('.tiktok-trigger').click();await pause();
   assert.equal(window.document.querySelectorAll('#tiktok-panel').length,1);
+  assert.doesNotMatch(window.document.querySelector('#tiktok-panel').textContent, /Conector de comentarios/);
   window.document.querySelector('#tiktok-panel form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await pause();
   assert.deepEqual(requests.filter(r=>r.url==='/api/settings'||r.url==='/api/connect').map(r=>r.url),['/api/settings','/api/connect']);
   assert.equal(requests.find(r=>r.url==='/api/settings').body.Username,'nuevo');
+  if (path === '/layout') {
+   state.tts.connector = false;
+   stream.onmessage({data:JSON.stringify(state)});
+   const prepareTikTok = () => [...window.document.querySelectorAll('#tiktok-panel button')].find(button => button.textContent === 'Preparar TikTok');
+   await until(prepareTikTok);
+   prepareTikTok().click();
+   await until(() => requests.some(r => r.url === '/api/install'));
+  }
   assert.equal(window.location.pathname,path);
   window.document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await pause();
   assert.equal(window.document.querySelector('#tiktok-panel'),null);

@@ -14,6 +14,14 @@ node server.js --no-browser
 
 Si Node todavía no está en PATH, vuelve a abrir la terminal o usa `Iniciar.cmd`. Cierra el antiguo servidor Python si ocupa el puerto 17900. `STUDIO_PORT` permite elegir otro puerto para el panel sin cambiar los enlaces de los módulos.
 
+## Perfiles locales
+
+En **Perfil local**, usa **+** para crear un perfil y el selector para activarlo. Cada perfil guarda su usuario de TikTok, voz, escenas, widgets y clasificaciones. **Principal** conserva los datos de la instalación actual. Los perfiles nuevos empiezan con los valores predeterminados y se guardan en `data/profiles/`.
+
+La papelera elimina el perfil activo del selector y vuelve a **Principal**, que está protegido. Los datos del perfil eliminado se conservan como copia de recuperación en `data/deleted-profiles/`.
+
+Hay un perfil activo por instalación. Las salidas generales muestran sus datos con las mismas URL. Cada composición guardada tiene su propio enlace dentro del perfil donde se creó. Si hay un directo conectado, el cambio cierra esa conexión. AdQueue conserva sus propios ajustes fuera de Live Studio.
+
 ## Arquitectura
 
 ```text

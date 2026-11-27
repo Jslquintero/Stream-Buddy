@@ -6,10 +6,12 @@ import { DownloadButton } from './ui/download-button';
 import { FilePicker } from './ui/file-picker';
 import { Badge, Button, Card, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from './ui';
 import { Field, Setting, Toggle } from './fields';
+import { useProfileChangeGuard } from '../hooks/use-studio-profile';
 
 export function VoiceStudio({ state, api, notice }) {
  const [settings,setSettings]=useState(()=>({...state.settings,Engine:migrateVoiceEngine(state.settings.Engine)}));
  const [dirty,setDirty]=useState(false),[tab,setTab]=useState('voice'),[preview,setPreview]=useState('Hola, bienvenidos al directo.'),[comment,setComment]=useState(''),[saving,setSaving]=useState(false);
+ useProfileChangeGuard(dirty || saving);
  const t=state.tts,r=t.resources||{},task=r.task;
  const configured=useRef(r.configured?.id);
  const pocketVoiceReady=typeof state.settings.PocketVoice==='string';

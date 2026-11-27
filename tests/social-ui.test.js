@@ -64,6 +64,66 @@ async function openEditor(doc, tab, name = 'Instagram') {
   return dialog;
 }
 
+test('local profile picker keeps separate browser drafts when changing profiles', async t => {
+  const { window, requests, publish } = await mount(t, '/social');
+  const doc = window.document;
+  const principal = { id: 'default', name: 'Principal' };
+  const secondary = { id: 'secondary', name: 'Segundo' };
+  const base = {
+    token: 'principal-token', settings: defaults, tts: { resources: {}, queued: 0 }, events: [],
+    tools: { layout: {}, ads: {}, social: { config: defaultSocial, revision: 10 } },
+  };
+  const key = 'live-studio.social.pending.v1';
+  window.localStorage.setItem(key, JSON.stringify({ config: { ...defaultSocial, heading: 'Borrador principal' } }));
+  window.localStorage.setItem(key + '.profile.secondary', JSON.stringify({ config: { ...defaultSocial, heading: 'Borrador segundo' } }));
+  const switcher = () => doc.querySelector('.profile-picker select');
+  const deleteProfile = () => doc.querySelector('[aria-label="Eliminar perfil"]');
+  const confirmation = () => doc.querySelector('.profile-confirmation[role="alertdialog"]');
+  const dialogButton = label => [...confirmation().querySelectorAll('button')].find(button => button.textContent === label);
+  const heading = () => doc.querySelector('.social-preview .social-heading')?.textContent;
+  window.confirm = () => assert.fail('Profile confirmations must be rendered in the dashboard');
+  publish({ ...base, profiles: { activeId: principal.id, items: [principal] } });
+  await until(() => heading() === 'Borrador principal');
+  assert.equal(deleteProfile().disabled, true);
+  doc.querySelector('[aria-label="Nuevo perfil"]').click();
+  await until(() => doc.querySelector('[aria-label="Nombre del perfil"]'));
+  const name = doc.querySelector('[aria-label="Nombre del perfil"]');
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(name, secondary.name);
+  name.dispatchEvent(new window.Event('input', { bubbles: true }));
+  doc.querySelector('.profile-picker-form button').click();
+  await until(() => requests.some(request => request.url === '/api/profiles/create' && request.body.name === secondary.name));
+
+  const items = [principal, secondary];
+  publish({ ...base, tts: { ...base.tts, connected: true }, profiles: { activeId: principal.id, items } });
+  await until(() => switcher()?.options.length === 2 && !switcher().disabled);
+  switcher().value = secondary.id;
+  switcher().dispatchEvent(new window.Event('change', { bubbles: true }));
+  await until(confirmation);
+  assert.equal(confirmation().querySelector('h2').textContent, 'Cambiar a Segundo');
+  assert.ok(!requests.some(request => request.url === '/api/profiles/activate'));
+  dialogButton('Cambiar de perfil').click();
+  await until(() => requests.some(request => request.url === '/api/profiles/activate' && request.body.id === secondary.id));
+  publish({ ...base, token: 'second-token', profiles: { activeId: secondary.id, items } });
+  await until(() => heading() === 'Borrador segundo');
+  assert.equal(switcher().value, secondary.id);
+
+  deleteProfile().click();
+  await until(confirmation);
+  assert.equal(confirmation().querySelector('h2').textContent, 'Eliminar Segundo');
+  assert.equal(confirmation().closest('.sidebar'), null);
+  await until(() => doc.activeElement === dialogButton('Cancelar'));
+  dialogButton('Cancelar').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await until(() => !confirmation());
+  assert.ok(!requests.some(request => request.url === '/api/profiles/delete'));
+  deleteProfile().click();
+  await until(confirmation);
+  dialogButton('Eliminar perfil').click();
+  await until(() => requests.some(request => request.url === '/api/profiles/delete' && request.body.id === secondary.id));
+  publish({ ...base, token: 'restored-token', profiles: { activeId: principal.id, items: [principal] } });
+  await until(() => switcher().value === principal.id && switcher().options.length === 1);
+  assert.equal(deleteProfile().disabled, true);
+});
+
 test('Social Media Rotator previews channels, rotates manually and autosaves the design', async t => {
   const { window, requests, publish } = await mount(t, '/social');
   publish({

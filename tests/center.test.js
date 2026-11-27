@@ -10,6 +10,7 @@ import { LocalToolModule } from '../backend/modules/local-tool.js';
 import { ProcessManager } from '../backend/processes.js';
 import { Center } from '../backend/center.js';
 import { createDashboardServer } from '../backend/http.js';
+import { StudioProfiles } from '../backend/profiles.js';
 import { createLayoutModule } from '../backend/modules/layout.js';
 import { defaultLayout } from '../shared/layout.js';
 
@@ -315,4 +316,92 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.deepEqual(Object.keys(firstOutput.tools), ['likes']);
   assert.match(outputEvents, /^retry: 350$/m);
   assert.match(outputEvents, /event: rotate\ndata: \{\}\n\n$/);
+});
+
+test('local profiles keep data separate and switch the active dashboard and live output', async t => {
+  const temporary = fs.mkdtempSync(path.join(root, 'tests', 'scratch-profiles-'));
+  const app = path.join(temporary, 'app');
+  const legacy = path.join(temporary, 'tts');
+  fs.mkdirSync(legacy);
+  fs.writeFileSync(path.join(legacy, 'settings.json'), JSON.stringify({ ...defaults, Username: 'principal' }));
+  const profiles = new StudioProfiles(app);
+  const principal = profiles.open();
+  principal.social.save({ ...principal.social.state().config, heading: 'Redes de Principal' });
+  principal.likes.receive({ userId: 'p1', user: 'Ana', count: 4 }, 'principal');
+  const dashboard = createDashboardServer(principal, profiles);
+  t.after(async () => {
+    await dashboard.close();
+    fs.rmSync(temporary, { recursive: true });
+  });
+  await new Promise(resolve => dashboard.server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${dashboard.server.address().port}`;
+  const state = async () => (await fetch(base + '/api/state')).json();
+  const post = (action, payload, token) => fetch(base + '/api/' + action, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Studio': token }, body: JSON.stringify(payload),
+  });
+  const initial = await state();
+  assert.equal(initial.profiles.activeId, 'default');
+  assert.equal(initial.settings.Username, 'principal');
+  assert.equal((await post('profiles/delete', { id: 'default' }, initial.token)).status, 400);
+  assert.equal((await post('profiles/create', { name: ' Segundo ' }, initial.token)).status, 200);
+  assert.equal((await post('profiles/create', { name: 'segundo' }, initial.token)).status, 400);
+  const { id } = (await state()).profiles.items.find(profile => profile.name === 'Segundo');
+  assert.equal((await post('profiles/activate', { id: '../data' }, initial.token)).status, 400);
+  const closing = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const closePrincipal = principal.close.bind(principal);
+  principal.close = async () => {
+    closing.resolve();
+    await release.promise;
+    await closePrincipal();
+  };
+  const activation = post('profiles/activate', { id }, initial.token);
+  try {
+    await closing.promise;
+    const duringSwitch = await state();
+    assert.equal(duringSwitch.profiles.activeId, 'default');
+    assert.equal(duringSwitch.settings.Username, 'principal');
+    assert.equal((await post('settings', defaults, initial.token)).status, 409);
+  } finally { release.resolve(); }
+  assert.equal((await activation).status, 200);
+  const second = await state();
+  assert.equal(second.profiles.activeId, id);
+  assert.equal(second.settings.Username, '');
+  assert.equal(second.tools.likes.total, 0);
+  assert.notEqual(second.tools.social.config.heading, initial.tools.social.config.heading);
+  assert.equal((await post('settings', { ...defaults, Username: 'fuera-de-perfil' }, initial.token)).status, 403);
+  assert.equal((await post('settings', { ...defaults, Username: 'segundo' }, second.token)).status, 200);
+  assert.equal(new StudioProfiles(app).state().activeId, id);
+
+  const live = await fetch(base + '/api/events?output=social', { signal: AbortSignal.timeout(5000) });
+  const reader = live.body.getReader();
+  try {
+    const decoder = new TextDecoder();
+    assert.match(decoder.decode((await reader.read()).value), /SÍGUEME EN/);
+    assert.equal((await post('profiles/activate', { id: 'default' }, second.token)).status, 200);
+    let received = '';
+    while (!received.includes('Redes de Principal')) {
+      const update = await reader.read();
+      if (update.done) break;
+      received += decoder.decode(update.value, { stream: true });
+    }
+    assert.match(received, /Redes de Principal/);
+  } finally {
+    await reader.cancel();
+  }
+  const returned = await state();
+  assert.equal(returned.settings.Username, 'principal');
+  assert.equal(returned.tools.likes.total, 4);
+  assert.equal((await post('profiles/activate', { id }, returned.token)).status, 200);
+  const editing = await state();
+  assert.equal(editing.settings.Username, 'segundo');
+  assert.equal((await post('profiles/delete', { id }, editing.token)).status, 200);
+  const afterDelete = await state();
+  assert.equal(afterDelete.profiles.activeId, 'default');
+  assert.deepEqual(afterDelete.profiles.items.map(profile => profile.name), ['Principal']);
+  assert.equal(afterDelete.settings.Username, 'principal');
+  const archive = path.join(app, 'data', 'deleted-profiles', id);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(archive, 'tts.json'), 'utf8')).Username, 'segundo');
+  assert.equal(fs.existsSync(path.join(app, 'data', 'profiles', id)), false);
+  assert.equal((await post('profiles/activate', { id }, afterDelete.token)).status, 400);
 });

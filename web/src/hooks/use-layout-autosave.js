@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useProfileChangeGuard } from './use-studio-profile';
 
 export function useLayoutAutosave(remote, remoteRevision, api, paused=false) {
   const [draft,setValue]=useState(remote),[dirty,setDirty]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState('');
+  useProfileChangeGuard(dirty || saving || paused);
   const current=useRef(remote),edited=useRef(false),version=useRef(0),inFlight=useRef(false),minimumRevision=useRef(0),pause=useRef(paused);
   pause.current=paused;
   useEffect(()=>{
