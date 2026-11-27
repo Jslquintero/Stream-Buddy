@@ -16,20 +16,20 @@ export function filterText(text, s) {
 }
 
 export class TTSModule {
-  constructor({ root, dataDir, settings, processes, log, changed, onLiveEvent = () => {}, onComment = () => false }) {
+  constructor({ root, dataDir, desktop, settings, processes, log, changed, onLiveEvent = () => {}, onComment = () => false }) {
     this.onLiveEvent = onLiveEvent;
     this.onComment = onComment;
-    Object.assign(this, { root, dataDir, settings, processes, log, changed });
+    Object.assign(this, { root, dataDir, desktop, settings, processes, log, changed });
     this.queue = []; this.cooldowns = new Map(); this.paused = false;
     this.speaker = null; this.bridge = null; this.installing = false; this.connected = false; this.closing = false; this.stopping = false;
     this.moduleDir = path.join(root, 'modules', 'tts');
-    this.resources = new TTSResources({ root, settings, processes, log, changed: () => { changed(); if (!this.resources?.task?.running) queueMicrotask(() => this.pump()); } });
+    this.resources = new TTSResources({ root, desktop, settings, processes, log, changed: () => { changed(); if (!this.resources?.task?.running) queueMicrotask(() => this.pump()); } });
     this.current = null; this.lastError = null; this.metrics = { accepted: 0, filtered: 0, completed: 0 };
   }
   connectorPython() {
     return [path.join(this.moduleDir, '.venv', 'Scripts', 'python.exe'), path.join(this.root, '..', 'tts', '.venv', 'Scripts', 'python.exe')].find(file => fs.existsSync(file)) || null;
   }
-  state() { return { connectorMode: 'euler', queued: this.queue.length, paused: this.paused, speaking: !!this.speaker, connected: this.connected, connecting: !!this.bridge && !this.connected, connector: !!this.connectorPython(), installing: this.installing, items: this.queue.map(job => ({ id: job.id, user: job.user, text: job.Text, preview: !!job.preview })), current: this.current, lastError: this.lastError, metrics: { ...this.metrics }, resources: this.resources.state() }; }
+  state() { return { connectorMode: 'euler', queued: this.queue.length, paused: this.paused, speaking: !!this.speaker, connected: this.connected, connecting: !!this.bridge && !this.connected, connector: !!(this.desktop?.connector || this.connectorPython()), installing: this.installing, items: this.queue.map(job => ({ id: job.id, user: job.user, text: job.Text, preview: !!job.preview })), current: this.current, lastError: this.lastError, metrics: { ...this.metrics }, resources: this.resources.state() }; }
   enqueue(user, raw) {
     const s = this.settings.read();
     if (!s.Enabled) return 'TTS desactivado';
@@ -63,7 +63,7 @@ export class TTSModule {
     try {
       if (job.Engine === 'PocketTTS') {
         job.PocketExe = this.resources.pocketPath();
-        if (!job.PocketExe) throw new Error('Pulsa Preparar Pocket TTS para instalar el motor de voz.');
+        if (!job.PocketExe) throw new Error(this.desktop ? 'Falta Pocket TTS. Vuelve a instalar Stream Buddy.' : 'Pulsa Preparar Pocket TTS para instalar el motor de voz.');
       }
       fs.writeFileSync(file, JSON.stringify(job), 'utf8');
       fs.rmSync(file + '.error', { force: true });
@@ -99,12 +99,14 @@ export class TTSModule {
   connect() {
     if (this.installing) throw new Error('Espera a que termine la instalación del conector');
     if (this.bridge) throw new Error('Ya hay una conexión activa');
-    const python = this.connectorPython();
-    if (!python) throw new Error('Instala el conector primero');
+    const executable = this.desktop?.connector || this.connectorPython();
+    if (!executable) throw new Error('Instala el conector primero');
     const username = this.settings.read().Username.trim().replace(/^@/, '');
     if (!/^[a-zA-Z0-9_.]{1,64}$/.test(username)) throw new Error('Guarda un usuario de TikTok válido');
     let diagnostic = '';
-    const child = this.processes.start(python, [path.join(this.moduleDir, 'bridge.py'), username], line => {
+    const args = this.desktop ? [username] : [path.join(this.moduleDir, 'bridge.py'), username];
+    const options = this.desktop ? { env: { ...process.env, STUDIO_BRIDGE_LOG: path.join(this.dataDir, 'bridge-events.jsonl') } } : undefined;
+    const child = this.processes.start(executable, args, line => {
       if (this.bridge !== child) return;
       try {
         const event = JSON.parse(line);
@@ -117,7 +119,7 @@ export class TTSModule {
         }
       } catch { if (line.trim()) { diagnostic = line.trim().slice(0,700); this.log(line); } }
       this.changed();
-    });
+    }, options);
     this.bridge = child; this.lastError = null;
     const finish = code => {
       if (this.bridge !== child) return;
@@ -137,6 +139,7 @@ export class TTSModule {
     finally { this.disconnecting = false; this.connected = false; this.changed(); }
   }
   async install() {
+    if (this.desktop) return;
     if (this.installing) return;
     if (this.bridge) throw new Error('Desconecta el LIVE antes de instalar el conector');
     this.installing = true; this.lastError = null; this.changed();

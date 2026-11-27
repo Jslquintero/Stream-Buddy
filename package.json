@@ -11,6 +11,8 @@
     "prestart": "npm run build",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "desktop:prepare": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-desktop.ps1",
+    "desktop:build": "npm run desktop:prepare && tauri build --target x86_64-pc-windows-msvc --config src-tauri/tauri.local.conf.json -- --locked",
     "test": "npm run build && node --test --test-isolation=none tests/*.test.js",
     "check": "npm run build && node --check server.js && node --check backend/http.js"
   },
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
+    "@tauri-apps/cli": "2.12.6",
     "@vitejs/plugin-react": "^6.3.0",
     "jsdom": "^31.0.1",
     "tailwindcss": "^4.3.5",

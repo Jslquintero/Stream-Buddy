@@ -13,7 +13,7 @@ export class TTSResources {
     const file = path.join(this.pocketDirectory, 'pocket-tts.exe');
     return fs.statSync(file, { throwIfNoEntry: false })?.isFile() ? file : '';
   }
-  state() { return { voices: this.voices, devices: this.devices, pocketSetupAvailable: true, pocketInstalled: !!this.pocketPath(), task: this.task, error: this.error, configured: this.configured }; }
+  state() { return { voices: this.voices, devices: this.devices, pocketBundled: !!this.desktop, pocketSetupAvailable: !this.desktop, pocketInstalled: !!this.pocketPath(), task: this.task, error: this.error, configured: this.configured }; }
   async jsonScript(name) {
     const lines = [];
     await this.processes.run('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', path.join(this.directory, name)], line => lines.push(line));
@@ -44,6 +44,7 @@ export class TTSResources {
     });
   }
   installPocket() {
+    if (this.desktop) throw new Error('Pocket TTS viene incluido en Stream Buddy.');
     return this.runTask('Preparar Pocket TTS', async signal => {
       const tools = path.dirname(this.pocketDirectory);
       fs.mkdirSync(tools, { recursive: true });

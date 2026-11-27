@@ -1,0 +1,10 @@
+Spanish Pocket TTS model, tokenizer and Lola embedding by Kyutai.
+https://huggingface.co/kyutai/pocket-tts-without-voice-cloning
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+
+Lola is derived from Spanish Mozilla Common Voice (CC0).
+https://huggingface.co/kyutai/tts-voices
+
+Stream Buddy adapts Kyutai's spanish.yaml to reference the installed weights
+and tokenizer locally. The model weights, tokenizer and embedding are unmodified.

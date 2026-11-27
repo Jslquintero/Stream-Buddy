@@ -17,11 +17,11 @@ import { createSocialModule } from '../modules/social/index.js';
 import { createBannersModule } from '../modules/banners/index.js';
 
 export class Center extends EventEmitter {
-  constructor({ root, dataDir = path.join(root, 'data'), processes, tools, legacyFile = path.resolve(root, '..', 'tts', 'settings.json') } = {}) {
+  constructor({ root, dataDir = path.join(root, 'data'), processes, tools, legacyFile = path.resolve(root, '..', 'tts', 'settings.json'), desktop } = {}) {
     super(); this.root = root; this.events = []; this.closing = false;
-    this.settings = new SettingsStore(dataDir, legacyFile);
+    this.settings = new SettingsStore(dataDir, legacyFile, desktop ? 'PocketTTS' : 'Windows');
     this.processes = processes || new ProcessManager(text => this.log(text));
-    const context = { root, dataDir, settings: this.settings, processes: this.processes, log: text => this.log(text), changed: () => this.changed() };
+    const context = { root, dataDir, desktop, settings: this.settings, processes: this.processes, log: text => this.log(text), changed: () => this.changed() };
     this.notifications = createNotificationsModule(context);
     this.spotify = createSpotifyModule(context);
     this.likes = createLikesModule(context);

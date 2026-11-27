@@ -1,0 +1,132 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      RELEASE_REPOSITORY: ${{ vars.RELEASE_REPOSITORY || github.repository }}
+      SOURCE_PRIVATE: ${{ github.event.repository.private }}
+      TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          architecture: x64
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Configure signed release
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($version -notmatch '^\d+\.\d+\.\d+$' -or $env:GITHUB_REF_NAME -cne "v$version") {
+            throw "The stable tag must match package.json (v$version)."
+          }
+          if ($env:RELEASE_REPOSITORY -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+            throw 'RELEASE_REPOSITORY must be owner/repository.'
+          }
+          if ($env:SOURCE_PRIVATE -eq 'true' -and $env:RELEASE_REPOSITORY -eq $env:GITHUB_REPOSITORY) {
+            throw 'Set RELEASE_REPOSITORY to a public distribution repository.'
+          }
+          if (!$env:TAURI_UPDATER_PUBKEY) { throw 'Set the TAURI_UPDATER_PUBKEY repository variable.' }
+          New-Item -ItemType Directory -Force -Path .tmp | Out-Null
+          @{
+            plugins = @{
+              updater = @{
+                pubkey = $env:TAURI_UPDATER_PUBKEY.Trim()
+                endpoints = @("https://github.com/$env:RELEASE_REPOSITORY/releases/latest/download/latest.json")
+                requireSignedVersion = $true
+                windows = @{ installMode = 'passive' }
+              }
+            }
+          } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath .tmp/tauri-release.json -Encoding utf8
+
+      - name: Install and test
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run desktop:prepare
+
+      - name: Build and sign Windows x64 installer
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (!$env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Set the TAURI_SIGNING_PRIVATE_KEY secret.' }
+          npm exec -- tauri build --ci --target x86_64-pc-windows-msvc --config .tmp/tauri-release.json -- --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Create updater manifest and publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ vars.RELEASE_REPOSITORY && vars.RELEASE_REPOSITORY != github.repository && secrets.RELEASE_REPOSITORY_TOKEN || github.token }}
+        run: |
+          $visibility = gh repo view $env:RELEASE_REPOSITORY --json visibility --jq .visibility
+          if ($LASTEXITCODE -ne 0 -or $visibility -ne 'PUBLIC') { throw 'The destination must be a public GitHub repository.' }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = $env:GITHUB_REF_NAME
+          $bundle = 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis'
+          $installer = @(Get-ChildItem -LiteralPath $bundle -Filter "*_${version}_x64-setup.exe")
+          if ($installer.Count -ne 1) { throw "Expected one Windows x64 installer for $version." }
+          $exe = $installer[0].FullName
+          $signature = (Get-Content -Raw -LiteralPath "$exe.sig").Trim()
+          if (!$signature) { throw 'The installer signature is empty.' }
+          $publicKeyText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:TAURI_UPDATER_PUBKEY.Trim()))
+          $signatureText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($signature))
+          $signatureLines = $signatureText -split '\r?\n'
+          $publicKey = [Convert]::FromBase64String(($publicKeyText -split '\r?\n')[1])
+          $signedPacket = [Convert]::FromBase64String($signatureLines[1])
+          # Minisign stores its 8-byte key ID after the 2-byte algorithm field.
+          if ([BitConverter]::ToString($publicKey, 2, 8) -cne [BitConverter]::ToString($signedPacket, 2, 8) -or
+              ($signatureLines[2] -split "`t") -cnotcontains "version:$version") {
+            throw 'The updater signature does not match the configured public key and release version.'
+          }
+          $output = New-Item -ItemType Directory -Force -Path .tmp/release
+          Copy-Item -LiteralPath $exe -Destination "$output/StreamBuddy-Setup.exe"
+          Copy-Item -LiteralPath "$exe.sig" -Destination "$output/StreamBuddy-Setup.exe.sig"
+          @{
+            version = $version
+            pub_date = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+            platforms = @{
+              'windows-x86_64' = @{
+                signature = $signature
+                url = "https://github.com/$env:RELEASE_REPOSITORY/releases/download/$tag/StreamBuddy-Setup.exe"
+              }
+            }
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$output/latest.json" -Encoding utf8
+
+          $draft = gh release view $tag --repo $env:RELEASE_REPOSITORY --json isDraft --jq .isDraft
+          if ($LASTEXITCODE -ne 0) {
+            $tagOption = if ($env:RELEASE_REPOSITORY -eq $env:GITHUB_REPOSITORY) { @('--verify-tag') } else { @() }
+            gh release create $tag --repo $env:RELEASE_REPOSITORY --draft --title "Stream Buddy $version" --generate-notes @tagOption
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } elseif ($draft -ne 'true') {
+            throw "Release $tag is already published."
+          }
+          gh release upload $tag --repo $env:RELEASE_REPOSITORY --clobber "$output/StreamBuddy-Setup.exe" "$output/StreamBuddy-Setup.exe.sig" "$output/latest.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          gh release edit $tag --repo $env:RELEASE_REPOSITORY --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -7,9 +7,10 @@ const principal = { id: 'default', name: 'Principal' };
 const profileId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 
 export class StudioProfiles {
-  constructor(root) {
+  constructor(root, { dataDir = path.join(root, 'data'), desktop } = {}) {
     this.root = root;
-    this.dataDir = path.join(root, 'data');
+    this.dataDir = dataDir;
+    this.desktop = desktop;
     this.file = path.join(this.dataDir, 'profiles.json');
     this.current = { activeId: principal.id, items: [principal] };
     try {
@@ -43,8 +44,13 @@ export class StudioProfiles {
 
   open(id = this.current.activeId) {
     if (!this.current.items.some(item => item.id === id)) throw new Error('Perfil desconocido');
-    if (id === principal.id) return new Center({ root: this.root, dataDir: this.dataDir });
-    return new Center({ root: this.root, dataDir: path.join(this.dataDir, 'profiles', id), legacyFile: null });
+    const primary = id === principal.id;
+    return new Center({
+      root: this.root,
+      dataDir: primary ? this.dataDir : path.join(this.dataDir, 'profiles', id),
+      legacyFile: primary && !this.desktop ? undefined : null,
+      desktop: this.desktop,
+    });
   }
 
   activate(id) { this.save({ ...this.current, activeId: id }); }

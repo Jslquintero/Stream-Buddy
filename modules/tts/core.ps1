@@ -27,7 +27,17 @@ function Invoke-PocketSpeech {
     if (Test-Path -LiteralPath $Wav) { Remove-Item -LiteralPath $Wav -Force }
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $Executable
-    $info.Arguments = 'generate --quiet --language spanish ' +
+    $model = Join-Path (Split-Path -Parent $Executable) 'spanish.yaml'
+    $modelArguments = '--language spanish'
+    if (Test-Path -LiteralPath $model -PathType Leaf) {
+        $info.WorkingDirectory = Split-Path -Parent $model
+        $modelArguments = '--config spanish.yaml'
+        if ($Voice -eq 'lola') { $Voice = 'lola.safetensors' }
+        else {
+            $Voice = "hf://kyutai/pocket-tts-without-voice-cloning/languages/spanish/embeddings/$Voice.safetensors@a3055dcb533cf2ec90458008a01e7cef550bae2a"
+        }
+    }
+    $info.Arguments = "generate --quiet $modelArguments " +
         (Quote-NativeArgument "--voice=$Voice") + ' ' +
         (Quote-NativeArgument "--text=$Text") + ' ' +
         (Quote-NativeArgument "--output-path=$Wav")

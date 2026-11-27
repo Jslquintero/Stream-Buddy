@@ -39,19 +39,19 @@ export function VoiceStudio({ state, api, notice }) {
  };
  return <>
  <div className="section-heading"><div><h2>Estudio de voz</h2><p className="muted">Una voz que suena como tu comunidad.</p></div><Button variant="outline" disabled={task?.running} onClick={()=>api('tts/refresh')}><RefreshCw size={15}/>Detectar voces y audio</Button></div>
- {!r.pocketSetupAvailable&&<p role="alert" className="notice notice-warning">Reinicia Stream Buddy para cargar la versión actual del servidor.</p>}
+ {!r.pocketBundled&&!r.pocketSetupAvailable&&<p role="alert" className="notice notice-warning">Reinicia Stream Buddy para cargar la versión actual del servidor.</p>}
  {task&&<Card className="task" role="status"><strong>{task.name}</strong><p>{task.message}</p><progress max="100" value={task.progress||0}/></Card>}
- <Card className="voice-setup">
+ {!r.pocketBundled&&<Card className="voice-setup">
   <div><h3>Pocket TTS</h3><p className="muted">{r.configured?'Motor y modelo en español preparados.':r.pocketInstalled?'Ejecutable instalado. Prepara el modelo en español y comprueba la voz guardada.':'Instala el motor local y descarga el modelo en español.'}</p></div>
   <Button disabled={!r.pocketSetupAvailable||task?.running||t.speaking} onClick={()=>api('tts/install-pocket')}>Preparar Pocket TTS</Button>
- </Card>
+ </Card>}
  <div className="voice-grid"><Card className="settings-card"><form onSubmit={e=>{e.preventDefault();void save();}}>
  <Tabs value={tab} onValueChange={setTab}><TabsList><TabsTrigger value="voice">Voz y audio</TabsTrigger><TabsTrigger value="rules">Lectura y filtros</TabsTrigger><TabsTrigger value="library">Biblioteca</TabsTrigger></TabsList>
  <TabsContent value="voice">
   <div className="panel-heading"><span className="module-icon mint"><AudioLines/></span><div><h3>Tu identidad sonora</h3><p className="muted">Elige cómo quieres sonar en el directo.</p></div></div>
   {toggle('Enabled','Lectura de comentarios','Activa la voz de tu comunidad.')}
   {field('Engine','Motor de voz',{options:[{id:'Windows',name:'Windows · voces instaladas'},...(r.pocketInstalled||pocketActive?[{id:'PocketTTS',name:'Pocket TTS · español'}]:[])]})}
-  {pocketActive?<>{pocketVoiceReady&&field('PocketVoice','Voz de Pocket TTS',{options:pocketVoices})}<p className="help">{r.pocketInstalled?'Modelo en español · velocidad fija.':'Pulsa Preparar Pocket TTS para instalar el motor de voz.'}</p></>:<>{field('Voice','Voz de Windows',{options:options(r.voices,settings.Voice,'Voz predeterminada de Windows')})}<Button variant="ghost" size="sm" onClick={()=>api('tts/windows-voices')}>Administrar voces de Windows ↗</Button></>}
+  {pocketActive?<>{pocketVoiceReady&&field('PocketVoice','Voz de Pocket TTS',{options:pocketVoices})}<p className="help">{r.pocketBundled?'Lola está disponible sin conexión. Las demás voces se descargan al usarlas.':r.pocketInstalled?'Modelo en español · velocidad fija.':'Pulsa Preparar Pocket TTS para instalar el motor de voz.'}</p></>:<>{field('Voice','Voz de Windows',{options:options(r.voices,settings.Voice,'Voz predeterminada de Windows')})}<Button variant="ghost" size="sm" onClick={()=>api('tts/windows-voices')}>Administrar voces de Windows ↗</Button></>}
   <div className="form-row">{!pocketActive&&field('Speed','Velocidad',{type:'number',min:.5,max:2,step:.1,required:true})}{field('Volume','Volumen · 0 a 100',{type:'number',min:0,max:100,required:true})}</div>
   {field('AudioDevice','Salida de audio',{options:options(r.devices,settings.AudioDevice,'Dispositivo predeterminado de Windows')})}
   <p className="help">Elige el dispositivo que captura TikTok LIVE Studio.</p>

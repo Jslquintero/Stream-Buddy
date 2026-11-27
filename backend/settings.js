@@ -27,12 +27,12 @@ export function validateSettings(input) {
 }
 
 export class SettingsStore {
-  constructor(dataDir, legacyFile) {
+  constructor(dataDir, legacyFile, engine = defaults.Engine) {
     fs.mkdirSync(dataDir, { recursive: true });
     this.file = path.join(dataDir, 'tts.json');
     if (!fs.existsSync(this.file)) {
       if (legacyFile && fs.existsSync(legacyFile)) fs.copyFileSync(legacyFile, this.file);
-      else this.save({ ...defaults });
+      else this.save({ ...defaults, Engine: engine });
     }
     this.current = validateSettings(JSON.parse(fs.readFileSync(this.file, 'utf8').replace(/^\uFEFF/, '')));
   }

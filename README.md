@@ -1,8 +1,12 @@
 # Stream Buddy · Centro de directo
 
-Stream Buddy es un centro local de stream para Windows. Es una herramienta independiente: no está afiliada a TikTok ni a otras plataformas. Abre **Iniciar.cmd** y conserva la consola abierta. Panel: **http://127.0.0.1:17900**.
+Stream Buddy es un centro local de stream para Windows, independiente de TikTok y otras plataformas. Instala **StreamBuddy-Setup.exe** en Windows x64 y abre **Stream Buddy** desde el menú Inicio. El instalador incluye el panel, WebView2, el conector TikTokLive y Pocket TTS con la voz española Lola.
 
-## Arranque
+El primer inicio ofrece importar los datos de una instalación anterior. Selecciona la carpeta que contiene **Iniciar.cmd** o su carpeta **data**. La aplicación conserva los perfiles, composiciones y cachés en `%LOCALAPPDATA%\Stream Buddy`. El instalador usa por defecto `%LOCALAPPDATA%\Programs\Stream Buddy`. El panel y las salidas conservan sus enlaces en **http://127.0.0.1:17900**. El menú **Stream Buddy → Buscar actualizaciones** comprueba si hay una versión firmada disponible.
+
+El ejecutable de Pocket TTS incluido requiere un procesador compatible con AVX2. [Pocket TTS](https://github.com/kyutai-labs/pocket-tts)
+
+## Arranque desde el repositorio
 
 Requiere **Node.js 22.12 o posterior**. El lanzador detecta Node en Program Files o PATH. El frontend utiliza React, Vite, Tailwind CSS y componentes shadcn/ui sobre Radix. La primera ejecución de Iniciar.cmd instala las dependencias con npm ci y compila el panel; requiere Internet para esa instalación. El backend utiliza los módulos incluidos en Node.
 
@@ -30,7 +34,8 @@ backend/
   center.js                 Registro de módulos, comandos y actividad
   http.js                   API local, protección de peticiones y eventos SSE
   processes.js              Procesos secundarios y cierre de sus árboles
-  settings.js               Importación, validación y guardado atómico
+  settings.js               Validación y guardado atómico
+  import-data.js            Migración de perfiles a la instalación de escritorio
   modules/
     tts.js                  Cola, filtros, voz, conector e instalación
     layout.js               Editor nativo de Layout Studio y persistencia
@@ -43,13 +48,32 @@ modules/banners/            Espacio publicitario rotativo con imágenes y SVG
 modules/auction/            Subasta en directo con pujas por regalos
 web/src/                    Frontend React y componentes reutilizables
 dist/                       Frontend compilado servido por Node
-data/tts.json               Configuración del usuario
+data/tts.json               Configuración al ejecutar desde el repositorio
+src-tauri/                  Lanzador nativo, instalador y actualizaciones
 tests/                      Pruebas Node
 ```
 
 El dashboard recibe estados mediante Server-Sent Events (SSE), con reconexión automática. Varias pestañas comparten estado. Los cambios de estado no sobrescriben un formulario que estés editando.
 
-El servidor HTTP, configuración, filtros, cola, instalación y administración de procesos del centro funcionan en Node. **Layout Studio está integrado en React y Node**, con edición y salida propias. AdQueue conserva su servidor e interfaz incrustada. TikTok usa Edge/Chrome local, sin Python, TikTokLive ni servicios de firma; PowerShell se conserva para las voces Windows y Pocket TTS.
+El servidor HTTP, configuración, filtros, cola, instalación y administración de procesos del centro funcionan en Node. **Layout Studio está integrado en React y Node**, con edición y salida propias. AdQueue conserva su servidor e interfaz incrustada. La lectura de TikTok usa TikTokLive y Euler, con el entorno Python integrado en el conector del instalador. PowerShell se usa para las voces Windows y Pocket TTS.
+
+## Compilar y publicar para Windows
+
+En Windows x64, instala Node.js, Python 3.13 y los requisitos de compilación de Tauri con Rust y MSVC. La primera compilación descarga las dependencias, WebView2 y el modelo de voz. `STUDIO_BUILD_PYTHON` permite indicar la ruta de Python. [Requisitos de Tauri](https://v2.tauri.app/start/prerequisites/)
+
+```powershell
+npm ci
+npm test
+npm run desktop:build
+```
+
+El instalador de prueba queda en `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. El canal de actualizaciones se activa al crear una compilación de release firmada.
+
+1. Genera el par de claves de Tauri con `npm exec -- tauri signer generate -w <ruta-segura-fuera-del-repositorio>` y conserva una copia segura de la clave privada y su contraseña. Configura el contenido de la clave pública en la variable de Actions `TAURI_UPDATER_PUBKEY` y la clave privada y contraseña en los secretos `TAURI_SIGNING_PRIVATE_KEY` y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Conserva el mismo par de claves para futuras versiones. [Firma del updater](https://v2.tauri.app/es/plugin/updater/)
+2. Si el código está en un repositorio privado, configura `RELEASE_REPOSITORY` con el nombre `owner/repositorio` de distribución público y guarda un token con permiso de escritura sobre sus releases en `RELEASE_REPOSITORY_TOKEN`. Si el repositorio de código es público, el flujo puede publicar en él con el token de Actions.
+3. Actualiza la versión con `npm version <versión> --no-git-tag-version` y sube un tag `v<versión>` del commit correspondiente. El flujo de GitHub Actions prueba la aplicación y publica `StreamBuddy-Setup.exe`, `StreamBuddy-Setup.exe.sig` y `latest.json`.
+
+Antes de distribuir, comprueba la instalación y la voz Lola sin conexión en un Windows limpio. Con conexión, prueba el conector con un LIVE y abre un overlay existente en OBS o TikTok LIVE Studio. Actualiza entre dos versiones de prueba y confirma que se conservan los perfiles y las composiciones, se reinicia el servidor y los overlays vuelven a responder. Comprueba que **Más tarde** mantiene el servicio activo y que una firma inválida impide instalar el paquete.
 
 ## Migración y datos
 

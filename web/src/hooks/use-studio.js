@@ -68,7 +68,8 @@ export function useStudio(output) {
       }
       disconnected = true;
       setOnline(false);
-      notice('Sin conexión con Stream Buddy. Abre Iniciar.cmd; el panel se reconectará automáticamente.', { type: 'error', key: 'connection', sticky: true });
+      const restart = window.__STREAM_BUDDY_DESKTOP__ ? 'Vuelve a abrir Stream Buddy desde el menú Inicio.' : 'Abre Iniciar.cmd para volver a conectar el panel.';
+      notice(`Sin conexión con Stream Buddy. ${restart}`, { type: 'error', key: 'connection', sticky: true });
     };
     return () => stream.close();
   }, [output, notice]);

@@ -3,10 +3,10 @@ import { createInterface } from 'node:readline';
 
 export class ProcessManager {
   constructor(log) { this.children = new Set(); this.log = log; this.closing = false; }
-  start(command, args = [], onLine, { input = false } = {}) {
+  start(command, args = [], onLine, { input = false, env } = {}) {
     if (this.closing) throw new Error('El centro se está cerrando');
     let child;
-    try { child = spawn(command, args, { windowsHide: true, shell: false, stdio: [input ? 'pipe' : 'ignore', 'pipe', 'pipe'] }); }
+    try { child = spawn(command, args, { env, windowsHide: true, shell: false, stdio: [input ? 'pipe' : 'ignore', 'pipe', 'pipe'] }); }
     catch (error) { this.log(`No se pudo iniciar ${command}: ${error.message}`); throw error; }
     this.children.add(child);
     child.once('error', error => this.log(`No se pudo iniciar ${command}: ${error.message}`));

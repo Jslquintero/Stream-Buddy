@@ -3,10 +3,11 @@ import asyncio
 import json
 import sys
 import logging
+import os
 from pathlib import Path
 from datetime import datetime
 
-LOG = Path(__file__).resolve().parent / 'runtime' / 'bridge-events.jsonl'
+LOG = Path(os.environ['STUDIO_BRIDGE_LOG']) if 'STUDIO_BRIDGE_LOG' in os.environ else Path(__file__).resolve().parent / 'runtime' / 'bridge-events.jsonl'
 
 
 def emit(kind, **data):
@@ -93,6 +94,10 @@ async def main():
     try:
         from TikTokLive import TikTokLiveClient
         from TikTokLive.events import CommentEvent, ConnectEvent, DisconnectEvent, WebsocketResponseEvent, FollowEvent, GiftEvent, ShareEvent, LikeEvent
+        if sys.argv[1:] == ['--self-test']:
+            from TikTokLive.events import SuperFanEvent
+            TikTokLiveClient(unique_id='streambuddy')
+            return
         client = TikTokLiveClient(unique_id=sys.argv[1])
         client.logger.addHandler(BridgeLogHandler())
         stats = dict(events=0, comments=0, connected=False)
