@@ -7,6 +7,12 @@ import { defaults } from '../backend/settings.js';
 const pause = () => new Promise(resolve => setTimeout(resolve, 20));
 const widget = doc => doc.querySelector('.spotify-surface')?.shadowRoot;
 async function until(check) { for (let i = 0; i < 100; i++) { if (check()) return; await pause(); } assert.ok(check(), 'La interfaz no respondió a tiempo'); }
+async function activateTab(window, name) {
+  const tab = [...window.document.querySelectorAll('.spotify-tabs [role="tab"]')].find(item => item.textContent === name);
+  assert.ok(tab, name);
+  tab.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0 }));
+  await until(() => tab.getAttribute('aria-selected') === 'true');
+}
 async function setup(t, pathname, mode = 'api', pending = null) {
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://127.0.0.1:17900' + pathname, runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close()); const { window } = dom;
@@ -28,7 +34,8 @@ test('Spotify panel preserves draft during updates and saves design; copies outp
   await until(() => doc.querySelector('.spotify-settings'));
   assert.equal(doc.querySelector('.nav-item[aria-current="page"]').textContent, 'Música');
   assert.equal(doc.querySelector('.breadcrumb strong').textContent, 'Música');
-  const input = doc.querySelector('.spotify-settings input');
+  doc.querySelector('.spotify-source summary').click();
+  const input = doc.querySelector('.spotify-source input');
   Object.getOwnPropertyDescriptor(f.window.HTMLInputElement.prototype, 'value').set.call(input, 'b'.repeat(32));
   input.dispatchEvent(new f.window.Event('input', { bubbles: true })); await pause(); await f.publish();
   assert.equal(input.value, 'b'.repeat(32));
@@ -36,12 +43,13 @@ test('Spotify panel preserves draft during updates and saves design; copies outp
   await until(() => f.requests.some(r => r.url === '/api/spotify/save'));
   assert.equal(JSON.parse(f.requests.find(r => r.url === '/api/spotify/save').body).clientId, 'b'.repeat(32));
   let copied; Object.defineProperty(f.window.navigator, 'clipboard', { value: { writeText: async text => { copied = text; } } });
-  await click('Copiar salida de Spotify'); assert.equal(copied, 'http://127.0.0.1:17900/?spotify-output=1#tiktok.studio');
+  await click('Copiar salida'); assert.equal(copied, 'http://127.0.0.1:17900/?spotify-output=1#tiktok.studio');
   await click('Desconectar Spotify'); assert.ok(f.requests.some(r => r.url === '/api/spotify/disconnect' && r.headers['X-Studio'] === 'csrf'));
 });
 test('local Spotify panel activates without Client ID or authorization redirect', async t => {
   const f = await setup(t, '/spotify', 'local'), doc = f.window.document;
   await until(() => doc.querySelector('.spotify-local-help'));
+  doc.querySelector('.spotify-source summary').click();
   assert.equal(doc.querySelector('input[placeholder="Client ID de tu app de Spotify"]'), null);
   const button = [...doc.querySelectorAll('button')].find(b => b.textContent === 'Activar lectura local');
   assert.equal(button.disabled, false); button.click(); await pause();
@@ -123,25 +131,34 @@ test('Spotify CD Retro is available as both a layout and a theme', async t => {
 
 test('Spotify CSS is live, isolated, saved per skin and can be reset', async t => {
   const f = await setup(t, '/spotify'), doc = f.window.document;
+  await activateTab(f.window, 'Avanzado');
   await until(() => doc.querySelector('textarea[aria-label="CSS personalizado"]'));
-  const editor = doc.querySelector('textarea[aria-label="CSS personalizado"]');
+  const getEditor = () => doc.querySelector('textarea[aria-label="CSS personalizado"]');
+  const editor = getEditor();
   const css = '.spotify-title { color: rgb(255, 0, 0); } body { display:none; }';
   Object.getOwnPropertyDescriptor(f.window.HTMLTextAreaElement.prototype,'value').set.call(editor, css);
   editor.dispatchEvent(new f.window.Event('input',{bubbles:true})); await pause();
   assert.equal(widget(doc).querySelector('[data-spotify-custom-css]').textContent,css);
   assert.equal(doc.querySelector('[data-spotify-custom-css]'),null);
   const click = async label => { [...doc.querySelectorAll('button')].find(b => b.textContent === label).click(); await pause(); };
-  await click('Gallery'); assert.equal(editor.value,'');
-  await click('Compact'); assert.equal(editor.value,css);
+  await activateTab(f.window, 'Diseño');
+  await click('Gallery');
+  await activateTab(f.window, 'Avanzado');
+  assert.equal(getEditor().value, '');
+  await activateTab(f.window, 'Diseño');
+  await click('Compact');
+  await activateTab(f.window, 'Avanzado');
+  assert.equal(getEditor().value, css);
   await until(() => f.requests.some(r => r.url === '/api/spotify/save'));
   assert.equal(JSON.parse(f.requests.find(r => r.url === '/api/spotify/save').body).customCss.compact,css);
-  await click('Restaurar CSS de este diseño'); assert.equal(editor.value,'');
+  await click('Restaurar CSS de este diseño'); assert.equal(getEditor().value,'');
   assert.equal(widget(doc).querySelector('[data-spotify-custom-css]').textContent,'');
 });
 
 test('Spotify automatically saves actions and recovers pending changes after reload', async t => {
   const f = await setup(t,'/spotify'), doc = f.window.document;
   f.getStream().onerror(); await pause();
+  await activateTab(f.window, 'Carátula');
   [...doc.querySelectorAll('button')].find(b=>b.textContent==='Vinilo').click(); await pause();
   const pending = f.window.localStorage.getItem('live-studio.spotify.pending.v1');
   assert.equal(JSON.parse(pending).config.coverStyle,'vinyl');
@@ -157,15 +174,21 @@ test('Spotify autosaves output design, cover, effects, theme and animations with
   const f = await setup(t,'/spotify'), doc=f.window.document;
   const button = text => [...doc.querySelectorAll('button')].find(b=>b.textContent===text);
   const toggle = text => [...doc.querySelectorAll('label')].find(label => label.textContent === text).control;
+  const select = (label, value) => {
+    const control = [...doc.querySelectorAll('.spotify-settings select')].find(item => item.labels[0].firstChild.textContent === label);
+    control.value = value;
+    control.dispatchEvent(new f.window.Event('change', { bubbles: true }));
+  };
   const actions = [
-    [()=>button('Gallery').click(),'playerStyle','gallery'],
-    [()=>button('Vinilo').click(),'coverStyle','vinyl'],
-    [()=>toggle('Brillo alrededor de la carátula').click(),'coverGlow',true],
-    [()=>toggle('Carátula desenfocada como fondo').click(),'coverBlur',true],
-    [()=>{const select=[...doc.querySelectorAll('select')].find(s=>s.querySelector('option[value="gradient"]'));select.value='gradient';select.dispatchEvent(new f.window.Event('change',{bubbles:true}));},'theme','gradient'],
-    [()=>[...doc.querySelectorAll('fieldset')].find(s=>s.querySelector('legend').textContent==='Animación de entrada').querySelectorAll('button')[1].click(),'revealAnimation','fade'],
+    ['Diseño', () => button('Gallery').click(), 'playerStyle', 'gallery'],
+    ['Carátula', () => button('Vinilo').click(), 'coverStyle', 'vinyl'],
+    ['Carátula', () => toggle('Brillo alrededor de la carátula').click(), 'coverGlow', true],
+    ['Carátula', () => toggle('Carátula desenfocada como fondo').click(), 'coverBlur', true],
+    ['Diseño', () => select('Tema', 'gradient'), 'theme', 'gradient'],
+    ['Visibilidad', () => select('Animación de entrada', 'fade'), 'revealAnimation', 'fade'],
   ];
-  for (const [action,key,value] of actions) {
+  for (const [tab, action, key, value] of actions) {
+    await activateTab(f.window, tab);
     const count=f.requests.filter(r=>r.url==='/api/spotify/save').length;
     action();
     await until(()=>f.requests.filter(r=>r.url==='/api/spotify/save').length>count);
@@ -174,4 +197,23 @@ test('Spotify autosaves output design, cover, effects, theme and animations with
     await pause();
   }
   assert.equal(button('Guardar ajustes de Spotify'),undefined);
+});
+
+test('Spotify preview tests both transitions without changing the broadcast settings', async t => {
+  const { window, spotify, publish, requests } = await setup(t, '/spotify');
+  const doc = window.document;
+  const preview = doc.querySelector('.spotify-preview-panel');
+  const button = text => [...preview.querySelectorAll('button')].find(item => item.textContent === text);
+  assert.match(preview.textContent, /Reproducción detectada/);
+  spotify.playback = null;
+  await publish();
+  assert.match(preview.textContent, /Canción de ejemplo/);
+  button('Probar salida').click();
+  await until(() => widget(doc).querySelector('.spotify-motion.exit'));
+  await until(() => !widget(doc).querySelector('.spotify-now'));
+  assert.equal(button('Probar salida').disabled, true);
+  button('Probar entrada').click();
+  await until(() => widget(doc).querySelector('.spotify-motion.enter'));
+  assert.equal(button('Probar salida').disabled, false);
+  assert.equal(requests.some(request => request.url === '/api/spotify/save'), false);
 });

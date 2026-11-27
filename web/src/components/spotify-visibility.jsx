@@ -1,15 +1,40 @@
-import { ToggleRow } from './fields';
+import { Toggle } from './fields';
 import { Select } from './ui';
-export function SpotifyVisibilitySettings({draft,setDraft}) {
-  const update=(key,value)=>setDraft(d=>({...d,[key]:value}));
-  return <section className="spotify-customization">
-    <hr/><h3>Visibilidad</h3>
-    <ToggleRow label="Ocultar al pausar" checked={draft.hideWhenPaused} onCheckedChange={value => update('hideWhenPaused',value)}/>
-    <label>Retraso al ocultar<Select disabled={!draft.hideWhenPaused} value={draft.hideDelay ?? 0} onChange={e=>update('hideDelay',Number(e.target.value))}>{[0,1,3,5,10,15,30,60].map(n=><option value={n} key={n}>{n===0?'Inmediatamente':`${n} segundos`}</option>)}</Select></label>
-    <ToggleRow label="Mostrar solo al cambiar de canción" checked={draft.songChangeOnly ?? false} onCheckedChange={value => update('songChangeOnly',value)}/>
-    <label>Duración visible<Select disabled={!draft.songChangeOnly} value={draft.visibleDuration ?? 5} onChange={e=>update('visibleDuration',Number(e.target.value))}>{[1,3,5,10,15,30,60].map(n=><option value={n} key={n}>{n} segundos</option>)}</Select></label>
-    <p className="help">La salida aparece al recibir una canción y vuelve a mostrarse cuando cambia. Pausar y reanudar la misma canción no reinicia esa duración. La vista previa permanece visible para editar el diseño.</p>
-    <hr/><h3>Otros</h3><ToggleRow label="Ocultar visualizador" checked={draft.hideVisualizer ?? false} onCheckedChange={value => update('hideVisualizer',value)}/>
-    <p className="help">Oculta las barras animadas decorativas. Los tiempos y el progreso siguen visibles.</p>
-  </section>;
+import { animationStyles } from '../../../shared/spotify';
+import { spotifyLabels } from './spotify-labels';
+
+const durations = [1, 3, 5, 10, 15, 30, 60];
+
+function DurationField({ label, value, allowZero = false, disabled, onChange }) {
+  const options = allowZero ? [0, ...durations] : durations;
+  const values = options.includes(value) ? options : [...options, value].sort((a, b) => a - b);
+  return <label>{label}
+    <Select value={value} disabled={disabled} onChange={event => onChange(Number(event.target.value))}>
+      {values.map(seconds => <option key={seconds} value={seconds}>{seconds === 0 ? 'Inmediatamente' : seconds === 1 ? '1 segundo' : seconds + ' segundos'}</option>)}
+    </Select>
+  </label>;
+}
+
+export function SpotifyVisibilitySettings({ config, update }) {
+  return <div className="spotify-form">
+    <Toggle name="hideWhenPaused" label="Ocultar al pausar" settings={config} update={update}/>
+    <DurationField label="Retraso al ocultar" allowZero disabled={!config.hideWhenPaused}
+      value={config.hideDelay} onChange={value => update('hideDelay', value)}/>
+    <Toggle name="songChangeOnly" label="Mostrar solo al cambiar de canción"
+      description="Pausar y reanudar la misma canción mantiene el tiempo restante." settings={config} update={update}/>
+    <DurationField label="Duración visible" disabled={!config.songChangeOnly}
+      value={config.visibleDuration} onChange={value => update('visibleDuration', value)}/>
+    <Toggle name="hideVisualizer" label="Ocultar visualizador" description="Oculta las barras animadas de la tarjeta." settings={config} update={update}/>
+    <div className="spotify-form spotify-divider">
+      <h3>Animaciones</h3>
+      <div className="spotify-canvas-fields">
+        {[['revealAnimation', 'Animación de entrada'], ['exitAnimation', 'Animación de salida']].map(([key, label]) =>
+          <label key={key}>{label}
+            <Select value={config[key]} onChange={event => update(key, event.target.value)}>
+              {animationStyles.map(value => <option key={value} value={value}>{spotifyLabels[value]}</option>)}
+            </Select>
+          </label>)}
+      </div>
+    </div>
+  </div>;
 }

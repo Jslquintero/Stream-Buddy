@@ -1,94 +1,156 @@
+import { useState } from 'react';
+import { ExternalLink, Music2 } from 'lucide-react';
+import { Badge, Button, Card, Input, Select, Tabs, TabsContent, TabsList, TabsTrigger } from './ui';
 import { CopyLinkButton, OutputLinks } from './output-controls';
-import { useEffect, useRef, useState } from 'react';
-import {ExternalLink, Music2 } from 'lucide-react';
-import { Badge, Button, Card, Input, Select } from './ui';
-import { useStudio } from '../hooks/use-studio';
-import './spotify.css';
+import { useNotificationSettings } from '../hooks/use-notification-settings';
+import { appearanceDefaults, spotifySize, validateSpotifyConfig } from '../../../shared/spotify';
+import { SpotifyCoverSettings, SpotifyDesignSettings } from './spotify-appearance';
+import { SpotifyCssEditor } from './spotify-css-editor';
+import { SpotifyPreview } from './spotify-playback';
+import { SpotifyVisibilitySettings } from './spotify-visibility';
 import './spotify-editor.css';
 import './spotify-cover-finishes.css';
-import { SpotifyAppearance, SpotifyVisual, SpotifyPresence, demoPlayback } from './spotify-appearance';
-import { spotifySize, validateSpotifyConfig } from '../../../shared/spotify';
-import { SpotifySurface } from './spotify-surface';
-import { SpotifyVisibilitySettings } from './spotify-visibility';
-import { spotifyVisibility } from '../../../shared/spotify-visibility';
-import { useNotificationSettings } from '../hooks/use-notification-settings';
 
-const spotifyStorage = {key:'live-studio.spotify.pending.v1', validate:validateSpotifyConfig, migrate:value=>value, action:'spotify/save'};
+const spotifyStorage = {
+  key: 'live-studio.spotify.pending.v1',
+  validate: validateSpotifyConfig,
+  migrate: value => value,
+  action: 'spotify/save',
+};
 
-export function SpotifyStudio({ tool, api, notice, online }) {
-  const {config:draft, setConfig:setDraft, dirty, saving, error:saveError, save} = useNotificationSettings(tool.config, undefined, api, online, spotifyStorage);
-  const [busy, setBusy] = useState(false);
-  const [previewKey, setPreviewKey] = useState(0), [previewVisible, setPreviewVisible] = useState(true);
-  const dimensions = spotifySize(draft.playerStyle, draft);
-  const local = (draft.mode || 'local') === 'local';
-  const player = tool.playback?.source === 'aimp' ? 'AIMP' : 'Spotify';
-  const localStatus = tool.playback ? `${player} detectado` : 'Reproductor detectado';
-  const output = new URL(tool.url, window.location.origin).href;
-  const redirect = window.location.origin + '/api/spotify/callback';
-  const connect = async () => {
-    setBusy(true);
-    try {
-      if (!await save()) return;
-      const result = await api('spotify/connect');
-      if (result?.authorizationUrl) window.location.assign(result.authorizationUrl);
-      else if (result) notice('Lectura local activada. Reproduce una canción en Spotify de escritorio o AIMP.');
-    } finally { setBusy(false); }
-  };
-  return <div className="spotify-studio">
-    <Card className="spotify-settings">
-      <div className="section-heading"><h2>Spotify</h2><Badge className={tool.connected ? 'success' : ''}>{tool.connecting ? 'Esperando autorización' : tool.connected ? tool.config.mode === 'local' ? localStatus : 'Cuenta conectada' : tool.config.mode === 'local' ? tool.config.enabled ? 'Esperando Spotify o AIMP' : 'Lectura detenida' : 'Sin conectar'}</Badge></div>
-      <label>Cómo obtener la canción<Select value={draft.mode || 'local'} onChange={e => setDraft({ ...draft, mode: e.target.value, enabled: true })}><option value="local">Desde Windows · Spotify o AIMP</option><option value="api">Cuenta de Spotify · API oficial</option></Select></label>
-      {local ? <div className="spotify-local-help"><h3>Escucha en este PC</h3><p className="muted">Abre Spotify de escritorio o AIMP y reproduce una canción. Stream Buddy detecta la reproducción automáticamente. Si los dos están sonando, muestra Spotify.</p><p className="help">No necesitas Premium, Client ID ni complementos. La carátula y el progreso aparecen cuando el reproductor los proporciona.</p></div> : <>
-      <p className="muted">Muestra lo que escuchas en Spotify desde cualquier dispositivo de tu cuenta.</p>
-      <details open={!tool.connected}>
-        <summary>Configuración inicial</summary>
-        <ol>
-          <li>Abre <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">Spotify for Developers <ExternalLink size={12}/></a> y crea una app con Web API.</li>
-          <li>En Redirect URIs, añade exactamente este enlace:<code>{redirect}</code><CopyLinkButton url={redirect} notice={notice} size="sm">Copiar Redirect URI</CopyLinkButton></li>
-          <li>Copia el Client ID, pégalo abajo y pulsa Conectar Spotify. Autoriza la lectura de lo que estás escuchando.</li>
-        </ol>
-        <p className="help">Spotify exige Premium al propietario de una app en modo desarrollo. Si usas otra cuenta, añádela en Usuarios y acceso de la app. <a href="https://developer.spotify.com/documentation/web-api/concepts/quota-modes" target="_blank" rel="noopener noreferrer">Ver requisitos de Spotify</a>.</p>
-      </details>
-      <label>Client ID<Input value={draft.clientId} maxLength={32} autoComplete="off" spellCheck={false} placeholder="Client ID de tu app de Spotify" onChange={e => setDraft({ ...draft, clientId: e.target.value.trim() })}/></label>
-      <p className="help">Solo necesitas el Client ID. La sesión se conserva localmente en este equipo.</p>
-      </>}
-      <div className="actions"><Button disabled={!online || busy || saving || (!local && !draft.clientId)} onClick={connect}>{busy ? 'Preparando…' : local ? 'Activar lectura local' : tool.connected ? 'Volver a conectar' : 'Conectar Spotify'}</Button><Button variant="outline" disabled={!online || busy || saving || (tool.config.mode === 'local' ? !tool.config.enabled : !tool.connected && !tool.connecting)} onClick={async () => { if (dirty && !await save()) return; await api('spotify/disconnect'); }}>{tool.config.mode === 'local' ? 'Detener lectura local' : 'Desconectar Spotify'}</Button></div>
-      {tool.error && <p className="spotify-error" role="alert">{tool.error}</p>}
-      <hr/>
-      <h2>Diseño de la salida</h2>
-      <p className="help">Autoguardado activo para diseño, carátula, brillo, fondo, colores, animaciones y CSS.</p>
-      <p role="status" className={saveError ? 'spotify-error' : 'help'}>{saveError || (saving ? 'Guardando automáticamente…' : dirty ? online ? 'Cambios pendientes de guardar…' : 'Sin conexión. Cambios conservados en este navegador.' : 'Todos los cambios guardados automáticamente.')}</p>
-      {saveError && <Button variant="outline" disabled={!online || busy || saving} onClick={save}>Reintentar guardado</Button>}
-      <SpotifyAppearance draft={draft} setDraft={setDraft} notice={notice}/>
-      <SpotifyVisibilitySettings draft={draft} setDraft={setDraft}/>
-    </Card>
-    <Card className="spotify-preview-panel">
-      <div className="section-heading"><h2>Ahora escuchando</h2><Music2 size={20}/></div>
-      <div className="spotify-preview"><SpotifySurface config={draft} preview><SpotifyPresence key={previewKey} playback={previewVisible ? (online && tool.playback ? tool.playback : demoPlayback) : null} config={draft}/></SpotifySurface></div>
-      <div className="actions"><Button variant="outline" onClick={() => { setPreviewVisible(true); setPreviewKey(k => k + 1); }}>Probar entrada</Button><Button variant="outline" onClick={() => setPreviewVisible(false)}>Probar salida</Button></div>
-      <p className="help">La vista previa usa una canción de ejemplo si no hay música. Cada cambio se guarda automáticamente y se aplica al directo.</p>
-      <h3>En tu directo</h3>
-      <p className="muted">Añade una fuente de navegador en TikTok LIVE Studio u OBS de <strong>{dimensions[0]} × {dimensions[1]} px</strong> y pega este enlace. El fondo es transparente.</p>
-      <code>{output}</code>
-      <div className="actions"><OutputLinks url={output} notice={notice} copyLabel="Copiar salida de Spotify" openLabel="Ver salida de Spotify" iconSize={15}/></div>
-      <p className="help">La salida muestra los datos de la canción. El audio sigue en el reproductor.</p>
-    </Card>
-  </div>;
+function sourceStatus(tool, online) {
+  if (!online) return 'Estudio sin conexión';
+  if (tool.connecting) return 'Esperando autorización';
+  if (tool.error) return 'Error de conexión';
+  if ((tool.config.mode || 'local') !== 'local') return tool.connected ? 'Cuenta conectada' : 'Cuenta sin conectar';
+  if (tool.config.enabled === false) return 'Lectura detenida';
+  if (tool.playback) return tool.playback.source === 'aimp' ? 'AIMP detectado' : 'Spotify detectado';
+  return tool.connected ? 'Reproductor detectado' : 'Buscando Spotify o AIMP';
 }
 
-export function SpotifyCard(props) { return <SpotifyVisual {...props}/>; }
+function SpotifySource({ tool, config, setDraft, online, api, notice, save, saving, dirty }) {
+  const [action, setAction] = useState('');
+  const local = (config.mode || 'local') === 'local';
+  const sameSource = (tool.config.mode || 'local') === (config.mode || 'local');
+  const sameAccount = sameSource && (tool.config.clientId || '') === (config.clientId || '');
+  const canDisconnect = sameSource && (local ? tool.config.enabled !== false : tool.connected || tool.connecting);
+  const disabled = !online || saving || Boolean(action);
+  const redirect = window.location.origin + '/api/spotify/callback';
 
-export function SpotifyOutput() {
-  const { state, online } = useStudio('spotify');
-  const tool = state?.tools.spotify;
-  const visibility = useRef({key:null});
-  const [,tick] = useState(0);
-  useEffect(()=>{const timer=setInterval(()=>tick(n=>n+1),200);return()=>clearInterval(timer);},[]);
-  useEffect(() => { document.documentElement.classList.add('spotify-output'); return () => document.documentElement.classList.remove('spotify-output'); }, []);
-  const available = online && tool?.connected && !tool.error;
-  visibility.current = spotifyVisibility(visibility.current, available ? tool.playback : null, tool?.config || {}, Date.now());
-  const playback = visibility.current.visible ? tool.playback : null;
-  const idle = available && !tool.playback && !tool.config.songChangeOnly && tool.config.idleCover ? { ...demoPlayback, title:'Nada reproduciéndose', artist:'', playing:false, progress:0, image:tool.config.idleCover, idle:true } : null;
-  const size = spotifySize(tool?.config.playerStyle, tool?.config);
-  return <div className="spotify-stage" style={{width:size[0],height:size[1],padding:0}}><SpotifySurface config={tool?.config}>{online && tool?.connected && !tool.error && <SpotifyPresence playback={playback || idle} config={tool?.config || {}}/>}</SpotifySurface></div>;
+  async function run(nextAction) {
+    setAction(nextAction);
+    try {
+      if ((nextAction === 'connect' || dirty) && !await save()) return;
+      const result = await api('spotify/' + nextAction);
+      if (result?.authorizationUrl) window.location.assign(result.authorizationUrl);
+      else if (result && nextAction === 'connect' && local) notice('Lectura local activada. Reproduce una canción en Spotify de escritorio o AIMP.');
+    } finally {
+      setAction('');
+    }
+  }
+
+  return <Card className="spotify-source">
+    <details>
+      <summary>
+        <span className="spotify-disclosure"><span>Fuente de música</span>
+          <Badge className={online && tool.connected && !tool.error ? 'success' : ''}>{sourceStatus(tool, online)}</Badge>
+        </span>
+      </summary>
+      <div className="spotify-form">
+        <label>Obtener la canción desde
+          <Select value={config.mode || 'local'} disabled={Boolean(action)} onChange={event => {
+            const mode = event.target.value;
+            setDraft(previous => ({ ...previous, mode, enabled: true }));
+          }}>
+            <option value="local">Este PC · Spotify o AIMP</option>
+            <option value="api">Cuenta de Spotify · Web API</option>
+          </Select>
+        </label>
+        {local ? <p className="help spotify-local-help">Reproduce una canción en Spotify de escritorio o AIMP. Si ambos suenan, se muestra Spotify.</p> : <>
+          <p className="help">Muestra lo que escuchas desde cualquier dispositivo de tu cuenta de Spotify.</p>
+          <label>Client ID
+            <Input value={config.clientId || ''} disabled={Boolean(action)} maxLength={32} autoComplete="off" spellCheck={false} placeholder="Client ID de tu app de Spotify" onChange={event => {
+              const clientId = event.target.value.trim();
+              setDraft(previous => ({ ...previous, clientId }));
+            }}/>
+          </label>
+          <details className="spotify-guide">
+            <summary>Cómo configurar la Web API</summary>
+            <ol>
+              <li>Crea una app con Web API en <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">Spotify for Developers <ExternalLink size={12}/></a>.</li>
+              <li>Añade esta dirección en Redirect URIs.
+                <code>{redirect}</code>
+                <CopyLinkButton url={redirect} notice={notice} size="sm">Copiar Redirect URI</CopyLinkButton>
+              </li>
+              <li>Pega el Client ID de la app y pulsa Conectar Spotify para autorizar la lectura.</li>
+            </ol>
+            <p className="help"><a href="https://developer.spotify.com/documentation/web-api/concepts/quota-modes" target="_blank" rel="noopener noreferrer">Consulta los requisitos de Premium y acceso a la app</a>.</p>
+          </details>
+        </>}
+        <div className="actions">
+          <Button disabled={disabled || (!local && !/^[a-f0-9]{32}$/i.test(config.clientId || ''))} onClick={() => run('connect')}>
+            {action === 'connect' ? 'Preparando…' : local ? 'Activar lectura local' : sameAccount && tool.connected ? 'Volver a conectar' : 'Conectar Spotify'}
+          </Button>
+          <Button variant="outline" disabled={disabled || !canDisconnect} onClick={() => run('disconnect')}>
+            {action === 'disconnect' ? 'Desconectando…' : local ? 'Detener lectura local' : 'Desconectar Spotify'}
+          </Button>
+        </div>
+      </div>
+    </details>
+    {tool.error && <p className="spotify-error" role="alert">{tool.error}</p>}
+  </Card>;
+}
+
+export function SpotifyStudio({ tool, api, notice, online }) {
+  const { config: draft, setConfig: setDraft, dirty, saving, error, save } = useNotificationSettings(tool.config, undefined, api, online, spotifyStorage);
+  const config = { ...appearanceDefaults, ...draft };
+  const update = (key, value) => setDraft(previous => ({ ...previous, [key]: value }));
+  const output = new URL(tool.url, window.location.origin).href;
+  const [width, height] = spotifySize(config.playerStyle, config);
+  const saveStatus = saving ? 'Guardando…' : dirty
+    ? online ? 'Cambios pendientes' : 'Cambios conservados en este navegador'
+    : 'Cambios guardados automáticamente';
+
+  return <div className="spotify-studio">
+    <header className="spotify-heading">
+      <span className="spotify-heading-icon"><Music2 size={24} aria-hidden="true"/></span>
+      <div><h1>Música en directo</h1><p className="muted">Muestra la canción, el artista y la carátula en tu transmisión.</p></div>
+    </header>
+    <SpotifySource {...{ tool, config, setDraft, online, api, notice, save, saving, dirty }}/>
+    <div className="spotify-workspace">
+      <Card className="spotify-preview-panel" aria-label="Vista previa y enlace de salida">
+        <SpotifyPreview config={config} playback={online && tool.connected && !tool.error ? tool.playback : null} dimensions={`${width} × ${height} px`}/>
+        <div className="spotify-broadcast">
+          <h3>Enlace para el directo</h3>
+          <p className="help">Pega el enlace en una fuente de navegador de OBS o TikTok LIVE Studio y usa las dimensiones de la vista previa.</p>
+          <div className="actions"><OutputLinks url={output} notice={notice} iconSize={14}/></div>
+          <details>
+            <summary>Ver URL</summary>
+            <code>{output}</code>
+          </details>
+        </div>
+      </Card>
+      <Card className="spotify-settings" aria-label="Ajustes del widget">
+        <div className="spotify-settings-heading">
+          <h2>Ajustes del widget</h2>
+          <div className="spotify-save">
+            <p role="status" className={error ? 'spotify-error' : 'help'}>{error || saveStatus}</p>
+            {error && <Button variant="outline" size="sm" disabled={!online || saving} onClick={save}>Reintentar guardado</Button>}
+          </div>
+        </div>
+        <Tabs defaultValue="design">
+          <TabsList className="tabs-list spotify-tabs" aria-label="Ajustes de música">
+            <TabsTrigger value="design">Diseño</TabsTrigger>
+            <TabsTrigger value="cover">Carátula</TabsTrigger>
+            <TabsTrigger value="visibility">Visibilidad</TabsTrigger>
+            <TabsTrigger value="advanced">Avanzado</TabsTrigger>
+          </TabsList>
+          <TabsContent value="design"><SpotifyDesignSettings config={config} update={update}/></TabsContent>
+          <TabsContent value="cover"><SpotifyCoverSettings config={config} update={update} notice={notice}/></TabsContent>
+          <TabsContent value="visibility"><SpotifyVisibilitySettings config={config} update={update}/></TabsContent>
+          <TabsContent value="advanced"><SpotifyCssEditor config={config} update={update}/></TabsContent>
+        </Tabs>
+      </Card>
+    </div>
+  </div>;
 }

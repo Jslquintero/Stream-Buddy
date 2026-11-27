@@ -5,21 +5,23 @@ import finishCss from './spotify-cover-finishes.css?inline';
 import skinCss from './spotify-skins.css?inline';
 import { spotifySize } from '../../../shared/spotify';
 
+const previewHeight = 424;
+
 // The widget owns its stylesheet tree: user CSS cannot restyle the studio UI.
 export function SpotifySurface({ config = {}, children, preview = false }) {
   const host = useRef(null), frame = useRef(null);
   const [root, setRoot] = useState(null), [scale, setScale] = useState(1);
   const [width, height] = spotifySize(config.playerStyle, config);
+  const frameWidth = preview ? Math.min(width, width * previewHeight / height) : width;
   useLayoutEffect(() => { setRoot(host.current.shadowRoot || host.current.attachShadow({ mode:'open' })); }, []);
   useLayoutEffect(() => {
     if (!preview) return;
-    const resize = () => setScale(Math.min(1, (frame.current?.clientWidth || width) / width));
+    const resize = () => setScale(Math.min(frameWidth, frame.current.clientWidth || frameWidth) / width);
     resize(); const observer = new ResizeObserver(resize); observer.observe(frame.current);
     return () => observer.disconnect();
-  }, [preview, width]);
+  }, [preview, width, frameWidth]);
   const css = config.cssEnabled !== false ? config.customCss?.[config.playerStyle || 'compact'] || '' : '';
-  const centerPreview = preview && config.playerStyle === 'vertical';
-  return <div className="spotify-surface-frame" ref={frame} style={{ height:height * scale, width:preview ? '100%' : width, maxWidth:centerPreview ? width : undefined, marginInline:centerPreview ? 'auto' : undefined }}>
+  return <div className="spotify-surface-frame" ref={frame} style={{ height:height * scale, width:frameWidth, maxWidth:preview ? '100%' : undefined, marginInline:preview ? 'auto' : undefined }}>
     <div className="spotify-surface" ref={host} style={{width, height, transform:`scale(${scale})`, transformOrigin:'top left'}}>
       {root && createPortal(<><style>{'@layer spotify-base {\n' + baseCss + '\n' + skinCss + '\n' + finishCss + '\n}'}</style><style data-spotify-custom-css>{css}</style><div className="spotify-widget" style={{width, height}}>{children}</div></>, root)}
     </div>

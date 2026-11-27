@@ -10,7 +10,7 @@ import { LikesOutput } from './components/likes-studio';
 import { GiftersOutput } from './components/gifters-studio';
 import { AuctionOutput } from './components/auction-studio';
 import { CommandsOutput } from './components/commands-studio';
-import { SpotifyOutput } from './components/spotify-studio';
+import { SpotifyOutput } from './components/spotify-playback';
 import { SocialOutput } from './components/social-studio';
 import { BannersOutput } from './components/banners-studio';
 import { layoutOutputId } from '../../shared/layout-url';

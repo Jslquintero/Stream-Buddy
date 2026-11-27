@@ -1,0 +1,10 @@
+html.spotify-output, html.spotify-output body, html.spotify-output #root {
+  background: transparent !important;
+  margin: 0;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.spotify-stage { box-sizing: border-box; overflow: hidden; }
+.spotify-surface-frame { position: relative; min-width: 0; }
+.spotify-surface { display: block; }
