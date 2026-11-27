@@ -6,12 +6,15 @@ import { Field, NumberSettings, OverlayColors, Toggle } from './fields';
 import { googleFontOptions, NotificationFonts } from './notification-fonts';
 import {
   socialAnimations, socialTextAnimations, socialPositions, socialLayouts, socialStyles,
-  socialBorderStyles, socialCornerStyles, socialBorderEffects, socialImageFits, socialImageCorners,
+  socialBorderStyles, socialCornerStyles, socialBorderEffects, socialImageFits, socialImageCorners, socialQrPalettes, socialQrShapes,
+  socialIconShapes, socialIconBackdropStyles,
 } from '../../../modules/social/config';
 
 const socialImageAccept = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg';
 export const socialPhotoCovers = ['photo-cover', 'photo-caption'];
 export const socialPhotoLayouts = ['photo-left', 'photo-right', 'photo-top', 'custom', ...socialPhotoCovers];
+
+const qrPaletteOptions = socialQrPalettes.map(({ id, name }) => [id, name]);
 
 function DesignSelect({ name, label, options, design, update }) {
   return <Field label={label}>{id => <Select id={id} value={design[name]} onChange={event => update(name, event.target.value)}>
@@ -70,11 +73,35 @@ export function SocialFormatSettings({ design, update, openImage }) {
   </>;
 }
 
-export function SocialImageSettings({ design, channel, label, update, editChannel, updateShared, uploadingId, onUpload, online, chooseFormat }) {
+export function SocialQrSettings({ design, update }) {
+  return <>
+    <div className="social-dialog-fields">
+      <DesignSelect name="qrPalette" label="Colores del QR" options={qrPaletteOptions} design={design} update={update}/>
+      <DesignSelect name="qrShape" label="Forma de los módulos" options={socialQrShapes} design={design} update={update}/>
+    </div>
+    <RangeSetting name="qrSize" label="Tamaño del QR" min={120} max={360} unit=" px" design={design} update={update}/>
+    <p className="help">El tamaño se ajusta al espacio de la tarjeta y a la longitud del enlace.</p>
+  </>;
+}
+
+export function SocialIconSettings({ channel, uploading, onUpload, onRemove }) {
+  const isUploading = uploading?.field === 'icon' && uploading.id === channel.id;
+  return <section className="social-channel-media-actions">
+    <h3 className="social-settings-subheading">Icono de la red</h3>
+    <FilePicker label={isUploading ? 'Subiendo…' : channel.icon ? 'Cambiar icono' : 'Subir icono'} inputLabel="Seleccionar imagen para el icono"
+      accept={socialImageAccept} disabled={Boolean(uploading)} onFile={file => onUpload(file, channel.id, 'icon')}/>
+    {channel.icon && <Button type="button" variant="ghost" size="sm" disabled={isUploading} onClick={onRemove}>
+      <Trash2 size={14}/>Quitar icono
+    </Button>}
+    <p className="help">PNG, JPG, WebP, GIF o SVG · hasta 10 MB (SVG 3 MB).</p>
+  </section>;
+}
+
+export function SocialImageSettings({ design, channel, label, update, editChannel, updateShared, uploading, onUpload, online, chooseFormat }) {
   const [source, setSource] = useState('channel');
   const shared = source === 'shared';
   const image = shared ? design.image : channel.image;
-  const uploading = uploadingId === (shared ? '' : channel.id);
+  const isUploading = uploading?.field === 'image' && uploading.id === (shared ? null : channel.id);
   const photoLayout = socialPhotoLayouts.includes(design.layout);
   const cover = socialPhotoCovers.includes(design.layout);
   const custom = design.layout === 'custom';
@@ -90,10 +117,10 @@ export function SocialImageSettings({ design, channel, label, update, editChanne
         {image ? <img src={image} alt={shared ? 'Imagen de respaldo' : 'Imagen de ' + label}/> : <ImagePlus size={22} aria-hidden="true"/>}
       </span>
       <div className="social-channel-media-actions">
-        <FilePicker label={uploading ? 'Subiendo…' : image ? 'Cambiar imagen' : 'Subir imagen o SVG'}
+        <FilePicker label={isUploading ? 'Subiendo…' : image ? 'Cambiar imagen' : 'Subir imagen o SVG'}
           inputLabel={shared ? 'Seleccionar imagen compartida o SVG' : 'Seleccionar foto o SVG de ' + label}
-          accept={socialImageAccept} disabled={!online || uploadingId !== null} onFile={file => onUpload(file, shared ? null : channel.id)}/>
-        {image && <Button type="button" variant="ghost" size="sm" disabled={uploading}
+          accept={socialImageAccept} disabled={!online || Boolean(uploading)} onFile={file => onUpload(file, shared ? null : channel.id)}/>
+        {image && <Button type="button" variant="ghost" size="sm" disabled={isUploading}
           onClick={() => shared ? updateShared('image', '') : editChannel(channel.id, { image: '' })}>
           <Trash2 size={14}/>Quitar imagen
         </Button>}
@@ -160,6 +187,12 @@ export function SocialStyleSettings({ design, update }) {
         ))}
       </div>
     </fieldset>
+    <h3 className="social-settings-subheading">Estilo del icono</h3>
+    <Toggle name="showIconBackdrop" label="Mostrar fondo del icono" settings={design} update={update}/>
+    {design.showIconBackdrop && <div className="social-dialog-fields">
+      <DesignSelect name="iconShape" label="Forma del fondo del icono" options={socialIconShapes} design={design} update={update}/>
+      <DesignSelect name="iconBackdropStyle" label="Color del fondo del icono" options={socialIconBackdropStyles} design={design} update={update}/>
+    </div>}
     <OverlayColors settings={design} update={update}/>
     <fieldset className="social-choices social-corner-choices">
       <legend>Esquinas de la tarjeta</legend>

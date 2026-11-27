@@ -39,6 +39,10 @@ test('social validates channel rotations, platforms and safe links', () => {
   assert.throws(() => validateSocial({ ...custom, channels: [] }));
   assert.throws(() => validateSocial({ ...custom, channels: [{ ...custom.channels[0], platform: 'myspace' }] }));
   assert.throws(() => validateSocial({ ...custom, channels: [{ ...custom.channels[0], url: 'javascript:alert(1)' }] }));
+  const website = { ...custom.channels[0], platform: 'website', url: 'example.com/pagina?desde=directo' };
+  assert.equal(validateSocial({ ...custom, channels: [{ ...website, label: undefined }] }).channels[0].label, '');
+  assert.equal(validateSocial({ ...custom, channels: [website] }).channels[0].url, 'https://example.com/pagina?desde=directo');
+  assert.throws(() => validateSocial({ ...custom, channels: [{ ...website, url: 'https://user:pass@example.com' }] }));
   assert.throws(() => validateSocial({ ...custom, channels: [{ ...custom.channels[0], color: 'red' }] }));
   assert.throws(() => validateSocial({ ...custom, channels: [custom.channels[0], custom.channels[0]] }));
   assert.throws(() => validateSocial({ ...custom, channels: Array.from({ length: 26 }, (_, index) => ({ ...custom.channels[0], id: 'red-' + index })) }));
@@ -124,6 +128,8 @@ test('social card CSS reflects the current design and keeps one snippet per visu
   assert.equal(socialCustomCss({ ...config, style: 'noir' }), '.social-card { color: white; }');
   assert.equal(socialCustomCss({ ...config, style: 'clean' }), '');
   assert.match(socialCardCss({ ...config, cssEnabled: false }), /CSS personalizado desactivado/);
+  const iconCss = socialCardCss({ ...config, showIconBackdrop: false, iconShape: 'circle' });
+  assert.match(iconCss, /\.social-card \.social-icon \{[^}]+background: transparent;[^}]+box-shadow: none;[^}]+border-radius: 50%;/);
 });
 
 test('social stores uploaded photos and rejects external image references', t => {
@@ -140,14 +146,17 @@ test('social stores uploaded photos and rejects external image references', t =>
   assert.equal(module.state().config.channels[0].image, upload.image);
   assert.throws(() => module.save({ ...config, channels: [{ ...channels[0], image: 'https://example.com/foto.png' }] }), /Foto de red inválida/);
   assert.throws(() => module.save({ ...config, channels: [{ ...channels[0], image: '/social-assets/no-existe.png' }] }), /Foto de red inválida/);
-  const custom = { ...config, layout: 'custom', image: upload.image, imagePositionY: 100, cornerStyle: 'custom', radiusTR: 0 };
+  const customChannel = { ...config.channels[0], platform: 'custom', icon: upload.image };
+  const custom = { ...config, channels: [customChannel], layout: 'custom', image: upload.image, imagePositionY: 100, cornerStyle: 'custom', radiusTR: 0 };
   module.save(custom);
   const reopened = createSocialModule({ dataDir });
   t.after(() => reopened.close());
   assert.equal(reopened.state().config.image, upload.image);
+  assert.equal(reopened.state().config.channels[0].icon, upload.image);
   assert.equal(reopened.state().config.imagePositionY, 100);
   assert.equal(reopened.state().config.radiusTR, 0);
   assert.throws(() => module.save({ ...custom, image: 'https://example.com/foto.png' }), /Foto de red inválida/);
+  assert.throws(() => module.save({ ...custom, channels: [{ ...customChannel, icon: 'https://example.com/icono.png' }] }), /Icono de red inválido/);
   assert.throws(() => module.save({ ...custom, imagePositionY: 101 }), /imagePositionY/);
 });
 

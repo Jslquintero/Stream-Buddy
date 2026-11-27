@@ -1,3 +1,5 @@
+@import './social.css' layer(social-base);
+
 /* =========================================================
    Social Media Rotator · editor (tema claro)
    ========================================================= */
@@ -1497,6 +1499,10 @@
 
 .social-dialog-editor {
   width: min(100%, 960px);
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
 }
 
 .social-dialog-header {
@@ -1571,6 +1577,11 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.social-dialog-editor > .social-dialog-body {
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+}
+
 .social-dialog-form {
   display: grid;
   gap: 14px;
@@ -1578,6 +1589,8 @@
 }
 
 .social-dialog-tabs {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
 }
 
@@ -1589,6 +1602,10 @@
   border: 1px solid var(--s-border);
   border-radius: 10px;
   background: var(--s-surface-2);
+}
+
+.social-dialog-tabs[data-qr] > .tabs-list {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .social-dialog-tabs .tabs-trigger {
@@ -1606,9 +1623,12 @@
 
 .social-dialog-tabs > .tabs-content {
   display: grid;
+  align-content: start;
   gap: 13px;
   min-width: 0;
-  padding: 14px 0 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 14px 4px 4px;
 }
 
 .social-dialog-tabs .form-row {
@@ -1711,8 +1731,9 @@
 }
 
 .social-dialog-preview {
-  position: sticky;
-  top: 74px;
+  align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
   display: grid;
   align-content: start;
   gap: 8px;
@@ -1747,6 +1768,11 @@
 .social-dialog-footer .actions {
   margin: 0;
   gap: 8px;
+}
+
+.social-dialog-editor > .social-dialog-footer {
+  margin-top: 0;
+  justify-content: flex-end;
 }
 
 .social-dialog-footer > .help,
@@ -2056,9 +2082,13 @@
     padding: 14px;
   }
 
+  .social-dialog-editor > .social-dialog-body {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
   .social-dialog-preview {
-    position: static;
     order: -1;
+    max-height: 28dvh;
   }
 
   .social-dialog-header,
@@ -2076,9 +2106,35 @@
   }
 }
 
+@media (max-width: 740px) and (max-height: 560px) {
+  .social-dialog-editor > .social-dialog-body {
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .social-dialog-tabs {
+    grid-template-rows: auto auto;
+  }
+
+  .social-dialog-tabs > .tabs-list {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .social-dialog-tabs > .tabs-content {
+    overflow: visible;
+  }
+}
+
 @media (max-width: 520px) {
   .social-dialog-tabs > .tabs-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .social-dialog-tabs[data-qr] > .tabs-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .social-dialog-fields,

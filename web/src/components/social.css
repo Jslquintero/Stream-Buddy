@@ -15,6 +15,42 @@
 .social-stage.bottom-right { align-items: flex-end; }
 
 .social-card {
+  /* The editor supplies defaults separately so custom CSS can override these variables. */
+  --social-width: var(--social-config-width);
+  --social-bg: var(--social-config-bg);
+  --social-border: var(--social-config-border);
+  --social-border-width: var(--social-config-border-width);
+  --social-border-style: var(--social-config-border-style);
+  --social-color: var(--social-config-color);
+  --social-font-family: var(--social-config-font-family);
+  --social-text-duration: var(--social-config-text-duration);
+  --social-text-shadow: var(--social-config-text-shadow);
+  --social-accent: var(--social-config-accent);
+  --social-channel: var(--social-config-channel);
+  --social-channel-bg: var(--social-config-channel-bg);
+  --social-channel-border: var(--social-config-channel-border);
+  --social-channel-glow: var(--social-config-channel-glow);
+  --social-radius: var(--social-config-radius);
+  --social-card-tl: var(--social-config-card-tl);
+  --social-card-tr: var(--social-config-card-tr);
+  --social-card-br: var(--social-config-card-br);
+  --social-card-bl: var(--social-config-card-bl);
+  --social-interval: var(--social-config-interval);
+  --social-icon-size: var(--social-config-icon-size);
+  --social-image-width: var(--social-config-image-width);
+  --social-image-height: var(--social-config-image-height);
+  --social-image-gap: var(--social-config-image-gap);
+  --social-custom-height: var(--social-config-custom-height);
+  --social-image-x: var(--social-config-image-x);
+  --social-image-y: var(--social-config-image-y);
+  --social-image-fit: var(--social-config-image-fit);
+  --social-image-position: var(--social-config-image-position);
+  --social-image-zoom: var(--social-config-image-zoom);
+  --social-image-radius: var(--social-config-image-radius);
+  --social-image-tl: var(--social-config-image-tl);
+  --social-image-tr: var(--social-config-image-tr);
+  --social-image-br: var(--social-config-image-br);
+  --social-image-bl: var(--social-config-image-bl);
   position: relative;
   display: flex;
   align-items: center;
@@ -243,6 +279,26 @@
   z-index: 1;
 }
 .social-icon svg { width: 54%; height: 54%; }
+.social-icon-image { display: block; object-fit: contain; }
+.social-icon > .social-icon-image { width: 78%; height: 78%; }
+
+.social-qr {
+  flex: 0 1 auto;
+  height: auto;
+  min-width: 0;
+  max-width: 100%;
+  position: relative;
+  z-index: 5;
+}
+
+.social-card:has(> .social-qr) { flex-wrap: wrap; }
+.social-card:has(> .social-qr) > .social-copy { min-width: min(6em, 100%); }
+.social-card.social-layout-minimal:has(> .social-qr) { gap: 0.95em; }
+
+.social-card.social-layout-photo-top .social-qr {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
 
 .social-copy {
   position: relative;
@@ -545,6 +601,7 @@
 }
 
 .social-card.social-layout-photo-left { flex-direction: row; }
+.social-card.social-layout-photo-right:has(> .social-icon) { padding-inline-start: clamp(10px, 0.85em, 16px); }
 .social-card.social-layout-photo-right .social-media { order: 1; }
 
 .social-card.social-layout-photo-left .social-glow,
@@ -660,6 +717,38 @@
   transform: translate(calc(-1 * var(--social-image-x, 50%)), calc(-1 * var(--social-image-y, 50%)));
 }
 
+.social-card > .social-icon[data-shape="rounded"] { border-radius: 24%; }
+.social-card > .social-icon[data-shape="circle"] { border-radius: 50%; }
+.social-card > .social-icon[data-shape="square"] { border-radius: 0; }
+
+.social-card > .social-icon[data-backdrop="channel"] {
+  color: var(--social-channel);
+  background: var(--social-channel-bg);
+  border-color: var(--social-channel-border);
+  box-shadow: 0 0 1.8em var(--social-channel-glow);
+}
+
+.social-card > .social-icon[data-backdrop="light"] {
+  color: #17191f;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+
+.social-card > .social-icon[data-backdrop="dark"] {
+  color: #f8fafc;
+  background: #17191f;
+  border-color: #475569;
+  box-shadow: none;
+}
+
+.social-card > .social-icon[data-backdrop="none"] {
+  color: inherit;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 /* Los temas con paleta propia conservan el color de su encabezado en todos los formatos. */
 .social-card.social-style-holo .social-heading { color: #2a1645d9; }
 .social-card.social-style-candy .social-heading { color: #6b4b7a; }
@@ -698,9 +787,9 @@
 }
 .social-card.social-flat.social-border-rgb::before,
 .social-card.social-flat.social-border-glow::before { display: none; }
-.social-card.social-flat { border-color: transparent !important; box-shadow: none !important; background-image: none !important; }
+.social-card.social-flat { border-color: transparent; box-shadow: none; background-image: none; }
 .social-card.social-flat::after,
-.social-card.social-flat .social-glow { display: none !important; }
+.social-card.social-flat .social-glow { display: none; }
 @keyframes social-rgb {
   from { filter: hue-rotate(0deg); }
   to { filter: hue-rotate(360deg); }

@@ -14,6 +14,8 @@ export const socialPlatforms = [
   { id: 'telegram', name: 'Telegram', color: '#2aabee', placeholder: '@tucanal' },
   { id: 'threads', name: 'Threads', color: '#e7e9ea', placeholder: '@tuusuario' },
   { id: 'website', name: 'Sitio web', color: '#b9f678', placeholder: 'tupagina.com' },
+  { id: 'custom', name: 'Personalizada', color: '#a78bfa', placeholder: '@tuusuario' },
+  { id: 'qr', name: 'QR', color: '#64748b', placeholder: 'https://tupagina.com' },
   { id: 'linkedin', name: 'LinkedIn', color: '#0a66c2', placeholder: '/tuperfil' },
   { id: 'bluesky', name: 'Bluesky', color: '#1185fe', placeholder: '@usuario' },
   { id: 'mastodon', name: 'Mastodon', color: '#563acc', placeholder: '@usuario' },
@@ -23,6 +25,33 @@ export const socialPlatforms = [
   { id: 'patreon', name: 'Patreon', color: '#f96854', placeholder: '@creador' },
   { id: 'dribbble', name: 'Dribbble', color: '#ea4c89', placeholder: '@usuario' },
   { id: 'behance', name: 'Behance', color: '#1769ff', placeholder: '@usuario' },
+];
+
+export const socialQrPalettes = [
+  { id: 'classic', name: 'Negro sobre blanco', foreground: '#000000', background: '#ffffff' },
+  { id: 'blue', name: 'Azul marino sobre celeste', foreground: '#172554', background: '#eff6ff' },
+  { id: 'green', name: 'Verde bosque sobre menta', foreground: '#052e16', background: '#ecfdf5' },
+  { id: 'purple', name: 'Morado sobre lavanda', foreground: '#3b0764', background: '#faf5ff' },
+  { id: 'sepia', name: 'Marrón sobre crema', foreground: '#431407', background: '#fffbeb' },
+];
+
+export const socialQrShapes = [
+  ['square', 'Cuadrados'],
+  ['rounded', 'Redondeados'],
+];
+
+export const socialIconShapes = [
+  ['auto', 'Según el formato'],
+  ['rounded', 'Redondeado'],
+  ['circle', 'Círculo'],
+  ['square', 'Cuadrado'],
+];
+
+export const socialIconBackdropStyles = [
+  ['theme', 'Según el tema'],
+  ['channel', 'Color de la red'],
+  ['light', 'Claro'],
+  ['dark', 'Oscuro'],
 ];
 
 export const socialAnimations = [
@@ -129,7 +158,11 @@ export function resolveSocialLayout(config, channel) {
 }
 
 export function resolveSocialDesign(config, channel) {
-  return { ...defaultSocial, ...config, ...channel?.design, layout: resolveSocialLayout(config, channel) };
+  const design = { ...defaultSocial, ...config, ...channel?.design, layout: resolveSocialLayout(config, channel) };
+  if (channel?.platform === 'qr' && channel.design?.heading === undefined && design.heading === defaultSocial.heading) {
+    design.heading = 'ESCANEA EL CÓDIGO';
+  }
+  return design;
 }
 
 export function socialPlatform(id) {
@@ -138,8 +171,8 @@ export function socialPlatform(id) {
 
 const socialAssetPath = /^\/social-assets\/[a-f0-9]{64}\.(png|gif|jpg|webp|svg)$/;
 
-function validateSocialImage(image) {
-  if (typeof image !== 'string' || (image && !socialAssetPath.test(image))) throw new Error('Foto de red inválida');
+function validateSocialImage(image, error = 'Foto de red inválida') {
+  if (typeof image !== 'string' || (image && !socialAssetPath.test(image))) throw new Error(error);
   return image;
 }
 
@@ -175,11 +208,17 @@ export const defaultSocial = {
   radiusBR: 24,
   radiusBL: 24,
   showIcon: true,
+  showIconBackdrop: true,
+  iconShape: 'auto',
+  iconBackdropStyle: 'theme',
   showLabel: true,
   showHandle: true,
   showProgress: true,
   random: false,
   iconSize: 56,
+  qrSize: 160,
+  qrPalette: 'classic',
+  qrShape: 'square',
   image: '',
   customHeight: 250,
   imagePositionX: 50,
@@ -230,12 +269,34 @@ function safeUrl(value) {
   }
 }
 
+export function validateSocialQrUrl(value) {
+  const url = safeUrl(value);
+  if (url.length > 2048) throw new Error('El enlace del QR supera los 2048 caracteres al codificarlo');
+  return url;
+}
+
+export function validateSocialWebsiteUrl(value) {
+  const input = typeof value === 'string' ? value.trim() : value;
+  const bareDomain = /^(?:[\p{L}\p{N}-]+\.)+[\p{L}\p{N}-]+(?::\d+)?(?:[/?#]|$)/u;
+  return safeUrl(typeof input === 'string' && bareDomain.test(input) ? 'https://' + input : input);
+}
+
 function validateSocialDesign(value) {
   const result = {};
-  for (const key of ['showIcon', 'showLabel', 'showHandle', 'textShadow', 'imageShadow']) {
+  if (!socialQrPalettes.some(({ id }) => id === value.qrPalette) || !socialQrShapes.some(([id]) => id === value.qrShape)) {
+    throw new Error('Estilo de QR inválido');
+  }
+  result.qrPalette = value.qrPalette;
+  result.qrShape = value.qrShape;
+  for (const key of ['showIcon', 'showIconBackdrop', 'showLabel', 'showHandle', 'textShadow', 'imageShadow']) {
     if (typeof value[key] !== 'boolean') throw new Error('Estado inválido');
     result[key] = value[key];
   }
+  if (!socialIconShapes.some(([id]) => id === value.iconShape) || !socialIconBackdropStyles.some(([id]) => id === value.iconBackdropStyle)) {
+    throw new Error('Estilo de icono inválido');
+  }
+  result.iconShape = value.iconShape;
+  result.iconBackdropStyle = value.iconBackdropStyle;
   if (!socialAnimations.some(([id]) => id === value.animation)) throw new Error('Animación inválida');
   result.animation = value.animation;
   if (!socialTextAnimations.some(([id]) => id === value.textAnimation)) throw new Error('Animación de texto inválida');
@@ -261,7 +322,7 @@ function validateSocialDesign(value) {
   if (typeof value.heading !== 'string' || value.heading.length > 40 || /[\r\n]/.test(value.heading)) throw new Error('El texto superior debe tener hasta 40 caracteres en una línea');
   result.heading = value.heading.trim();
   for (const [key, min, max] of [
-    ['width', 240, 900], ['iconSize', 24, 96], ['opacity', 0, 100],
+    ['width', 240, 900], ['iconSize', 24, 96], ['qrSize', 120, 360], ['opacity', 0, 100],
     ['textAnimationDuration', 100, 2000],
     ['borderOpacity', 0, 100], ['borderWidth', 0, 8], ['radius', 0, 80],
     ['radiusTL', 0, 80], ['radiusTR', 0, 80], ['radiusBR', 0, 80], ['radiusBL', 0, 80],
@@ -322,13 +383,15 @@ export function validateSocial(input) {
     ids.add(channel.id);
     const platform = socialPlatform(channel.platform);
     if (platform.id !== channel.platform) throw new Error('Red social inválida');
-    const label = channel.label === undefined || channel.label === null ? platform.name : channel.label;
+    const validateUrl = platform.id === 'website' ? validateSocialWebsiteUrl : platform.id === 'qr' ? validateSocialQrUrl : safeUrl;
+    const label = channel.label ?? '';
     if (typeof label !== 'string' || label.trim().length > 50 || /[\r\n]/.test(label)) throw new Error('El nombre de la red debe tener hasta 50 caracteres');
     const handle = channel.handle === undefined || channel.handle === null ? '' : channel.handle;
     if (typeof handle !== 'string' || handle.trim().length > 80 || /[\r\n]/.test(handle)) throw new Error('El usuario debe tener hasta 80 caracteres');
     const color = channel.color === undefined || channel.color === null ? platform.color : channel.color;
     if (typeof color !== 'string' || !/^#[a-f0-9]{6}$/i.test(color)) throw new Error('Color de red inválido');
     const image = validateSocialImage(channel.image ?? '');
+    const icon = validateSocialImage(channel.icon ?? '', 'Icono de red inválido');
     if (channel.layout !== undefined && !socialLayoutIds.has(channel.layout)) throw new Error('Formato de red inválido');
     let design;
     if (channel.design !== undefined) {
@@ -341,10 +404,11 @@ export function validateSocial(input) {
       platform: platform.id,
       label: label.trim(),
       handle: handle.trim(),
-      url: safeUrl(channel.url),
+      url: validateUrl(channel.url),
       color,
       enabled: channel.enabled === undefined ? true : channel.enabled,
       image,
+      ...(icon ? { icon } : {}),
       ...(channel.layout === undefined ? {} : { layout: channel.layout }),
       ...(design && Object.keys(design).length ? { design } : {}),
     };

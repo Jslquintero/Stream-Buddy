@@ -4,6 +4,12 @@ import { googleFontStack } from '../../shared/google-fonts.js';
 const layoutNames = Object.fromEntries(socialLayouts);
 const styleNames = Object.fromEntries(socialStyles);
 const autoRadii = { pill: 999, banner: 8, ticker: 6, ribbon: 4 };
+const iconRadii = { rounded: '24%', circle: '50%', square: '0' };
+const iconBackdrops = {
+  light: ['#17191f', '#f8fafc', '#e2e8f0'],
+  dark: ['#f8fafc', '#17191f', '#475569'],
+  none: ['inherit', 'transparent', 'transparent'],
+};
 
 function color(value, fallback) {
   return typeof value === 'string' && /^#[a-f0-9]{6}$/i.test(value) ? value : fallback;
@@ -42,6 +48,10 @@ export function socialCardCss(config = defaultSocial, selectedChannel) {
     : radius + 'px';
   const width = Number(settings.width) || 460;
   const iconSize = Number(settings.iconSize) || 56;
+  const backdrop = settings.showIconBackdrop ? settings.iconBackdropStyle : 'none';
+  const [iconColor, iconBackground, iconBorder] = iconBackdrops[backdrop] ?? [channelColor, alpha(channelColor, 0.16), alpha(channelColor, 0.5)];
+  const iconRadius = iconRadii[settings.iconShape];
+  const iconShadow = backdrop === 'channel' ? `0 0 1.8em ${alpha(channelColor, 0.24)}` : 'none';
   const borderWidth = Number(settings.borderWidth) || 0;
   const borderOpacity = Math.max(0, Math.min(100, Number(settings.borderOpacity ?? 100))) / 100;
   const border = settings.borderEffect === 'none'
@@ -93,9 +103,11 @@ export function socialCardCss(config = defaultSocial, selectedChannel) {
     '.social-card .social-icon {',
     `  width: ${iconSize}px;`,
     `  height: ${iconSize}px;`,
-    `  color: ${channelColor};`,
-    `  background: ${alpha(channelColor, 0.16)};`,
-    `  border: 1px solid ${alpha(channelColor, 0.5)};`,
+    `  color: ${iconColor};`,
+    `  background: ${iconBackground};`,
+    `  border: 1px solid ${iconBorder};`,
+    ...(backdrop === 'theme' ? [] : [`  box-shadow: ${iconShadow};`]),
+    ...(iconRadius ? [`  border-radius: ${iconRadius};`] : []),
     '}',
     '',
     '.social-card .social-media img {',

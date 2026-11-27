@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import qrcode from 'qrcode-generator';
 import {
   ArrowDown,
   ArrowUp,
@@ -25,20 +26,21 @@ import { googleFontStack } from '../../../shared/google-fonts';
 import {
   defaultSocial,
   validateSocial,
+  validateSocialQrUrl,
   migrateSocial,
   socialOutputPath,
   socialPlatforms,
   socialPlatform,
+  socialQrPalettes,
   socialLayouts,
   resolveSocialLayout,
   resolveSocialDesign,
 } from '../../../modules/social/config';
 import { socialCustomCss } from '../../../modules/social/css';
 import { SocialCssEditor } from './social-css-editor';
-import { SocialFormatSettings, SocialImageSettings, SocialStyleSettings, SocialTextSettings, socialPhotoCovers, socialPhotoLayouts } from './social-channel-design';
+import { SocialFormatSettings, SocialIconSettings, SocialImageSettings, SocialQrSettings, SocialStyleSettings, SocialTextSettings, socialPhotoCovers, socialPhotoLayouts } from './social-channel-design';
 import { SocialPlatformIcon } from './social-icons';
 import './editor-workspace.css';
-import './social.css';
 import './social-editor.css';
 
 const storage = { key: 'live-studio.social.pending.v1', validate: validateSocial, migrate: migrateSocial, action: 'social/save' };
@@ -89,9 +91,51 @@ function useDialogDismiss(open, onClose) {
   }, [open]);
 }
 
-export function useSocialRotation(config, { auto = true } = {}) {
+function qrUrl(channel) {
+  try {
+    return validateSocialQrUrl(channel.url);
+  } catch {
+    return '';
+  }
+}
+
+function SocialQr({ url, palette, shape, preferredSize }) {
+  const { modules, squarePath, roundedPath } = useMemo(() => {
+    const code = qrcode(0, 'M');
+    code.addData(url);
+    code.make();
+    const count = code.getModuleCount();
+    const squares = [];
+    const rounded = [];
+    for (let row = 0; row < count; row++) {
+      for (let column = 0; column < count; column++) {
+        if (!code.isDark(row, column)) continue;
+        const inFinder = (row < 7 && (column < 7 || column >= count - 7)) || (column < 7 && row >= count - 7);
+        const x = column + 4;
+        const y = row + 4;
+        if (shape === 'rounded' && !inFinder) {
+          rounded.push(`M${x}.12 ${y}.12h.76v.76h-.76Z`);
+        } else {
+          squares.push(`M${x} ${y}h1v1h-1Z`);
+        }
+      }
+    }
+    return { modules: count + 8, squarePath: squares.join(''), roundedPath: rounded.join('') };
+  }, [url, shape]);
+  const { foreground, background } = socialQrPalettes.find(({ id }) => id === palette) ?? socialQrPalettes[0];
+  const src = useMemo(() => {
+    const rounded = roundedPath ? `<path d="${roundedPath}" fill="${foreground}" stroke="${foreground}" stroke-width=".24" stroke-linejoin="round"/>` : '';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${modules} ${modules}"><rect width="100%" height="100%" fill="${background}"/><path d="${squarePath}" fill="${foreground}" shape-rendering="crispEdges"/>${rounded}</svg>`;
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }, [modules, squarePath, roundedPath, foreground, background]);
+  const size = Math.max(preferredSize, modules * 2);
+  return <img className="social-qr" src={src} width={size} height={size} alt="Código QR para abrir el enlace"/>;
+}
+
+export function useSocialRotation(config, { auto = true, requireQrUrl = false } = {}) {
   const settings = config ?? defaultSocial;
-  const channels = (settings.channels ?? []).filter(channel => channel && channel.enabled);
+  const channels = (settings.channels ?? []).filter(channel =>
+    channel?.enabled && (!requireQrUrl || channel.platform !== 'qr' || qrUrl(channel)));
   const signature = JSON.stringify(channels.map(channel => channel.id));
   const [index, setIndex] = useState(0);
   const [cycle, setCycle] = useState(0);
@@ -161,56 +205,61 @@ export function SocialCard({ channel, config, cycle = 0, progress = true, textCy
   const imageCover = socialPhotoCovers.includes(layout);
   const image = socialPhotoLayouts.includes(layout) && (channel.image || settings.image);
   const defaultTextShadow = imageCover && image ? '0 2px 12px #000e, 0 0 3px #000b' : 'none';
-  const label = channel.label || meta.name;
+  const label = channel.label?.trim();
+  const qr = channel.platform === 'qr' ? qrUrl(channel) : '';
   const style = {
-    '--social-width': (Number(settings.width) || 460) + 'px',
-    '--social-bg': alpha(background, (Number(settings.opacity) || 0) / 100),
-    '--social-border': alpha(accent, Math.min(100, Math.max(0, Number(settings.borderOpacity ?? 100))) / 100),
-    '--social-border-width': (Number(settings.borderWidth) || 0) + 'px',
-    '--social-border-style': settings.borderStyle || 'solid',
-    '--social-color': safeColor(settings.color, '#ffffff'),
-    '--social-font-family': googleFontStack(settings.fontFamily),
-    '--social-text-duration': settings.textAnimationDuration + 'ms',
-    '--social-text-shadow': settings.textShadow ? `0 0.1em 0.4em ${alpha(shadowColor, 0.65)}` : defaultTextShadow,
-    '--social-accent': accent,
-    '--social-channel': channelColor,
-    '--social-channel-bg': alpha(channelColor, 0.16),
-    '--social-channel-border': alpha(channelColor, 0.5),
-    '--social-channel-glow': alpha(channelColor, 0.24),
-    '--social-radius': (Number(settings.radius) || 0) + 'px',
-    '--social-card-tl': (Number(settings.radiusTL) || 0) + 'px',
-    '--social-card-tr': (Number(settings.radiusTR) || 0) + 'px',
-    '--social-card-br': (Number(settings.radiusBR) || 0) + 'px',
-    '--social-card-bl': (Number(settings.radiusBL) || 0) + 'px',
-    '--social-interval': (Number(settings.interval) || 6) + 's',
-    '--social-icon-size': (Number(settings.iconSize) || 56) + 'px',
-    '--social-image-width': (Number(settings.imageWidth) || 230) + 'px',
-    '--social-image-height': (Number(settings.imageHeight) || 250) + 'px',
-    '--social-image-gap': (Number(settings.imageGap) || 0) + 'px',
-    '--social-custom-height': (Number(settings.customHeight) || 250) + 'px',
-    '--social-image-x': settings.imagePositionX + '%',
-    '--social-image-y': settings.imagePositionY + '%',
-    '--social-image-fit': settings.imageFit || 'cover',
-    '--social-image-position': `calc(50% + ${Number(settings.imageOffsetX) || 0}%) calc(50% + ${Number(settings.imageOffsetY) || 0}%)`,
-    '--social-image-zoom': (Number(settings.imageZoom) || 100) / 100,
-    '--social-image-radius': (Number(settings.imageRadius) || 0) + 'px',
-    '--social-image-tl': (Number(settings.imageRadiusTL) || 0) + 'px',
-    '--social-image-tr': (Number(settings.imageRadiusTR) || 0) + 'px',
-    '--social-image-br': (Number(settings.imageRadiusBR) || 0) + 'px',
-    '--social-image-bl': (Number(settings.imageRadiusBL) || 0) + 'px',
+    '--social-config-width': (Number(settings.width) || 460) + 'px',
+    '--social-config-bg': alpha(background, (Number(settings.opacity) || 0) / 100),
+    '--social-config-border': alpha(accent, Math.min(100, Math.max(0, Number(settings.borderOpacity ?? 100))) / 100),
+    '--social-config-border-width': (Number(settings.borderWidth) || 0) + 'px',
+    '--social-config-border-style': settings.borderStyle || 'solid',
+    '--social-config-color': safeColor(settings.color, '#ffffff'),
+    '--social-config-font-family': googleFontStack(settings.fontFamily),
+    '--social-config-text-duration': settings.textAnimationDuration + 'ms',
+    '--social-config-text-shadow': settings.textShadow ? `0 0.1em 0.4em ${alpha(shadowColor, 0.65)}` : defaultTextShadow,
+    '--social-config-accent': accent,
+    '--social-config-channel': channelColor,
+    '--social-config-channel-bg': alpha(channelColor, 0.16),
+    '--social-config-channel-border': alpha(channelColor, 0.5),
+    '--social-config-channel-glow': alpha(channelColor, 0.24),
+    '--social-config-radius': (Number(settings.radius) || 0) + 'px',
+    '--social-config-card-tl': (Number(settings.radiusTL) || 0) + 'px',
+    '--social-config-card-tr': (Number(settings.radiusTR) || 0) + 'px',
+    '--social-config-card-br': (Number(settings.radiusBR) || 0) + 'px',
+    '--social-config-card-bl': (Number(settings.radiusBL) || 0) + 'px',
+    '--social-config-interval': (Number(settings.interval) || 6) + 's',
+    '--social-config-icon-size': (Number(settings.iconSize) || 56) + 'px',
+    '--social-config-image-width': (Number(settings.imageWidth) || 230) + 'px',
+    '--social-config-image-height': (Number(settings.imageHeight) || 250) + 'px',
+    '--social-config-image-gap': (Number(settings.imageGap) || 0) + 'px',
+    '--social-config-custom-height': (Number(settings.customHeight) || 250) + 'px',
+    '--social-config-image-x': settings.imagePositionX + '%',
+    '--social-config-image-y': settings.imagePositionY + '%',
+    '--social-config-image-fit': settings.imageFit || 'cover',
+    '--social-config-image-position': `calc(50% + ${Number(settings.imageOffsetX) || 0}%) calc(50% + ${Number(settings.imageOffsetY) || 0}%)`,
+    '--social-config-image-zoom': (Number(settings.imageZoom) || 100) / 100,
+    '--social-config-image-radius': (Number(settings.imageRadius) || 0) + 'px',
+    '--social-config-image-tl': (Number(settings.imageRadiusTL) || 0) + 'px',
+    '--social-config-image-tr': (Number(settings.imageRadiusTR) || 0) + 'px',
+    '--social-config-image-br': (Number(settings.imageRadiusBR) || 0) + 'px',
+    '--social-config-image-bl': (Number(settings.imageRadiusBL) || 0) + 'px',
   };
   return <article className={'social-card social-layout-' + layout + ' social-style-' + (settings.style || 'clean') + ' social-corners-' + (settings.cornerStyle || 'auto') + ' social-border-' + (settings.borderEffect || 'none') + ' social-image-corners-' + (settings.imageCorners || 'all') + (settings.imageShadow ? ' social-image-shadow' : '') + ' social-animation-' + (settings.animation || 'pop') + (flat ? ' social-flat' : '')} style={style}
-    aria-label={[label, channel.handle].filter(Boolean).join(', ')} data-cycle={cycle}>
+    aria-label={[label, channel.handle].filter(Boolean).join(', ') || undefined} data-cycle={cycle}>
     <NotificationFontResource family={settings.fontFamily}/>
     {image && <span className={'social-media' + (imageCover ? ' social-media-background' : '')} aria-hidden="true">
       <img className={imageCover ? 'social-media-cover' : undefined} src={image} alt="" loading="eager"/>
       {imageCover && <span className="social-media-scrim"/>}
     </span>}
     <span className="social-glow" aria-hidden="true"/>
-    {settings.showIcon && <span className="social-icon"><SocialPlatformIcon platform={channel.platform} size={38}/></span>}
+    {qr && <SocialQr url={qr} palette={settings.qrPalette} shape={settings.qrShape} preferredSize={settings.qrSize}/>}
+    {settings.showIcon && (!qr || channel.icon) && <span className="social-icon" data-shape={settings.iconShape}
+      data-backdrop={settings.showIconBackdrop ? settings.iconBackdropStyle : 'none'}>
+      <SocialPlatformIcon platform={channel.platform} icon={channel.icon} url={channel.url} size={38}/>
+    </span>}
     <span className={'social-copy social-animation-' + settings.textAnimation} key={textCycle}>
       {settings.heading && <span className="social-heading">{settings.heading}</span>}
-      {settings.showLabel && <strong className="social-label">{label}</strong>}
+      {settings.showLabel && label && <strong className="social-label">{label}</strong>}
       {settings.showHandle && channel.handle && <span className="social-handle">{channel.handle}</span>}
     </span>
     {settings.showProgress && progress && <span className="social-progress" aria-hidden="true"><i/></span>}
@@ -221,7 +270,7 @@ export function SocialOutput() {
   const { state, online } = useStudio('social');
   const tool = state?.tools.social;
   const config = tool?.config;
-  const rotation = useSocialRotation(config, { auto: true });
+  const rotation = useSocialRotation(config, { requireQrUrl: true });
   const design = resolveSocialDesign(config, rotation.channel);
 
   useEffect(() => {
@@ -278,7 +327,7 @@ function SocialPreview({ channel, config, cycle, progress, textCycle }) {
   </div>;
 }
 
-function ChannelRow({ channel, format, index, count, active, onPreview, onEdit, onMove, onToggle }) {
+function ChannelRow({ channel, format, index, count, active, online, onPreview, onEdit, onMove, onToggle, onDelete }) {
   const meta = socialPlatform(channel.platform);
   const label = channel.label || meta.name;
   const showPlatform = label.trim().toLowerCase() !== meta.name.toLowerCase();
@@ -286,7 +335,7 @@ function ChannelRow({ channel, format, index, count, active, onPreview, onEdit, 
     <span className="social-channel-order" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
     <button type="button" className="social-channel-main" onClick={() => onPreview(channel)} aria-label={'Seleccionar ' + label + ' en la vista previa'}>
       <span className="social-channel-icon" style={{ '--social-channel': safeColor(channel.color, meta.color) }}>
-        <SocialPlatformIcon platform={channel.platform} size={19}/>
+        <SocialPlatformIcon platform={channel.platform} icon={channel.icon} url={channel.url} size={19}/>
       </span>
       <span className="social-channel-copy">
         <span className="social-channel-title">
@@ -294,7 +343,7 @@ function ChannelRow({ channel, format, index, count, active, onPreview, onEdit, 
           {!channel.enabled && <Badge>Oculta</Badge>}
         </span>
         <span className="social-channel-meta">
-          <span>{channel.handle || meta.placeholder}</span>
+          <span>{(channel.platform === 'qr' ? channel.url : channel.handle) || meta.placeholder}</span>
           {showPlatform && <span aria-hidden="true">·</span>}
           {showPlatform && <span>{meta.name}</span>}
           {format && <span className="social-channel-format">{format}</span>}
@@ -311,12 +360,15 @@ function ChannelRow({ channel, format, index, count, active, onPreview, onEdit, 
       <Switch checked={channel.enabled} aria-label={'Mostrar ' + label + ' en el directo'}
         onCheckedChange={value => onToggle(channel.id, value)}/>
       <Button variant="outline" size="sm" aria-label={'Editar ' + label} onClick={() => onEdit(channel.id)}><Pencil size={14}/>Editar</Button>
+      <Button variant="destructive" size="icon" aria-label={'Eliminar ' + label} disabled={!online || count <= 1}
+        title={count <= 1 ? 'La rotación necesita al menos una red' : 'Eliminar red'}
+        onClick={() => onDelete(channel.id)}><Trash2 size={14}/></Button>
     </div>
   </article>;
 }
 
 function ChannelEditorDialog({ open, channel, config, count, cycle, progress, fonts, api, notice, online,
-  saving, dirty, error, uploadingId, onClose, onEdit, onDelete, onDuplicate, onUpload, updateShared, updateDesign }) {
+  saving, dirty, error, uploading, onClose, onEdit, onDuplicate, onUpload, updateShared, updateDesign }) {
   useDialogDismiss(open, onClose);
   const first = useRef(null);
   const [tab, setTab] = useState('network');
@@ -330,13 +382,19 @@ function ChannelEditorDialog({ open, channel, config, count, cycle, progress, fo
   if (!channel) return null;
   const meta = socialPlatform(channel.platform);
   const label = channel.label || meta.name;
+  const isQr = channel.platform === 'qr';
+  const isWebsite = channel.platform === 'website';
+  const urlLabel = isQr ? 'URL del código QR' : isWebsite ? 'URL del sitio web' : 'Enlace (opcional)';
+  const urlHint = isQr ? 'Introduce una URL con https:// o http:// para generar el código.'
+    : isWebsite ? 'Favicon.im busca el icono a partir del dominio. Si subes tu propio icono, se usará ese.'
+    : 'Solo como referencia; la tarjeta no lo muestra.';
   const color = safeColor(channel.color, meta.color);
   const design = resolveSocialDesign(config, channel);
   const update = (key, value) => updateDesign(channel.id, key, value);
-  return <Dialog open={open} onClose={onClose} className="social-dialog social-dialog-editor" backdropClassName="social-dialog-backdrop" aria-labelledby="social-channel-title">
+  return <Dialog open={open} className="social-dialog social-dialog-editor" backdropClassName="social-dialog-backdrop" aria-labelledby="social-channel-title">
     <header className="social-dialog-header">
       <div className="social-dialog-heading">
-        <span className="social-dialog-icon" style={{ '--social-channel': color }}><SocialPlatformIcon platform={channel.platform} size={18}/></span>
+        <span className="social-dialog-icon" style={{ '--social-channel': color }}><SocialPlatformIcon platform={channel.platform} icon={channel.icon} url={channel.url} size={18}/></span>
         <div>
           <h2 id="social-channel-title">Editar {label}</h2>
         </div>
@@ -347,10 +405,10 @@ function ChannelEditorDialog({ open, channel, config, count, cycle, progress, fo
       </div>
     </header>
     <div className="social-dialog-body">
-      <Tabs value={tab} onValueChange={setTab} className="social-dialog-tabs">
+      <Tabs value={tab} onValueChange={setTab} className="social-dialog-tabs" data-qr={isQr || undefined}>
         <TabsList aria-label="Ajustes de la red">
           {[
-            ['network', 'Red'], ['format', 'Formato'], ['image', 'Imagen'],
+            ['network', 'Red'], ...(isQr ? [['qr', 'QR']] : []), ['format', 'Formato'], ['image', 'Imagen'],
             ['text', 'Texto'], ['style', 'Estilo'], ['css', 'CSS'],
           ].map(([value, name]) => <TabsTrigger key={value} value={value}>{name}</TabsTrigger>)}
         </TabsList>
@@ -370,23 +428,28 @@ function ChannelEditorDialog({ open, channel, config, count, cycle, progress, fo
                 <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(channel.id, { color: meta.color })}>Restablecer</Button>
               </span>}</Field>
             </div>
-            <Field label="Nombre visible" hint="Aparece como título principal de la tarjeta.">{id => <Input ref={first} id={id} value={channel.label ?? ''} maxLength={50}
+            <Field label="Nombre visible" hint="Déjalo vacío para ocultar el título de la tarjeta.">{id => <Input ref={first} id={id} value={channel.label ?? ''} maxLength={50}
               onChange={event => onEdit(channel.id, { label: event.target.value })}/>}</Field>
             <div className="social-dialog-fields">
-              <Field label="Usuario o texto" hint={'Ej.: ' + meta.placeholder}>{id => <Input id={id} value={channel.handle ?? ''} maxLength={80} placeholder={meta.placeholder}
+              <Field label={isQr ? 'Texto adicional' : 'Usuario o texto'} hint={isQr ? undefined : 'Ej.: ' + meta.placeholder}>{id => <Input id={id} value={channel.handle ?? ''} maxLength={80} placeholder={isQr ? undefined : meta.placeholder}
                 onChange={event => onEdit(channel.id, { handle: event.target.value })}/>}</Field>
-              <Field label="Enlace (opcional)" hint="Solo como referencia; la tarjeta no lo muestra.">{id =>
-                <Input id={id} type="url" value={channel.url ?? ''} maxLength={2048} placeholder="https://..."
+              <Field label={urlLabel} hint={urlHint}>{id =>
+                <Input id={id} type={isWebsite ? 'text' : 'url'} inputMode="url" value={channel.url ?? ''} maxLength={2048} placeholder={isQr || isWebsite ? meta.placeholder : 'https://...'}
                   onChange={event => onEdit(channel.id, { url: event.target.value })}/>}</Field>
             </div>
+            <SocialIconSettings channel={channel} uploading={uploading} onUpload={onUpload}
+              onRemove={() => onEdit(channel.id, { icon: '' })}/>
           </fieldset>
         </TabsContent>
+        {isQr && <TabsContent value="qr">
+          <SocialQrSettings design={design} update={update}/>
+        </TabsContent>}
         <TabsContent value="format">
           <SocialFormatSettings design={design} update={update} openImage={() => setTab('image')}/>
         </TabsContent>
         <TabsContent value="image">
           <SocialImageSettings design={design} channel={channel} label={label} update={update} editChannel={onEdit}
-            updateShared={updateShared} uploadingId={uploadingId} onUpload={onUpload} online={online} chooseFormat={() => setTab('format')}/>
+            updateShared={updateShared} uploading={uploading} onUpload={onUpload} online={online} chooseFormat={() => setTab('format')}/>
         </TabsContent>
         <TabsContent value="text">
           <SocialTextSettings design={design} update={update} fonts={fonts} api={api} online={online}/>
@@ -410,7 +473,6 @@ function ChannelEditorDialog({ open, channel, config, count, cycle, progress, fo
       </aside>
     </div>
     <footer className="social-dialog-footer">
-      <Button variant="ghost" disabled={!online || count <= 1} title={count <= 1 ? 'La rotación necesita al menos una red' : 'Eliminar red'} onClick={() => onDelete(channel.id)}><Trash2 size={15}/>Eliminar</Button>
       <div className="actions">
         <Button variant="ghost" disabled={!online || count >= 20} onClick={() => onDuplicate(channel.id)}><Copy size={15}/>Duplicar</Button>
         <span className={error ? 'social-save-error' : 'help'} role="status">
@@ -437,7 +499,7 @@ function DeleteChannelDialog({ channel, count, locked, onCancel, onConfirm }) {
   </Dialog>;
 }
 
-function NetworkPickerDialog({ open, available, selection, query, locked, onQuery, onToggle, onClose, onConfirm }) {
+function NetworkPickerDialog({ open, available, selection, query, remaining, locked, onQuery, onToggle, onClose, onConfirm }) {
   useDialogDismiss(open, onClose);
   const normalized = query.trim().toLowerCase();
   const visible = available.filter(platform => platform.name.toLowerCase().includes(normalized));
@@ -459,14 +521,14 @@ function NetworkPickerDialog({ open, available, selection, query, locked, onQuer
         {query && <button type="button" className="social-picker-search-clear" onClick={() => onQuery('')} aria-label="Limpiar búsqueda"><X size={14}/></button>}
       </div>}
       {available.length === 0
-        ? <div className="social-picker-empty"><Check size={24}/><strong>Ya están todas</strong><p>Has añadido las 20 redes disponibles a la rotación.</p></div>
+        ? <div className="social-picker-empty"><Check size={24}/><strong>Ya están todas</strong><p>Has añadido todas las plataformas disponibles a la rotación.</p></div>
         : visible.length === 0
           ? <div className="social-picker-empty"><Search size={24}/><strong>Sin resultados</strong><p>No hay redes que coincidan con “{query}”.</p></div>
           : <div className="social-picker-grid">
             {visible.map(platform => {
               const checked = selection.includes(platform.id);
               return <label className="social-picker-item" key={platform.id} data-selected={checked ? 'true' : 'false'}>
-                <input type="checkbox" checked={checked} disabled={locked} onChange={event => onToggle(platform.id, event.target.checked)}/>
+                <input type="checkbox" checked={checked} disabled={locked || (!checked && selection.length >= remaining)} onChange={event => onToggle(platform.id, event.target.checked)}/>
                 <span className="social-picker-item-icon" style={{ color: platform.color }}><SocialPlatformIcon platform={platform.id} size={17}/></span>
                 <span className="social-picker-item-copy">
                   <strong>{platform.name}</strong>
@@ -498,7 +560,7 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
   const [selection, setSelection] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [removingId, setRemovingId] = useState(null);
-  const [uploadingId, setUploadingId] = useState(null);
+  const [uploading, setUploading] = useState(null);
   const uploadInFlight = useRef(false);
   const rotation = useSocialRotation(config, { auto: autoRotate && !editingId });
   const update = (key, value) => setConfig(previous => ({ ...previous, [key]: value }));
@@ -590,7 +652,8 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
     }
     const source = config.channels.find(channel => channel.id === id);
     if (!source) return;
-    const copy = { ...source, id: crypto.randomUUID(), enabled: false, label: (source.label || socialPlatform(source.platform).name).slice(0, 43) + ' copia' };
+    const label = source.label?.trim();
+    const copy = { ...source, id: crypto.randomUUID(), enabled: false, label: label ? label.slice(0, 43) + ' copia' : '' };
     update('channels', [...config.channels, copy]);
     setEditingId(copy.id);
     notice('Red duplicada. Ajusta el nombre y actívala cuando esté lista.', { type: 'info' });
@@ -602,7 +665,7 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
     editChannel(channel.id, {
       platform: meta.id,
       color: meta.color,
-      label: !channel.label || channel.label === previous.name ? meta.name : channel.label,
+      label: channel.label === previous.name ? meta.name : channel.label,
     });
   }
 
@@ -625,11 +688,11 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
     setMobileView('monitor');
   }
 
-  async function uploadImage(file, id = null) {
+  async function uploadImage(file, id = null, field = 'image') {
     if (!online || !file || uploadInFlight.current) return;
     const mime = imageMime(file);
     if (!mime) {
-      notice('Elige una foto PNG, JPG, WebP, GIF o SVG.', { type: 'warning' });
+      notice('Elige una imagen PNG, JPG, WebP, GIF o SVG.', { type: 'warning' });
       return;
     }
     const isSvg = mime === 'image/svg+xml';
@@ -638,19 +701,19 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
       return;
     }
     uploadInFlight.current = true;
-    setUploadingId(id ?? '');
+    setUploading({ id, field });
     try {
       const data = await readAsDataUrl(file.slice(0, file.size, mime));
       const result = await api('social/upload', { data }, { throwOnError: true });
-      if (!result?.image) throw new Error('No se pudo guardar la foto');
+      if (!result?.image) throw new Error('No se pudo guardar la imagen');
       if (id === null) update('image', result.image);
-      else editChannel(id, { image: result.image });
-      notice(id === null ? 'Imagen compartida cargada.' : 'Foto añadida a la red.');
+      else editChannel(id, { [field]: result.image });
+      notice(field === 'icon' ? 'Icono añadido a la red.' : id === null ? 'Imagen compartida cargada.' : 'Foto añadida a la red.');
     } catch (error) {
-      notice(error.message || 'No se pudo subir la foto.', { type: 'error' });
+      notice(error.message || 'No se pudo subir la imagen.', { type: 'error' });
     } finally {
       uploadInFlight.current = false;
-      setUploadingId(null);
+      setUploading(null);
     }
   }
 
@@ -694,8 +757,10 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
             {config.channels.map((channel, index) => <ChannelRow key={channel.id} channel={channel} index={index} count={config.channels.length}
               format={layoutLabel(resolveSocialLayout(config, channel))}
               active={previewed?.id === channel.id}
+              online={online}
               onPreview={previewChannel}
               onEdit={openChannelEditor}
+              onDelete={setRemovingId}
               onMove={moveChannel}
               onToggle={(id, value) => editChannel(id, { enabled: value })}/>)}
           </div>
@@ -748,15 +813,14 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
 
       <ChannelEditorDialog key={editingId} open={Boolean(editing)} channel={editing} config={config}
         count={config.channels.length} cycle={rotation.cycle} progress={rotation.count > 1} fonts={fonts} api={api} notice={notice} online={online}
-        saving={saving} dirty={dirty} error={error} uploadingId={uploadingId} updateShared={update} updateDesign={updateDesign}
+        saving={saving} dirty={dirty} error={error} uploading={uploading} updateShared={update} updateDesign={updateDesign}
         onClose={closeChannelEditor}
         onEdit={(id, patch) => patch.platform ? changePlatform(config.channels.find(channel => channel.id === id), patch.platform) : editChannel(id, patch)}
-        onDelete={id => { setEditingId(null); setRemovingId(id); }}
         onDuplicate={duplicateChannel}
         onUpload={uploadImage}/>
       <DeleteChannelDialog channel={removing} count={config.channels.length} locked={!online}
         onCancel={() => setRemovingId(null)} onConfirm={() => removing && removeChannel(removing.id)}/>
-      <NetworkPickerDialog open={pickerOpen} available={availablePlatforms} selection={selection} query={pickerQuery} locked={!online}
+      <NetworkPickerDialog open={pickerOpen} available={availablePlatforms} selection={selection} query={pickerQuery} remaining={20 - config.channels.length} locked={!online}
         onQuery={setPickerQuery}
         onToggle={togglePlatform}
         onClose={closePicker}
