@@ -5,18 +5,16 @@ function Await-WinRT($Operation, $ResultType) {
     if (-not $task.Wait(4000)) { throw 'Windows media request timed out' }
     return $task.Result
 }
-function Read-SpotifySession {
+function Get-MediaSessions {
     Add-Type -AssemblyName System.Runtime.WindowsRuntime
     $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
     $null = [Windows.Storage.Streams.DataReader, Windows.Storage.Streams, ContentType = WindowsRuntime]
     $script:asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.IsGenericMethod -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } | Select-Object -First 1
     $manager = Await-WinRT ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
-    # Only the Spotify desktop app; never capture an unrelated browser/video session.
-    $sessions = @($manager.GetSessions() | Where-Object { $_.SourceAppUserModelId -match '^(Spotify\.exe|Spotify|SpotifyAB\.SpotifyMusic_[^!]+!Spotify)$' })
-    return $sessions | Sort-Object { if ($_.GetPlaybackInfo().PlaybackStatus.ToString() -eq 'Playing') { 0 } else { 1 } } | Select-Object -First 1
+    return $manager.GetSessions()
 }
 
-function Read-SpotifyPlayback($session, $media, $status) {
+function Read-SessionPlayback($session, $media, $status) {
     $timeline = $session.GetTimelineProperties()
     $image = ''
     if ($media.Thumbnail) {
@@ -54,24 +52,40 @@ function Read-SpotifyPlayback($session, $media, $status) {
 }
 
 try {
-    $spotifyError = $null
+    $sessionError = $null
     $session = $null
     $media = $null
     $status = ''
     try {
-        $session = Read-SpotifySession
-        if ($session) {
-            $status = $session.GetPlaybackInfo().PlaybackStatus.ToString()
-            if ($status -in @('Playing', 'Paused')) {
-                $media = Await-WinRT ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
-            }
+        $sessions = @(Get-MediaSessions)
+        $candidates = foreach ($item in $sessions) {
+            try {
+                $state = $item.GetPlaybackInfo().PlaybackStatus.ToString()
+                if ($state -in @('Playing', 'Paused')) {
+                    $spotify = $item.SourceAppUserModelId -match '^(Spotify\.exe|Spotify|SpotifyAB\.SpotifyMusic_[^!]+!Spotify)$'
+                    [pscustomobject]@{ Session = $item; Status = $state; Spotify = $spotify; Playing = ($state -eq 'Playing') }
+                }
+            } catch { continue }
         }
-    } catch { $spotifyError = $_ }
+        foreach ($candidate in ($candidates | Sort-Object Playing, Spotify -Descending)) {
+            if (-not $candidate) { continue }
+            try {
+                $properties = Await-WinRT ($candidate.Session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+                if (![string]::IsNullOrWhiteSpace($properties.Title)) {
+                    $session = $candidate.Session
+                    $media = $properties
+                    $status = $candidate.Status
+                    $isSpotify = $candidate.Spotify
+                    break
+                }
+            } catch { continue }
+        }
+    } catch { $sessionError = $_ }
 
-    $hasSpotifyTrack = $media -and $media.Title
+    $hasSessionTrack = $media -and $media.Title
     $aimp = $null
     $aimpAvailable = $false
-    if (-not ($hasSpotifyTrack -and $status -eq 'Playing')) {
+    if (-not ($hasSessionTrack -and $status -eq 'Playing')) {
         try {
             Add-Type -Path (Join-Path $PSScriptRoot 'aimp-now-playing.cs') -ReferencedAssemblies 'System.Windows.Forms.dll', 'System.Drawing.dll', 'System.Core.dll'
             $aimpAvailable = [AimpNowPlaying]::IsAvailable()
@@ -82,17 +96,18 @@ try {
     }
 
     $playback = $null
-    if ($aimp -and ($aimp.Playing -or -not $hasSpotifyTrack)) {
+    if ($aimp -and ($aimp.Playing -or -not $hasSessionTrack)) {
         $image = ''
         try { $image = [AimpNowPlaying]::ReadAlbumArt($aimp) } catch { }
         $playback = @{ source = 'aimp'; title = $aimp.Title; artist = $aimp.Artist; image = $image; duration = $aimp.Duration; progress = $aimp.Progress; playing = $aimp.Playing }
-    } elseif ($hasSpotifyTrack) {
-        $playback = Read-SpotifyPlayback $session $media $status
-    } elseif ($spotifyError -and -not $aimpAvailable) {
-        throw $spotifyError
+    } elseif ($hasSessionTrack) {
+        $playback = Read-SessionPlayback $session $media $status
+        if (-not $isSpotify) { $playback.source = 'windows' }
+    } elseif ($sessionError -and -not $aimpAvailable) {
+        throw $sessionError
     }
-    @{ available = [bool]($session -or $aimpAvailable); playback = $playback } | ConvertTo-Json -Compress -Depth 4
+    @{ available = [bool]($sessions.Count -or $aimpAvailable); playback = $playback } | ConvertTo-Json -Compress -Depth 4
 } catch {
-    @{ error = 'No se pudo leer la reproduccion local de Spotify o AIMP.' } | ConvertTo-Json -Compress
+    @{ error = 'No se pudo leer la reproduccion multimedia de Windows.' } | ConvertTo-Json -Compress
     exit 1
 }

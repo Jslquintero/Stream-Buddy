@@ -32,8 +32,8 @@ async function setup(t, pathname, mode = 'api', pending = null) {
 test('Spotify panel preserves draft during updates and saves design; copies output', async t => {
   const f = await setup(t, '/spotify'), doc = f.window.document;
   await until(() => doc.querySelector('.spotify-settings'));
-  assert.equal(doc.querySelector('.nav-item[aria-current="page"]').textContent, 'Música');
-  assert.equal(doc.querySelector('.breadcrumb strong').textContent, 'Música');
+  assert.equal(doc.querySelector('.nav-item[aria-current="page"]').textContent, 'Canción actual');
+  assert.equal(doc.querySelector('.breadcrumb strong').textContent, 'Canción actual');
   doc.querySelector('.spotify-source summary').click();
   const input = doc.querySelector('.spotify-source input');
   Object.getOwnPropertyDescriptor(f.window.HTMLInputElement.prototype, 'value').set.call(input, 'b'.repeat(32));
@@ -71,13 +71,13 @@ test('Spotify output renders song, hides pauses and clears immediately on connec
   f.spotify.error = ''; f.spotify.playback = null; await f.publish(); assert.equal(doc.querySelector('.spotify-now'), null);
 });
 
-test('Local output shows AIMP playback with its artwork and player name', async t => {
+for (const source of ['aimp', 'windows']) test(`Local output shows artwork without naming the ${source} source`, async t => {
   const f = await setup(t, '/?spotify-output=1', 'local');
-  f.spotify.playback.source = 'aimp';
+  f.spotify.playback.source = source;
   f.spotify.playback.image = 'data:image/png;base64,aGVsbG8=';
   await f.publish();
   const output = widget(f.window.document);
-  assert.match(output.querySelector('.spotify-brand').textContent, /^AIMP/);
+  assert.doesNotMatch(output.querySelector('.spotify-now').textContent, /AIMP|Spotify|Windows/i);
   assert.equal(output.querySelector('.spotify-title').tagName, 'SPAN');
   assert.equal(output.querySelector('img.spotify-cover').getAttribute('src'), f.spotify.playback.image);
 });

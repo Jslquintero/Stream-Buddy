@@ -103,7 +103,7 @@ export function widgetSummary({ id, tool, state, now = Date.now() }) {
   if (id === 'spotify') {
     if (tool.playback) return [tool.playback.title, tool.playback.artist].filter(Boolean).join(' — ');
     if (tool.config?.enabled === false) return 'Lectura de música desactivada.';
-    return tool.connected ? 'Sin reproducción ahora mismo.' : 'Abre Spotify o AIMP para empezar.';
+    return tool.connected ? 'Sin reproducción ahora mismo.' : 'Reproduce música en tu navegador o reproductor.';
   }
 
   return '';

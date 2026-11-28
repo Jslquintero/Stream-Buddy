@@ -24,8 +24,8 @@ function sourceStatus(tool, online) {
   if (tool.error) return 'Error de conexión';
   if ((tool.config.mode || 'local') !== 'local') return tool.connected ? 'Cuenta conectada' : 'Cuenta sin conectar';
   if (tool.config.enabled === false) return 'Lectura detenida';
-  if (tool.playback) return tool.playback.source === 'aimp' ? 'AIMP detectado' : 'Spotify detectado';
-  return tool.connected ? 'Reproductor detectado' : 'Buscando Spotify o AIMP';
+  if (tool.playback) return 'Reproducción detectada';
+  return tool.connected ? 'Reproductor detectado' : 'Buscando un reproductor';
 }
 
 function SpotifySource({ tool, config, setDraft, online, api, notice, save, saving, dirty }) {
@@ -43,7 +43,7 @@ function SpotifySource({ tool, config, setDraft, online, api, notice, save, savi
       if ((nextAction === 'connect' || dirty) && !await save()) return;
       const result = await api('spotify/' + nextAction);
       if (result?.authorizationUrl) window.location.assign(result.authorizationUrl);
-      else if (result && nextAction === 'connect' && local) notice('Lectura local activada. Reproduce una canción en Spotify de escritorio o AIMP.');
+      else if (result && nextAction === 'connect' && local) notice('Lectura local activada. Reproduce una canción en tu navegador o reproductor.');
     } finally {
       setAction('');
     }
@@ -62,11 +62,11 @@ function SpotifySource({ tool, config, setDraft, online, api, notice, save, savi
             const mode = event.target.value;
             setDraft(previous => ({ ...previous, mode, enabled: true }));
           }}>
-            <option value="local">Este PC · Spotify o AIMP</option>
+            <option value="local">Este PC · Navegador o reproductor</option>
             <option value="api">Cuenta de Spotify · Web API</option>
           </Select>
         </label>
-        {local ? <p className="help spotify-local-help">Reproduce una canción en Spotify de escritorio o AIMP. Si ambos suenan, se muestra Spotify.</p> : <>
+        {local ? <p className="help spotify-local-help">Reproduce una canción en tu navegador o reproductor. También puedes usar Spotify o AIMP.</p> : <>
           <p className="help">Muestra lo que escuchas desde cualquier dispositivo de tu cuenta de Spotify.</p>
           <label>Client ID
             <Input value={config.clientId || ''} disabled={Boolean(action)} maxLength={32} autoComplete="off" spellCheck={false} placeholder="Client ID de tu app de Spotify" onChange={event => {

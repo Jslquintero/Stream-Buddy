@@ -16,9 +16,8 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
     return () => { active = false; };
   },[c.magicColors,playback?.image]);
   if (!playback) return null;
-  const fromAimp = playback.source === 'aimp';
-  const player = fromAimp ? 'AIMP' : 'Spotify';
-  const title = fromAimp
+  const localTitle = ['aimp', 'windows'].includes(playback.source);
+  const title = localTitle
     ? <span className="spotify-title">{playback.title}</span>
     : <a className="spotify-title" href={playback.url || 'https://open.spotify.com'} target="_blank" rel="noopener noreferrer">{playback.title}</a>;
   const progress = Math.min(playback.duration, playback.progress + (playback.playing ? Math.max(0,now-playback.updatedAt) : 0));
@@ -30,7 +29,7 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
     const filled = Math.min(32,Math.max(0,Math.round(playback.duration ? progress / playback.duration * 32 : 0)));
     return <article className={`spotify-now spotify-${playerTheme} player-shell spotify-terminal player-${c.playerStyle}`} style={{'--spotify-accent':color || c.tintColor}}>
       <header className="spotify-terminal-header"><span>root@streambuddy</span><span className="spotify-terminal-controls" aria-hidden="true">− ▫ <b>×</b></span></header>
-      <div className="spotify-terminal-body"><div className="spotify-terminal-command"><span>root@streambuddy&gt;</span> ./{player.toLowerCase()} <span>--nowPlaying</span></div>
+      <div className="spotify-terminal-body"><div className="spotify-terminal-command"><span>root@streambuddy&gt;</span> ./music <span>--nowPlaying</span></div>
         <div className="spotify-terminal-line"><strong>Title:</strong> {title}</div>
         <div className="spotify-terminal-line"><strong>Artist:</strong> <span className="spotify-artist">{playback.artist}</span></div>
         <div className="spotify-progress spotify-terminal-progress" role="progressbar" aria-label="Progreso de la canción" aria-valuemin={0} aria-valuemax={playback.duration} aria-valuenow={progress}>[<span>{'#'.repeat(filled)}</span>{'-'.repeat(32-filled)}]</div>
@@ -43,10 +42,10 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
     {c.playerStyle === 'macos' && <div className="spotify-window-dots"><i/><i/><i/><span>Ahora escuchando</span></div>}
     {cdPlayer && <div className="player-caption">CD Audio</div>}
     {['xp','wmp','winamp'].includes(c.playerStyle) && <div className="player-caption">{spotifyLabels[c.playerStyle]}</div>}
-    {c.playerStyle === 'discord' && <div className="spotify-shell-header">ESCUCHANDO {player.toUpperCase()}</div>}
+    {c.playerStyle === 'discord' && <div className="spotify-shell-header">MÚSICA</div>}
     {c.coverStyle !== 'none' && <div className="spotify-art">{c.coverStyle === 'vinyl' ? <div className="spotify-vinyl-disc">{artwork}</div> : artwork}</div>}
     <div className="spotify-track">
-      <span className="spotify-brand">{player} <span>{playback.idle ? 'SIN REPRODUCCIÓN' : playback.playing ? 'ESCUCHANDO AHORA' : 'EN PAUSA'}</span><span className="spotify-equalizer" aria-hidden="true"><i/><i/><i/></span></span>
+      <span className="spotify-brand"><span>{playback.idle ? 'SIN REPRODUCCIÓN' : playback.playing ? 'ESCUCHANDO AHORA' : 'EN PAUSA'}</span><span className="spotify-equalizer" aria-hidden="true"><i/><i/><i/></span></span>
       <div className="spotify-info">
         {cdPlayer && <span className="spotify-cd-label">Pista</span>}{title}
         {cdPlayer && <span className="spotify-cd-label">Artista</span>}<p className="spotify-artist">{playback.artist}</p>
