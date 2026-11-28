@@ -4,7 +4,7 @@ import { notificationFontStack, NotificationFontResource } from './notification-
 import { imageMimeFromBytes, maxImageBytes } from '../../../modules/notifications/image-files';
 import { inspectNotificationMedia } from '../lib/notification-media';
 import { MediaPicker, AlertAudio, AudioTrimmer, VideoClip } from './notification-media';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Bell, Film, Gift, Heart, ImagePlus, Music2, Share2, Star, Play, SkipForward, Trash2, SlidersHorizontal, Type, X } from 'lucide-react';
 import { Badge, Button, Card, Dialog, Input, Textarea, Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { Field, Toggle } from './fields';
@@ -31,16 +31,31 @@ const variables = ['usuario', 'regalo', 'cantidad'];
 
 function AlertPreview({ visual, replay }) {
   const stage = useRef(null);
+  const banner = useRef(null);
   const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
-    observer.observe(stage.current);
-    return () => observer.disconnect();
-  }, []);
+  const [bannerHeight, setBannerHeight] = useState(0);
+  useLayoutEffect(() => {
+    const frame = stage.current;
+    const content = banner.current;
+    const resize = () => {
+      setWidth(frame.clientWidth);
+      setBannerHeight(content.offsetHeight);
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(frame);
+    observer.observe(content, { box: 'border-box' });
+    window.addEventListener('resize', resize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resize);
+    };
+  }, [replay, visual.type]);
   const canvasWidth = Math.max(800, Number(visual.style.width) + 48);
-  return <div className="notification-stage" ref={stage}>
-    <div className="notification-preview-canvas" style={{ width:canvasWidth, height:canvasWidth * 9/16, transform:`scale(${width ? width/canvasWidth : 1})` }}>
-      <NotificationVisual key={replay + visual.type} notification={visual}/>
+  const canvasHeight = Math.max(canvasWidth * 9/16, bannerHeight + 48);
+  return <div className="notification-stage" ref={stage} style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}>
+    <div className="notification-preview-canvas" style={{ width:canvasWidth, height:canvasHeight, transform:`scale(${width ? width/canvasWidth : 1})` }}>
+      <NotificationVisual key={replay + visual.type} notification={visual} bannerRef={banner}/>
     </div>
   </div>;
 }
@@ -59,13 +74,13 @@ function VideoTrimmer({event,duration,update}) {
   </div>;
 }
 
-export function NotificationVisual({ notification, live = false }) {
+export function NotificationVisual({ notification, live = false, bannerRef }) {
   if (!notification) return null;
   const { type, title, message, image } = notification;
   const style = { ...designExtras, ...notification.style };
   const Icon = icons[type] || Bell;
   return <div className={'notification-position ' + style.position}><NotificationFontResource family={style.fontFamily}/>
-    <div className={'notification-banner layout-' + style.layout + ' animate-' + style.animation} style={{ background: style.background + Math.round(style.backgroundOpacity*2.55).toString(16).padStart(2,'0'), color: style.color, '--alert-accent': style.accent, fontSize: style.fontSize + 'px', borderRadius: style.radius + 'px', width:style.width+'px', padding:style.padding+'px', borderWidth:style.borderWidth+'px', boxShadow:style.shadow?undefined:'none', textAlign:style.textAlign, fontFamily:notificationFontStack(style.fontFamily),borderColor:style.accent+Math.round((style.borderOpacity??100)*2.55).toString(16).padStart(2,'0'),animationDuration:(style.animationSpeed??500)+'ms' }}>
+    <div ref={bannerRef} className={'notification-banner layout-' + style.layout + ' animate-' + style.animation} style={{ background: style.background + Math.round(style.backgroundOpacity*2.55).toString(16).padStart(2,'0'), color: style.color, '--alert-accent': style.accent, fontSize: style.fontSize + 'px', borderRadius: style.radius + 'px', width:style.width+'px', padding:style.padding+'px', borderWidth:style.borderWidth+'px', boxShadow:style.shadow?undefined:'none', textAlign:style.textAlign, fontFamily:notificationFontStack(style.fontFamily),borderColor:style.accent+Math.round((style.borderOpacity??100)*2.55).toString(16).padStart(2,'0'),animationDuration:(style.animationSpeed??500)+'ms' }}>
       {isLocalNotificationAsset('video',notification.video)?<VideoClip src={notification.video} start={notification.videoStart} end={notification.videoEnd} muted={!live||!!notification.audio||notification.videoMuted} volume={notification.volume} fit={style.imageFit} autoPlay expiresAt={notification.expiresAt} duration={style.duration} style={{width:style.imageSize+'px',height:style.imageSize+'px',maxWidth:'100%',borderRadius:style.imageRadius+'px',overflow:'hidden'}}/>:isLocalNotificationAsset('image',image)?<img className="notification-image" src={image} alt={style.layout==='image-only'?title:''} style={{width:style.imageSize+'px',height:style.imageSize+'px',objectFit:style.imageFit,borderRadius:style.imageRadius+'px'}}/>:<span className="notification-symbol"><Icon aria-hidden="true"/></span>}
       {style.layout !== 'image-only' && <div className="notification-copy" style={{textShadow: style.textShadow ? '0 1px 2px #000, 0 2px 6px #000c' : undefined}}>
         <strong style={{fontWeight:style.fontWeight}}>{title}</strong><p>{message}</p>

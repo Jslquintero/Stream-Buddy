@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { AutoFitPreview } from './auto-fit-preview';
 import { ChevronDown, Gift, Heart, MapPin, RotateCcw } from 'lucide-react';
 import { downloadFile } from '../lib/download-file';
 import { DownloadButton } from './ui/download-button';
@@ -88,39 +89,6 @@ const variants = {
 
 const number = value => Number(value || 0).toLocaleString('es');
 const positionLabel = value => positions.find(([id]) => id === value)?.[1] ?? 'Arriba · derecha';
-
-function AutoFitPreview({ width, className, children }) {
-  const host = useRef(null);
-  const inner = useRef(null);
-  const [scale, setScale] = useState(1);
-
-  useLayoutEffect(() => {
-    const element = host.current;
-    const content = inner.current;
-    if (!element || !content) return;
-    const update = () => {
-      const availableWidth = Math.max(0, element.clientWidth - 20);
-      const maxHeight = parseFloat(getComputedStyle(element).maxHeight);
-      const availableHeight = Math.max(0, (Number.isFinite(maxHeight) ? maxHeight : element.clientHeight) - 20);
-      const naturalHeight = content.offsetHeight || 0;
-      let next = 1;
-      if (width && availableWidth) next = Math.min(next, availableWidth / width);
-      if (naturalHeight && availableHeight) next = Math.min(next, availableHeight / naturalHeight);
-      const value = Math.max(0.15, Number(next.toFixed(3)));
-      setScale(previous => previous === value ? previous : value);
-    };
-    update();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    observer.observe(content);
-    return () => observer.disconnect();
-  }, [width]);
-
-  return <div ref={host} className={className}>
-    <div ref={inner} className="ranking-preview-scale" style={{ zoom: scale }}>{children}</div>
-  </div>;
-}
 
 export function RankingEditor({
   variant,

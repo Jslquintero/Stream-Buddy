@@ -9,7 +9,7 @@
 .auction-design-section summary{padding:8px 0;font-size:13px;font-weight:600;cursor:pointer}
 .auction-design-section>.form-row{grid-template-columns:repeat(auto-fit,minmax(min(100%,135px),1fr));gap:8px}
 .auction-settings [role="status"]{margin-top:8px}
-.auction-editor .auction-preview{margin-top:8px;max-height:min(46vh,400px);padding:10px;align-items:flex-start}
+.auction-editor .auction-preview{margin-top:8px;padding:10px;align-items:flex-start}
 .auction-editor .auction-totals{margin:8px 0 2px;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px}
 .auction-editor .auction-status-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
 .auction-editor .auction-controls{margin:10px 0 0;gap:8px;flex-wrap:wrap}

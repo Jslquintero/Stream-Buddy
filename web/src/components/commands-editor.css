@@ -639,7 +639,6 @@
   display: grid;
   place-items: center;
   min-height: 150px;
-  max-height: min(32vh, 260px);
   padding: 10px;
   overflow: hidden;
   border: 1px solid var(--c-border);

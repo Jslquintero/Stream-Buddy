@@ -967,7 +967,6 @@
 
 .notifications-monitor .notification-stage {
   height: auto;
-  aspect-ratio: 16 / 9;
   border: 1px solid var(--n-border);
   border-radius: 10px;
 }

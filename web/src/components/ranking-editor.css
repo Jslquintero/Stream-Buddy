@@ -467,22 +467,16 @@
   display: flex;
   align-items: flex-start;
   min-height: 220px;
-  max-height: min(60vh, 540px);
   margin-top: 12px;
   padding: 10px;
   border: 1px solid var(--ranking-border);
   border-radius: 12px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .ranking-preview-left { justify-content: flex-start; }
 .ranking-preview-center { justify-content: center; }
 .ranking-preview-right { justify-content: flex-end; }
-
-.ranking-preview-scale {
-  display: inline-block;
-  max-width: 100%;
-}
 
 .ranking-preview-meta {
   display: flex;

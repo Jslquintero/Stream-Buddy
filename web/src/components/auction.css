@@ -73,11 +73,10 @@
 .auction-stage .auction-board{flex-shrink:1;max-height:100%;overflow:hidden}
 .auction-stage>.auction-css-surface{max-height:100%;overflow:hidden}
 
-.auction-preview{display:flex;padding:16px;background:repeating-conic-gradient(#242832 0% 25%,#1b1e25 0% 50%) 0/24px 24px;border-radius:12px;overflow:auto}
+.auction-preview{display:flex;padding:16px;background:repeating-conic-gradient(#242832 0% 25%,#1b1e25 0% 50%) 0/24px 24px;border-radius:12px;overflow:hidden}
 .auction-preview-left{justify-content:flex-start}
 .auction-preview-right{justify-content:flex-end}
 .auction-preview-center{justify-content:center}
-.auction-preview>.auction-board,.auction-preview>.auction-css-surface{flex-shrink:0;max-width:100%}
 .auction-css-surface{min-width:0;max-width:100%}
 .auction-css-editor textarea{font-family:Consolas,monospace;font-size:13px;line-height:1.5;resize:vertical;width:100%}
 

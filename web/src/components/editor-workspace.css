@@ -24,7 +24,7 @@
   .editor-workspace-header { display: grid; gap: 8px; }
   .editor-mobile-view { display: flex; gap: 6px; margin-bottom: 8px; }
   .editor-mobile-view [aria-pressed="true"] { color: #d7f8ba; border-color: #b9f678; }
-  .editor-workspace .editor-workspace-grid { grid-template-columns: 1fr; }
+  .editor-workspace .editor-workspace-grid { grid-template-columns: minmax(0, 1fr); }
   .editor-workspace .editor-workspace-monitor { position: static; }
   .editor-workspace-grid[data-view="editor"] .editor-workspace-monitor,
   .editor-workspace-grid[data-view="monitor"] .editor-workspace-settings { display: none; }

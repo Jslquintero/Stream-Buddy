@@ -13,6 +13,7 @@ import { useNotificationSettings } from '../hooks/use-notification-settings';
 import { defaultAuction, validateAuction, auctionOutputPath, safeAvatar, auctionStyles, auctionPresets } from '../../../modules/auction/config';
 import './auction.css';
 import { EditorViewSwitch } from './editor-view-switch';
+import { AutoFitPreview } from './auto-fit-preview';
 import './editor-workspace.css';
 import './auction-editor.css';
 import { AuctionAmount, useAuctionClock, useAuctionMotion, useAuctionDemo } from './auction-motion';
@@ -149,10 +150,10 @@ export function AuctionStudio({ tool, api, notice, online, connected }) {
       <div className="auction-monitor editor-workspace-monitor">
         <Card>
           <div className="auction-editor-heading"><h2>Vista previa</h2><Toggle name="demo" label="Ver ejemplo (solo vista previa)" settings={{ demo }} update={(_, value) => setDemo(value)}/></div>
-          <div className={'auction-preview auction-preview-' + config.position.split('-')[1]}>
+          <AutoFitPreview width={config.width} className={'auction-preview auction-preview-' + config.position.split('-')[1]}>
             <AuctionBoard key={demo ? 'demo' : 'live'} config={config} ranking={ranking} total={total} participants={participants} leader={leader}
               winner={demo ? demoRows[0] : tool.winner} status={demo ? 'live' : status} round={demo ? 1 : tool.round} itemTitle={demo ? config.itemTitle : tool.itemTitle} endsAt={demo ? previewEndsAt : tool.endsAt} preview/>
-          </div>
+          </AutoFitPreview>
         </Card>
         <Card>
           <div className="auction-editor-heading"><h2>Control de la subasta</h2><Badge className={status === 'live' ? 'success' : ''}>{statusText[status]}</Badge></div>
