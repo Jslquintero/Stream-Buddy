@@ -122,8 +122,9 @@ jobs:
 
           $draft = gh release view $tag --repo $env:RELEASE_REPOSITORY --json isDraft --jq .isDraft
           if ($LASTEXITCODE -ne 0) {
-            $tagOption = if ($env:RELEASE_REPOSITORY -eq $env:GITHUB_REPOSITORY) { @('--verify-tag') } else { @() }
-            gh release create $tag --repo $env:RELEASE_REPOSITORY --draft --title "Stream Buddy $version" --generate-notes @tagOption
+            $createArgs = @('release', 'create', $tag, '--repo', $env:RELEASE_REPOSITORY, '--draft', '--title', "Stream Buddy $version", '--generate-notes')
+            if ($env:RELEASE_REPOSITORY -eq $env:GITHUB_REPOSITORY) { $createArgs += '--verify-tag' }
+            gh @createArgs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } elseif ($draft -ne 'true') {
             throw "Release $tag is already published."
