@@ -43,7 +43,6 @@ test('compositions open from the library and retain separate drafts and outputs'
   assert.equal(f.window.document.querySelectorAll('.library-thumbnail .editable, .library-thumbnail button').length,0,'Previews are read-only');
   const sidebar = f.window.document.querySelector('.sidebar nav');
   assert.doesNotMatch(sidebar.textContent, /Gaming|Charla/);
-  assert.equal(sidebar.querySelector('.nav-item[aria-expanded]'), null);
   const activeEditor = () => f.window.document.querySelector('div:not([hidden]) > .layout-studio');
   const edit = async name => {
     const selector = `button[aria-label="Editar ${name}"]`;
@@ -55,7 +54,9 @@ test('compositions open from the library and retain separate drafts and outputs'
   await edit('Gaming');
   assert.equal(f.window.location.pathname,'/layout/scene-a');
   assert.equal(f.window.document.querySelector('.breadcrumb strong').textContent, 'Gaming');
-  assert.equal(sidebar.querySelector('[aria-current="location"]').textContent, 'Escenas');
+  const currentItem = sidebar.querySelector('[aria-current="location"]');
+  assert.equal(currentItem?.textContent, 'Escenas');
+  assert.equal(currentItem.hasAttribute('aria-expanded'), false);
   await f.input('div:not([hidden]) > .layout-studio .layout-inspector input','Título A');
   assert.equal(f.window.document.querySelector('div:not([hidden]) > .layout-studio .library-composition.is-active .title-text').textContent,'Título A','Active preview follows the draft');
   await edit('Charla');
