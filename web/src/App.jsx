@@ -21,22 +21,22 @@ import { ProfilePicker } from './components/profile-picker';
 import { StudioProfileContext } from './hooks/use-studio-profile';
 
 const widgets = [
-  { id: 'layout', title: 'Escenas', description: 'Escenas y composiciones del directo.', icon: Monitor, color: 'violet', action: 'Abrir editor' },
-  { id: 'ads', title: 'AdQueue', description: 'Cola de videos para anuncios.', icon: Clapperboard, color: 'orange', action: 'Gestionar anuncios' },
-  { id: 'banners', title: 'Ad Banner Rotator', description: 'Espacio publicitario con imágenes y SVG animados.', icon: GalleryHorizontal, color: 'violet', action: 'Configurar banners' },
-  { id: 'notifications', title: 'Notificaciones', description: 'Alertas de seguidores, regalos y más.', icon: Bell, color: 'mint', action: 'Configurar alertas' },
-  { id: 'likes', title: 'Top likes', description: 'Clasificación de likes en directo.', icon: Heart, color: 'orange', action: 'Configurar Top likes' },
-  { id: 'gifters', title: 'Top gifters', description: 'Clasificación de regalos en directo.', icon: Gift, color: 'mint', action: 'Configurar Top gifters' },
-  { id: 'auction', title: 'Subasta', description: 'Host live auctions where viewers bid with gifts to reach the top.', icon: Gavel, color: 'orange', action: 'Configurar subasta' },
-  { id: 'social', title: 'Social Media Rotator', description: 'Highlight your social channels with eye-catching pop-up rotations.', icon: Share2, color: 'violet', action: 'Configurar redes' },
+  { id: 'layout', title: 'Editor de escenas', description: 'Escenas y composiciones del directo.', icon: Monitor, color: 'violet', action: 'Abrir editor' },
+  { id: 'ads', title: 'Cola de anuncios', description: 'Cola de videos para anuncios.', icon: Clapperboard, color: 'orange', action: 'Gestionar anuncios' },
+  { id: 'banners', title: 'Anuncios rotativos', description: 'Espacio publicitario con imágenes y SVG animados.', icon: GalleryHorizontal, color: 'violet', action: 'Configurar banners' },
+  { id: 'notifications', title: 'Alertas del directo', description: 'Alertas de seguidores, regalos y más.', icon: Bell, color: 'mint', action: 'Configurar alertas' },
+  { id: 'likes', title: 'Quién da más «Me gusta»', description: 'Clasificación de likes en directo.', icon: Heart, color: 'orange', action: 'Configurar Top likes' },
+  { id: 'gifters', title: 'Quién envía más regalos', description: 'Clasificación de regalos en directo.', icon: Gift, color: 'mint', action: 'Configurar Top gifters' },
+  { id: 'auction', title: 'Subasta con regalos', description: 'Host live auctions where viewers bid with gifts to reach the top.', icon: Gavel, color: 'orange', action: 'Configurar subasta' },
+  { id: 'social', title: 'Mostrar redes sociales', description: 'Highlight your social channels with eye-catching pop-up rotations.', icon: Share2, color: 'violet', action: 'Configurar redes' },
   { id: 'commands', title: 'Comandos de chat', description: 'GIF, sonidos y lista de comandos.', icon: Sparkles, color: 'violet', action: 'Configurar comandos' },
-  { id: 'spotify', title: 'Música', description: 'Canción actual, artista y carátula.', icon: Music2, color: 'mint', action: 'Configurar música' },
+  { id: 'spotify', title: 'Canción actual', description: 'Canción actual, artista y carátula.', icon: Music2, color: 'mint', action: 'Configurar música' },
 ];
 const adWidgets = widgets.filter(({ id }) => id === 'ads' || id === 'banners');
 const rankingWidgets = widgets.filter(({ id }) => id === 'likes' || id === 'gifters');
 const widgetItems = widgets.filter(({ id }) => id !== 'ads' && id !== 'banners' && id !== 'likes' && id !== 'gifters');
 widgetItems.splice(widgetItems.findIndex(({ id }) => id === 'auction'), 0, {
-  id: 'rankings', title: 'Rankings', icon: Trophy, items: rankingWidgets,
+  id: 'rankings', title: 'Clasificaciones', icon: Trophy, items: rankingWidgets,
 });
 widgetItems.splice(widgetItems.findIndex(({ id }) => id === 'notifications'), 0, {
   id: 'publicidad', title: 'Publicidad', icon: Megaphone, items: adWidgets,
@@ -44,9 +44,9 @@ widgetItems.splice(widgetItems.findIndex(({ id }) => id === 'notifications'), 0,
 const navigationGroups = [
   { id: 'general', title: 'General', items: [
     { id: 'home', title: 'Vista general', icon: LayoutDashboard },
-    { id: 'tts', title: 'Voz y chat', icon: AudioLines },
+    { id: 'tts', title: 'Chat en voz alta', icon: AudioLines },
   ] },
-  { id: 'widgets', title: 'Widgets', items: widgetItems },
+  { id: 'widgets', title: 'Herramientas del directo', items: widgetItems },
 ];
 const navigationItems = navigationGroups.flatMap(group => group.items.flatMap(item => item.items ?? [item]));
 export default function App(){
