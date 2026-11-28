@@ -1,3 +1,4 @@
+@layer theme, base, social-base, components, utilities;
 @import './social.css' layer(social-base);
 
 /* =========================================================

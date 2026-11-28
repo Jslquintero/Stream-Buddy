@@ -199,7 +199,7 @@ export function SocialCard({ channel, config, cycle = 0, progress = true, textCy
   const style = Object.fromEntries(Object.entries(socialCardProperties(settings, channel))
     .map(([name, value]) => [name.replace('--social-', '--social-config-'), value]));
   return <article className={'social-card social-layout-' + layout + ' social-style-' + (settings.style || 'clean') + ' social-corners-' + (settings.cornerStyle || 'auto') + ' social-border-' + (settings.borderEffect || 'none') + ' social-image-corners-' + (settings.imageCorners || 'all') + (settings.imageShadow ? ' social-image-shadow' : '') + ' social-animation-' + (settings.animation || 'pop') + (flat ? ' social-flat' : '')} style={style}
-    aria-label={[label, channel.handle].filter(Boolean).join(', ') || undefined} data-cycle={cycle}>
+    aria-label={[label, channel.handle].filter(Boolean).join(', ') || undefined} data-cycle={cycle} data-border-style={settings.borderStyle}>
     <NotificationFontResource family={settings.fontFamily}/>
     {image && <span className={'social-media' + (imageCover ? ' social-media-background' : '')} aria-hidden="true">
       <img className={imageCover ? 'social-media-cover' : undefined} src={image} alt="" loading="eager"/>
