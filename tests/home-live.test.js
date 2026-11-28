@@ -55,7 +55,7 @@ test('home shows live state, onboarding and typed connection notices', async t =
       social: { config: structuredClone(defaultSocial), url: '/?social-output=1#tiktok.studio' },
       banners: { config: structuredClone(defaultBanners), url: '/?banners-output=1#tiktok.studio' },
       commands: { config: structuredClone(defaultCommands), url: '/commands?commands-output=1#tiktok.studio' },
-      spotify: { config: { enabled: true }, connected: false, playback: null, url: '/?spotify-output=1#tiktok.studio' },
+      spotify: { config: { enabled: true }, connected: false, playback: null, url: '/output/music#tiktok.studio' },
     },
   };
   publish(state);
@@ -67,12 +67,12 @@ test('home shows live state, onboarding and typed connection notices', async t =
   assert.match(doc.querySelector('.first-run').textContent, /Conecta tu TikTok/);
 
   const rows = [...doc.querySelectorAll('.home-widget-row')];
-  const likes = rows.find(row => row.querySelector('h3')?.textContent === 'Top likes');
+  const likes = rows.find(row => row.querySelector('h3')?.textContent === 'Quién da más «Me gusta»');
   assert.ok(likes);
   assert.equal(likes.querySelector('.home-status').textContent, 'Sin conectar');
   assert.match(likes.querySelector('.home-widget-meta').textContent, /4 usuarios/);
 
-  const social = rows.find(row => row.querySelector('h3')?.textContent === 'Social Media Rotator');
+  const social = rows.find(row => row.querySelector('h3')?.textContent === 'Mostrar redes sociales');
   assert.equal(social.querySelector('.home-status').textContent, 'En pantalla');
 
   const connect = [...doc.querySelectorAll('.first-run button')].find(button => button.textContent.trim() === 'Conectar');

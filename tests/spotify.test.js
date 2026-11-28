@@ -106,8 +106,11 @@ test('Spotify HTTP connect requires CSRF token and callback validates OAuth stat
   assert.equal(url.searchParams.get('redirect_uri'), origin + '/api/spotify/callback');
   assert.equal((await fetch(origin + '/api/spotify/callback?state=wrong&code=bad')).status, 400);
   const cancelled = await fetch(origin + '/api/spotify/callback?' + new URLSearchParams({ state: url.searchParams.get('state'), error: 'access_denied' }), { redirect: 'manual' });
-  assert.equal(cancelled.status, 303); assert.equal(cancelled.headers.get('location'), '/spotify');
-  assert.equal((await fetch(origin + '/spotify')).status, 200);
+  assert.equal(cancelled.status, 303); assert.equal(cancelled.headers.get('location'), '/music');
+  assert.equal((await fetch(origin + '/music')).status, 200);
+  assert.equal((await fetch(origin + '/cancion-actual')).url, origin + '/music');
+  assert.equal((await fetch(origin + '/output/cancion-actual')).url, origin + '/output/music');
+  assert.equal((await fetch(origin + '/spotify', { redirect: 'manual' })).headers.get('location'), '/music');
 });
 
 test('Spotify appearance persists and rejects unsafe media settings', t => {

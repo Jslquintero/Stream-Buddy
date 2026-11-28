@@ -1,7 +1,7 @@
 import { networkInterfaces } from 'node:os';
 import dgram from 'node:dgram';
 import http from 'node:http';
-import { viewForPath } from '../shared/routes.js';
+import { routes, songOutputPath, viewForPath } from '../shared/routes.js';
 import { layoutOutputId } from '../shared/layout-url.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -10,11 +10,11 @@ import { randomBytes } from 'node:crypto';
 const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 const outputTools = new Set(['spotify', 'likes', 'gifters', 'auction', 'notifications', 'commands', 'layout', 'social', 'banners']);
 const outputStreamLifetime = 3000;
-const widgetNames = { layout: 'Escenas', banners: 'Ad Banner Rotator', notifications: 'Notificaciones', likes: 'Top likes', gifters: 'Top gifters', auction: 'Subasta', social: 'Social Media Rotator', commands: 'Comandos de chat', 'commands-list': 'Lista de comandos', spotify: 'Música' };
+const widgetNames = { layout: 'Escenas', banners: 'Ad Banner Rotator', notifications: 'Notificaciones', likes: 'Top likes', gifters: 'Top gifters', auction: 'Subasta', social: 'Social Media Rotator', commands: 'Comandos de chat', 'commands-list': 'Lista de comandos', spotify: 'Canción actual' };
 const directory = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Widgets · Stream Buddy</title><style>body{font:1rem/1.5 system-ui;background:#17191c;color:#f4f5f6;max-width:44rem;margin:8vh auto;padding:0 1rem}ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.6rem;list-style:none;padding:0}a{display:block;padding:.8rem 1rem;background:#282c30;color:#d5efbd;border-radius:.6rem}a:hover,a:focus-visible{background:#384135}</style>
 <h1>Widgets de Stream Buddy</h1><p>Abre un widget o copia su enlace para usarlo en OBS o TikTok LIVE Studio.</p><ul>${Object.entries(widgetNames).map(([id, name]) => {
-  const path = id === 'layout' ? '/output/layout' : (id.startsWith('commands') ? '/commands' : '/') + '?' + id + '-output=1';
+  const path = id === 'spotify' ? songOutputPath : id === 'layout' ? '/output/layout' : (id.startsWith('commands') ? '/commands' : '/') + '?' + id + '-output=1';
   return '<li><a href="' + path + '#tiktok.studio">' + name + '</a></li>';
 }).join('')}</ul></html>`;
 
@@ -111,6 +111,10 @@ export function createDashboardServer(center, profiles) {
     if (req.headers.host !== host || (req.headers.origin && req.headers.origin !== origin)) return json(res, 403, { error: 'Solicitud no autorizada' });
     try {
       const url = new URL(req.url, origin);
+      if (req.method === 'GET' && url.pathname === '/output/cancion-actual') {
+        res.writeHead(308, { Location: songOutputPath + url.search });
+        return res.end();
+      }
       if (remoteOutput) {
         if (req.method === 'GET' && url.pathname === '/' && !url.search) {
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -118,15 +122,19 @@ export function createDashboardServer(center, profiles) {
         }
         const page = (url.pathname === '/' && [...outputTools].some(id => url.searchParams.has(id + '-output')))
           || (url.pathname === '/commands' && ['commands-output', 'commands-list-output'].some(key => url.searchParams.has(key)));
-        const allowed = page || layoutOutputId(url.pathname) !== undefined
+        const allowed = page || url.pathname === songOutputPath || layoutOutputId(url.pathname) !== undefined
           || /^\/(assets|notification-assets|notification-fonts|social-assets|banner-assets)\//.test(url.pathname)
           || (url.pathname === '/api/events' && outputTools.has(url.searchParams.get('output')));
         if (!allowed || req.method !== 'GET') return json(res, 403, { error: 'Solo se comparten las salidas' });
       }
       if (req.method === 'GET') {
+        if (/^\/(?:spotify|cancion-actual)\/?$/.test(url.pathname)) {
+          res.writeHead(308, { Location: routes.spotify + url.search });
+          return res.end();
+        }
         if (url.pathname === '/api/spotify/callback') {
           await center.spotify.callback(url.searchParams);
-          res.writeHead(303, { Location: '/spotify', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+          res.writeHead(303, { Location: routes.spotify, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
           return res.end();
         }
         if(url.pathname.startsWith('/notification-fonts/')){
@@ -185,7 +193,7 @@ export function createDashboardServer(center, profiles) {
       if (req.method === 'GET' || req.method === 'HEAD') {
         const publicRoot = path.resolve(center.root, 'dist');
         const pathname = decodeURIComponent(url.pathname);
-        const isPage = viewForPath(pathname) !== null || layoutOutputId(pathname) !== undefined;
+        const isPage = pathname === songOutputPath || viewForPath(pathname) !== null || layoutOutputId(pathname) !== undefined;
         const file = path.resolve(publicRoot, '.' + (isPage ? '/index.html' : pathname));
         const relative = path.relative(publicRoot, file);
         if (relative.startsWith('..') || path.isAbsolute(relative) || (!isPage && !pathname.startsWith('/assets/'))) return json(res, 404, { error: 'No encontrado' });

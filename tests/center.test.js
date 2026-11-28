@@ -169,7 +169,7 @@ test('HTTP serves dashboard, validates origin/token, persists settings and strea
   assert.equal(asset.status, 200);
   assert.match(asset.headers.get('content-type'), /javascript/);
   assert.match(asset.headers.get('cache-control'), /immutable/);
-  for (const route of ['/?spotify-output=1', '/?notifications-output=1', '/commands?commands-output=1', '/output/layout', script]) {
+  for (const route of ['/output/music', '/?spotify-output=1', '/?notifications-output=1', '/commands?commands-output=1', '/output/layout', script]) {
     const page = await fetch(base + route);
     const head = await fetch(base + route, { method: 'HEAD' });
     assert.equal(head.status, 200, route);

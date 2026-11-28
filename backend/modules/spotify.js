@@ -1,3 +1,4 @@
+import { songOutputPath } from '../../shared/routes.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
@@ -5,7 +6,7 @@ import { createSpotifyLocalReader, localPlayback } from './spotify-local.js';
 import { appearanceDefaults, validateAppearance, spotifyThemes } from '../../shared/spotify.js';
 
 const defaults = { ...appearanceDefaults, mode: 'local', enabled: true, clientId: '', hideWhenPaused: true, theme: 'dark' };
-export const spotifyOutputPath = '/?spotify-output=1#tiktok.studio';
+export const spotifyOutputPath = songOutputPath + '#tiktok.studio';
 function validate(value) {
   const config = { ...defaults, ...value };
   if (!['local', 'api'].includes(config.mode) || typeof config.enabled !== 'boolean') throw new Error('Modo de Spotify inválido.');

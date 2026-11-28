@@ -1,8 +1,8 @@
 import { useOutputOrigin } from '../hooks/use-output-origin';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Copy, Wifi } from 'lucide-react';
+import { Check, ChevronDown, Copy, Wifi } from 'lucide-react';
 import { layoutOutputURL } from '../../../shared/layout-url';
-import { Button, Card, Switch } from './ui';
+import { Switch } from './ui';
 import { CopyLinkButton } from './output-controls';
 import { FirstRun } from './first-run';
 import { widgetStatus, widgetSummary } from '../lib/widget-status';
@@ -26,7 +26,6 @@ export function Home({ api, widgets, state, online, open, notice }) {
   const outputOrigin = useOutputOrigin();
   const now = useNow();
   const connected = online && !!state?.tts?.connected;
-  const [panel, setPanel] = useState('salidas');
   const [onboarding, setOnboarding] = useState(readOnboarding);
   const updateOnboarding = useCallback(patch => setOnboarding(previous => {
     const next = { ...previous, ...patch };
@@ -74,10 +73,24 @@ export function Home({ api, widgets, state, online, open, notice }) {
     const body = legacyNetwork ? { address: enabled ? network.addresses[0] : '' } : { enabled };
     return api('network/share', body);
   }
-  const salidasPanel = <>
-    <div className="home-panel-heading">
-      <p>Pega la URL en una fuente de enlace de TikTok LIVE Studio o de navegador en OBS.</p>
-    </div>
+  return <div className="home home-dashboard">
+    {guideOpen && <details className="home-banner">
+      <summary><strong>Prepara tu primer directo</strong><span>{guideDone} de 4 pasos</span><ChevronDown size={16} aria-hidden="true"/></summary>
+      <FirstRun state={state} online={online} copied={onboarding.copied} added={onboarding.added}
+            copyName={copyTarget.name} dismissed={onboarding.dismissed}
+            onDismiss={() => updateOnboarding({ dismissed: true })}
+            onConnect={openTikTok} onCopy={online ? copyFirstOutput : null} onAdded={markAdded}/>
+    </details>}
+    <section aria-labelledby="outputs-heading">
+      <div className="home-panel-heading">
+        <h2 id="outputs-heading">Salidas del directo</h2>
+        <p>Copia una URL para usarla en OBS o TikTok LIVE Studio.</p>
+      </div>
+      <div className="home-widget-list">
+      {widgets.map(module => <WidgetRow networkOrigin={networkOrigin} key={module.id} module={module} tool={state?.tools[module.id]}
+        online={online} open={open} state={state} now={now} onCopied={() => updateOnboarding({ copied: true })}/>)}
+      </div>
+    </section>
     {network && <div className="home-network">
       <Wifi size={20} aria-hidden="true"/>
       <div><label htmlFor="share-widgets">Acceso desde otros equipos</label>
@@ -90,43 +103,6 @@ export function Home({ api, widgets, state, online, open, notice }) {
         <CopyLinkButton url={networkOrigin} notice={notice} size="sm"><Copy size={14}/>Copiar enlace</CopyLinkButton>
       </div>}
     </div>}
-    <Card className="home-widget-list">
-      {widgets.map(module => <WidgetRow networkOrigin={networkOrigin} key={module.id} module={module} tool={state?.tools[module.id]}
-        online={online} open={open} state={state} now={now} onCopied={() => updateOnboarding({ copied: true })}/>)}
-    </Card>
-  </>;
-
-  return <div className="home home-dashboard">
-    {guideOpen && panel !== 'primeros' && <section className="home-banner">
-      <div className="home-banner-copy">
-        <p className="home-banner-kicker">PRIMEROS PASOS</p>
-        <h2>Prepara tu primer directo</h2>
-        <p>Termina los pasos para dejar tu estudio listo. Te llevamos de la conexión a tu primera salida.</p>
-        <div className="home-banner-actions">
-          <Button className="home-banner-primary" onClick={() => setPanel('primeros')}>Continuar</Button>
-          <Button variant="ghost" className="home-banner-ghost" onClick={() => updateOnboarding({ dismissed: true })}>Ocultar</Button>
-        </div>
-      </div>
-    </section>}
-
-    {guideOpen
-      ? <section className="home-panel" aria-label="Contenido de la vista general">
-        <div className="home-tabs" role="tablist" aria-label="Secciones de la vista general">
-          {[['salidas', 'Salidas'], ['primeros', 'Primeros pasos']].map(([id, label]) =>
-            <button key={id} type="button" role="tab" aria-selected={panel === id} className={panel === id ? 'home-tab active' : 'home-tab'}
-              onClick={() => setPanel(id)}>{label}{id === 'primeros' && <span className="home-tab-count">{guideDone}/4</span>}</button>)}
-        </div>
-
-        <div role="tabpanel" hidden={panel !== 'salidas'}>{salidasPanel}</div>
-
-        <div role="tabpanel" hidden={panel !== 'primeros'}>
-          <FirstRun state={state} online={online} copied={onboarding.copied} added={onboarding.added}
-            copyName={copyTarget.name} dismissed={onboarding.dismissed}
-            onDismiss={() => updateOnboarding({ dismissed: true })}
-            onConnect={openTikTok} onCopy={online ? copyFirstOutput : null} onAdded={markAdded}/>
-        </div>
-      </section>
-      : <section className="home-panel" aria-label="Salidas del directo">{salidasPanel}</section>}
   </div>;
 }
 

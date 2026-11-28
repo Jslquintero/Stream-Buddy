@@ -28,7 +28,7 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
         config: defaultCommands, url: '/commands?commands-output=1#tiktok.studio',
         listUrl: '/commands?commands-list-output=1#tiktok.studio',
       },
-      spotify: { config: { mode: 'local', enabled: false }, url: '/?spotify-output=1#tiktok.studio' },
+      spotify: { config: { mode: 'local', enabled: false }, url: '/output/music#tiktok.studio' },
     },
   });
 
@@ -50,13 +50,13 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   const origin = window.location.origin;
   await until(() => doc.querySelector('.home select'));
   const menuItems = id => [...doc.querySelectorAll(`#nav-${id}-items > .nav-item`)].map(button => button.textContent);
-  assert.deepEqual(menuItems('general'), ['Vista general', 'Voz y chat']);
-  assert.deepEqual(menuItems('widgets'), ['Escenas', 'Notificaciones', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
-  assert.deepEqual(menuItems('rankings'), ['Top likes', 'Top gifters']);
-  assert.deepEqual([...doc.querySelectorAll('#nav-publicidad-items > .nav-item')].map(button => button.textContent), ['AdQueue', 'Ad Banner Rotator']);
+  assert.deepEqual(menuItems('general'), ['Vista general', 'Chat en voz alta']);
+  assert.deepEqual(menuItems('widgets'), ['Editor de escenas', 'Alertas del directo', 'Subasta con regalos', 'Mostrar redes sociales', 'Comandos de chat', 'Canción actual']);
+  assert.deepEqual(menuItems('rankings'), ['Quién da más «Me gusta»', 'Quién envía más regalos']);
+  assert.deepEqual([...doc.querySelectorAll('#nav-publicidad-items > .nav-item')].map(button => button.textContent), ['Cola de anuncios', 'Anuncios rotativos']);
   assert.ok(doc.querySelector('#nav-widgets-items .nav-subcategory[aria-labelledby="nav-rankings"]'));
   assert.ok(doc.querySelector('#nav-widgets-items .nav-subcategory[aria-labelledby="nav-publicidad"]'));
-  assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), ['Escenas', 'AdQueue', 'Ad Banner Rotator', 'Notificaciones', 'Top likes', 'Top gifters', 'Subasta', 'Social Media Rotator', 'Comandos de chat', 'Música']);
+  assert.deepEqual([...doc.querySelectorAll('.home-widget-title h3')].map(heading => heading.textContent), ['Editor de escenas', 'Cola de anuncios', 'Anuncios rotativos', 'Alertas del directo', 'Quién da más «Me gusta»', 'Quién envía más regalos', 'Subasta con regalos', 'Mostrar redes sociales', 'Comandos de chat', 'Canción actual']);
   const widgetsToggle = doc.querySelector('[aria-labelledby="nav-widgets"] .nav-category-toggle');
   widgetsToggle.click(); await pause();
   assert.equal(doc.querySelector('#nav-widgets-items').hidden, true);
@@ -64,34 +64,34 @@ test('Home copies widget URLs and the chosen layout without leaving the overview
   assert.match(window.localStorage.getItem('live-studio.sidebar.collapsed.v1'), /"widgets":true/);
   widgetsToggle.click(); await pause();
   assert.equal(doc.querySelector('#nav-widgets-items').hidden, false);
-  await copy('Copiar URL de Escenas', origin + '/output/layout#tiktok.studio');
+  await copy('Copiar URL de Editor de escenas', origin + '/output/layout#tiktok.studio');
   const select = doc.querySelector('.home select');
   select.value = 'pausa';
   select.dispatchEvent(new window.Event('change', { bubbles: true }));
   await copy('Copiar URL de Pausa', origin + '/output/layout/pausa#tiktok.studio');
-  await copy('Copiar URL de AdQueue', 'http://127.0.0.1:17843/output#tiktok.studio');
-  await copy('Copiar URL de Notificaciones', origin + '/?notifications-output=1#tiktok.studio');
-  await copy('Copiar URL de Top likes', origin + '/?likes-output=1#tiktok.studio');
-  await copy('Copiar URL de Top gifters', origin + '/?gifters-output=1#tiktok.studio');
-  await copy('Copiar URL de Subasta', origin + '/?auction-output=1#tiktok.studio');
-  await copy('Copiar URL de Social Media Rotator', origin + '/?social-output=1#tiktok.studio');
-  await copy('Copiar URL de Ad Banner Rotator', origin + '/?banners-output=1#tiktok.studio');
+  await copy('Copiar URL de Cola de anuncios', 'http://127.0.0.1:17843/output#tiktok.studio');
+  await copy('Copiar URL de Alertas del directo', origin + '/?notifications-output=1#tiktok.studio');
+  await copy('Copiar URL de Quién da más «Me gusta»', origin + '/?likes-output=1#tiktok.studio');
+  await copy('Copiar URL de Quién envía más regalos', origin + '/?gifters-output=1#tiktok.studio');
+  await copy('Copiar URL de Subasta con regalos', origin + '/?auction-output=1#tiktok.studio');
+  await copy('Copiar URL de Mostrar redes sociales', origin + '/?social-output=1#tiktok.studio');
+  await copy('Copiar URL de Anuncios rotativos', origin + '/?banners-output=1#tiktok.studio');
   await copy('Copiar URL de Comandos de chat', origin + '/commands?commands-output=1#tiktok.studio');
   await copy('Copiar URL de la lista de comandos', origin + '/commands?commands-list-output=1#tiktok.studio');
-  await copy('Copiar URL de Música', origin + '/?spotify-output=1#tiktok.studio');
-  const spotifyCopy = doc.querySelector('.home button[aria-label="Copiar URL de Música"]');
+  await copy('Copiar URL de Canción actual', origin + '/output/music#tiktok.studio');
+  const spotifyCopy = doc.querySelector('.home button[aria-label="Copiar URL de Canción actual"]');
   await until(() => spotifyCopy.textContent === 'Copiada');
   clipboardAvailable = false;
   spotifyCopy.click();
-  await until(() => doc.querySelector('.home-copy-fallback code')?.textContent === origin + '/?spotify-output=1#tiktok.studio');
+  await until(() => doc.querySelector('.home-copy-fallback code')?.textContent === origin + '/output/music#tiktok.studio');
   assert.equal(doc.querySelectorAll('.home .home-copy-actions button').length, 11);
   assert.equal(window.location.pathname, '/');
   assert.equal(requests.length, 0);
 
   const homeButtons = [...doc.querySelectorAll('.home button')];
   assert.ok(!homeButtons.some(button => button.textContent.includes('Iniciar herramientas')));
-  assert.doesNotMatch(doc.querySelector('.home').textContent, /Voz y chat|Configurar voz/);
-  homeButtons.find(button => button.textContent === 'AdQueue').click();
+  assert.doesNotMatch(doc.querySelector('.home').textContent, /Chat en voz alta|Configurar voz/);
+  homeButtons.find(button => button.textContent === 'Cola de anuncios').click();
   await until(() => requests.some(request => request.url === '/api/start' && request.body.tool === 'ads'));
   assert.equal(window.location.pathname, '/ads');
 });
@@ -250,7 +250,7 @@ test('Top likes route autosaves design without losing edits on live updates; pre
   const {window,publish,requests}=await mount(t,'/likes');
   const state={token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},likes:{config:structuredClone(defaultLikes),ranking:[],total:0,participants:0}}};
   publish(state);await until(()=>window.document.querySelector('.likes-settings'));
-  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Top likes');
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Quién da más «Me gusta»');
   assert.ok([...window.document.querySelectorAll('.likes-settings details')].every(section => !section.open));
   assert.ok(![...window.document.querySelectorAll('.likes-settings button')].some(button => button.textContent === 'Guardar diseño'));
   const mobileMonitor = [...window.document.querySelectorAll('.editor-mobile-view button')].find(button => button.textContent === 'Vista previa y conteo');
@@ -301,7 +301,7 @@ test('Top gifters route exposes the design editor and autosaves the chosen metri
   const {window,publish,requests}=await mount(t,'/gifters');
   const state={token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},gifters:{config:structuredClone(defaultGifters),ranking:[],total:0,totalGifts:0,totalDiamonds:0,participants:0}}};
   publish(state);await until(()=>window.document.querySelector('.gifters-settings'));
-  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Top gifters');
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Quién envía más regalos');
   const label=Array.from(window.document.querySelectorAll('.gifters-settings label')).find(el=>el.textContent==='Métrica');assert.ok(label);
   const select=window.document.getElementById(label.htmlFor);select.value='diamonds';select.dispatchEvent(new window.Event('change',{bubbles:true}));
   await until(()=>requests.some(r=>r.url==='/api/gifters/save'));
@@ -332,7 +332,7 @@ test('Auction route exposes the design editor, autosaves the lot title and start
   const {window,publish,requests}=await mount(t,'/auction');
   const state={token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},auction:{config:structuredClone(defaultAuction),revision:1,status:'idle',round:0,itemTitle:'',ranking:[],total:0,totalGifts:0,participants:0,winner:null}}};
   publish(state);await until(()=>window.document.querySelector('.auction-settings'));
-  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Subasta');
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Subasta con regalos');
   const label=Array.from(window.document.querySelectorAll('.auction-settings label')).find(el=>el.textContent==='Título del lote');assert.ok(label);
   const input=window.document.getElementById(label.htmlFor);
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'Guitarra');
@@ -384,7 +384,7 @@ test('notification editor preserves drafts, saves configuration and sends explic
   const {window,requests,publish}=await mount(t,'/notifications');
   const state={token:'test',settings:defaults,tts:{resources:{},queued:0},events:[],tools:{layout:{},ads:{},notifications:{config:structuredClone(defaultNotifications),queued:0,current:null}}};
   publish(state);await until(()=>window.document.querySelector('.notifications-settings'));
-  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Notificaciones');
+  assert.equal(window.document.querySelector('.nav-item.active').textContent,'Alertas del directo');
   const title=window.document.querySelector('.notifications-settings input:not([type])');
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(title,'Hola {usuario}');
   title.dispatchEvent(new window.Event('input',{bubbles:true}));await pause();

@@ -1,3 +1,4 @@
+import { songOutputPath } from '../../shared/routes';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -17,4 +18,4 @@ import { layoutOutputId } from '../../shared/layout-url';
 import './theme.css';
 const query = new URLSearchParams(location.search);
 const layoutId = layoutOutputId(location.pathname);
-createRoot(document.getElementById('root')).render(<React.StrictMode>{layoutId!==undefined?<LayoutOutput compositionId={layoutId}/>:query.has('spotify-output')?<SpotifyOutput/>:query.has('commands-list-output')?<CommandsOutput listOnly/>:query.has('commands-output')?<CommandsOutput/>:query.has('likes-output')?<LikesOutput/>:query.has('gifters-output')?<GiftersOutput/>:query.has('auction-output')?<AuctionOutput/>:query.has('social-output')?<SocialOutput/>:query.has('banners-output')?<BannersOutput/>:query.has('notifications-output')?<NotificationsOutput/>:query.has('layout-output')?<LayoutOutput compositionId={query.get('composition')}/>:<App />}</React.StrictMode>);
+createRoot(document.getElementById('root')).render(<React.StrictMode>{layoutId!==undefined?<LayoutOutput compositionId={layoutId}/>:(location.pathname === songOutputPath || query.has('spotify-output'))?<SpotifyOutput/>:query.has('commands-list-output')?<CommandsOutput listOnly/>:query.has('commands-output')?<CommandsOutput/>:query.has('likes-output')?<LikesOutput/>:query.has('gifters-output')?<GiftersOutput/>:query.has('auction-output')?<AuctionOutput/>:query.has('social-output')?<SocialOutput/>:query.has('banners-output')?<BannersOutput/>:query.has('notifications-output')?<NotificationsOutput/>:query.has('layout-output')?<LayoutOutput compositionId={query.get('composition')}/>:<App />}</React.StrictMode>);
