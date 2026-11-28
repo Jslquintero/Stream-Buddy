@@ -1,3 +1,4 @@
+import { boardStyle } from '../lib/widget-css';
 import {createPortal} from 'react-dom';
 import boardCSS from './likes.css?raw';
 import {validateThemeCSS} from '../../../shared/custom-themes';
@@ -24,7 +25,7 @@ function LikesCSSSurface({css,children}){
 }
 export function LikesBoard(props){
   const config={...defaultLikes,...props.config};
-  let css='';try{css=validateThemeCSS(config.customCss);}catch{}
+  let css='';try{if(config.cssEnabled)css=validateThemeCSS(config.customCss);}catch{}
   const board=<LikesBoardContent {...props} config={config}/>;
   return css?<LikesCSSSurface css={css}>{board}</LikesCSSSurface>:board;
 }
@@ -34,7 +35,7 @@ function LikesBoardContent({config,ranking=[],total=0,preview=false}){
   const alpha=value=>Math.round(value*2.55).toString(16).padStart(2,'0');
   const rows=ranking.slice(0,config.limit);
   const peak=Math.max(1,...rows.map(user=>Number(user.likes)||0));
-  return <section className={"likes-board likes-style-"+config.style+(config.rgbNames?" likes-rgb-names":"")+(config.animateNames?" likes-animated-names":"")+(config.pulseHearts?" likes-pulse-hearts":"")+(Number(config.opacity)<=0?" likes-flat":"")} aria-label="Clasificación de likes" style={{'--likes-width':config.width+'px','--likes-font-size':config.fontSize+'px','--likes-color':config.color,'--likes-background':config.background+alpha(config.opacity),'--likes-border':config.accent+alpha(config.borderOpacity),'--likes-radius':config.radius+'px','--likes-accent':config.accent}}>
+  return <section className={"likes-board likes-style-"+config.style+(config.rgbNames?" likes-rgb-names":"")+(config.animateNames?" likes-animated-names":"")+(config.pulseHearts?" likes-pulse-hearts":"")+(Number(config.opacity)<=0?" likes-flat":"")} aria-label="Clasificación de likes" style={boardStyle('likes', config)}>
     {config.showTitle&&<header><Heart aria-hidden="true"/><strong>{config.title}</strong></header>}
     {rows.length?<ol ref={list}>{rows.map((user,index)=>{
       const likes=Number(user.likes)||0;

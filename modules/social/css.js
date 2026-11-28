@@ -1,15 +1,9 @@
-import { defaultSocial, resolveSocialDesign, socialLayouts, socialStyles } from './config.js';
+import { defaultSocial, resolveSocialDesign, socialLayouts, socialPlatform, socialStyles } from './config.js';
 import { googleFontStack } from '../../shared/google-fonts.js';
+import { cssDeclarations } from '../../shared/css-declarations.js';
 
 const layoutNames = Object.fromEntries(socialLayouts);
 const styleNames = Object.fromEntries(socialStyles);
-const autoRadii = { pill: 999, banner: 8, ticker: 6, ribbon: 4 };
-const iconRadii = { rounded: '24%', circle: '50%', square: '0' };
-const iconBackdrops = {
-  light: ['#17191f', '#f8fafc', '#e2e8f0'],
-  dark: ['#f8fafc', '#17191f', '#475569'],
-  none: ['inherit', 'transparent', 'transparent'],
-};
 
 function color(value, fallback) {
   return typeof value === 'string' && /^#[a-f0-9]{6}$/i.test(value) ? value : fallback;
@@ -19,13 +13,6 @@ function alpha(value, opacity) {
   return value + Math.round(Math.max(0, Math.min(1, opacity)) * 255).toString(16).padStart(2, '0');
 }
 
-function resolvedRadius(settings) {
-  if (settings.cornerStyle === 'square') return 0;
-  if (settings.cornerStyle === 'rounded') return Number(settings.radius) || 0;
-  const base = autoRadii[settings.layout] ?? 24;
-  return settings.style === 'soft' ? base + 8 : base;
-}
-
 export function socialCustomCss(config = defaultSocial) {
   const style = config?.style || 'clean';
   const value = config?.customCss;
@@ -33,151 +20,62 @@ export function socialCustomCss(config = defaultSocial) {
   return value && typeof value === 'object' ? value[style] || '' : '';
 }
 
-export function socialCardCss(config = defaultSocial, selectedChannel) {
+export function socialCardProperties(settings, channel) {
+  const channelColor = color(channel?.color, socialPlatform(channel?.platform).color);
+  const background = color(settings.background, '#0f1218');
+  const accent = color(settings.accent, '#b9f678');
+  const shadowColor = color(settings.shadowColor, '#000000');
+  const cover = ['photo-cover', 'photo-caption'].includes(settings.layout);
+  const defaultTextShadow = cover && (channel?.image || settings.image) ? '0 2px 12px #000e, 0 0 3px #000b' : 'none';
+  return {
+    '--social-width': (Number(settings.width) || 460) + 'px',
+    '--social-bg': alpha(background, (Number(settings.opacity) || 0) / 100),
+    '--social-border': alpha(accent, Math.min(100, Math.max(0, Number(settings.borderOpacity ?? 100))) / 100),
+    '--social-border-width': (Number(settings.borderWidth) || 0) + 'px',
+    '--social-border-style': settings.borderStyle || 'solid',
+    '--social-color': color(settings.color, '#ffffff'),
+    '--social-font-family': googleFontStack(settings.fontFamily),
+    '--social-text-duration': settings.textAnimationDuration + 'ms',
+    '--social-text-shadow': settings.textShadow ? `0 0.1em 0.4em ${alpha(shadowColor, 0.65)}` : defaultTextShadow,
+    '--social-accent': accent,
+    '--social-channel': channelColor,
+    '--social-channel-bg': alpha(channelColor, 0.16),
+    '--social-channel-border': alpha(channelColor, 0.5),
+    '--social-channel-glow': alpha(channelColor, 0.24),
+    '--social-radius': (Number(settings.radius) || 0) + 'px',
+    '--social-card-tl': (Number(settings.radiusTL) || 0) + 'px',
+    '--social-card-tr': (Number(settings.radiusTR) || 0) + 'px',
+    '--social-card-br': (Number(settings.radiusBR) || 0) + 'px',
+    '--social-card-bl': (Number(settings.radiusBL) || 0) + 'px',
+    '--social-interval': (Number(settings.interval) || 6) + 's',
+    '--social-icon-size': (Number(settings.iconSize) || 56) + 'px',
+    '--social-image-width': (Number(settings.imageWidth) || 230) + 'px',
+    '--social-image-height': (Number(settings.imageHeight) || 250) + 'px',
+    '--social-image-gap': (Number(settings.imageGap) || 0) + 'px',
+    '--social-custom-height': (Number(settings.customHeight) || 250) + 'px',
+    '--social-image-x': settings.imagePositionX + '%',
+    '--social-image-y': settings.imagePositionY + '%',
+    '--social-image-fit': settings.imageFit || 'cover',
+    '--social-image-position': `calc(50% + ${Number(settings.imageOffsetX) || 0}%) calc(50% + ${Number(settings.imageOffsetY) || 0}%)`,
+    '--social-image-zoom': (Number(settings.imageZoom) || 100) / 100,
+    '--social-image-radius': (Number(settings.imageRadius) || 0) + 'px',
+    '--social-image-tl': (Number(settings.imageRadiusTL) || 0) + 'px',
+    '--social-image-tr': (Number(settings.imageRadiusTR) || 0) + 'px',
+    '--social-image-br': (Number(settings.imageRadiusBR) || 0) + 'px',
+    '--social-image-bl': (Number(settings.imageRadiusBL) || 0) + 'px',
+  };
+}
+
+export function socialCardCss(config = defaultSocial, selectedChannel, includeCustom = true) {
   const channels = Array.isArray(config.channels) ? config.channels : [];
   const channel = selectedChannel ?? channels.find(item => item.enabled) ?? channels[0] ?? defaultSocial.channels[0];
   const settings = resolveSocialDesign(config, channel);
-  const background = color(settings.background, '#0f1218');
-  const accent = color(settings.accent, '#b9f678');
-  const text = color(settings.color, '#ffffff');
-  const shadow = color(settings.shadowColor, '#000000');
-  const channelColor = color(channel?.color, '#e1306c');
-  const radius = resolvedRadius(settings);
-  const cornerRadius = settings.cornerStyle === 'custom'
-    ? ['TL', 'TR', 'BR', 'BL'].map(corner => (Number(settings['radius' + corner]) || 0) + 'px').join(' ')
-    : radius + 'px';
-  const width = Number(settings.width) || 460;
-  const iconSize = Number(settings.iconSize) || 56;
-  const backdrop = settings.showIconBackdrop ? settings.iconBackdropStyle : 'none';
-  const [iconColor, iconBackground, iconBorder] = iconBackdrops[backdrop] ?? [channelColor, alpha(channelColor, 0.16), alpha(channelColor, 0.5)];
-  const iconRadius = iconRadii[settings.iconShape];
-  const iconShadow = backdrop === 'channel' ? `0 0 1.8em ${alpha(channelColor, 0.24)}` : 'none';
-  const borderWidth = Number(settings.borderWidth) || 0;
-  const borderOpacity = Math.max(0, Math.min(100, Number(settings.borderOpacity ?? 100))) / 100;
-  const border = settings.borderEffect === 'none'
-    ? `${borderWidth}px ${settings.borderStyle || 'solid'} ${alpha(accent, borderOpacity)}`
-    : '0 solid transparent';
-  const textShadow = settings.textShadow ? `0 0.1em 0.4em ${alpha(shadow, 0.65)}` : 'none';
-  const fontStack = googleFontStack(settings.fontFamily);
-  const layout = layoutNames[settings.layout] ?? 'Tarjeta · completa';
   const style = styleNames[settings.style] ?? 'Limpio';
-
-  const lines = [
-    `/* Social Media Rotator · ${style} · ${layout} */`,
-    '.social-card {',
-    `  --social-width: ${width}px;`,
-    `  --social-bg: ${alpha(background, (Number(settings.opacity) || 0) / 100)};`,
-    `  --social-border: ${alpha(accent, borderOpacity)};`,
-    `  --social-border-width: ${borderWidth}px;`,
-    `  --social-border-style: ${settings.borderStyle || 'solid'};`,
-    `  --social-color: ${text};`,
-    `  --social-text-duration: ${settings.textAnimationDuration}ms;`,
-    ...(fontStack ? [`  --social-font-family: ${fontStack};`] : []),
-    `  --social-accent: ${accent};`,
-    `  --social-channel: ${channelColor};`,
-    `  --social-radius: ${radius}px;`,
-    `  --social-icon-size: ${iconSize}px;`,
-    `  --social-custom-height: ${Number(settings.customHeight) || 250}px;`,
-    `  --social-image-x: ${settings.imagePositionX}%;`,
-    `  --social-image-y: ${settings.imagePositionY}%;`,
-    `  --social-image-width: ${Number(settings.imageWidth) || 230}px;`,
-    `  --social-image-height: ${Number(settings.imageHeight) || 250}px;`,
-    `  --social-image-gap: ${Number(settings.imageGap) || 0}px;`,
-    `  --social-image-radius: ${Number(settings.imageRadius) || 0}px;`,
-    `  --social-image-fit: ${settings.imageFit || 'cover'};`,
-    `  --social-image-position: calc(50% + ${Number(settings.imageOffsetX) || 0}%) calc(50% + ${Number(settings.imageOffsetY) || 0}%);`,
-    `  --social-image-zoom: ${(Number(settings.imageZoom) || 100) / 100};`,
-    `  --social-interval: ${Number(settings.interval) || 6}s;`,
-    '  position: relative;',
-    `  width: min(${width}px, 100%);`,
-    '  padding: 1em 1.2em 1.2em;',
-    `  color: ${text};`,
-    `  background: ${alpha(background, (Number(settings.opacity) || 0) / 100)};`,
-    `  border: ${border};`,
-    `  border-radius: ${cornerRadius};`,
-    '  box-shadow: 0 18px 48px #0007, inset 0 1px 0 #ffffff10;',
-    "  font-family: Inter, 'Segoe UI', sans-serif;",
-    `  font-size: clamp(14px, calc(${width}px * 0.035), 26px);`,
-    '}',
-    '',
-    '.social-card .social-icon {',
-    `  width: ${iconSize}px;`,
-    `  height: ${iconSize}px;`,
-    `  color: ${iconColor};`,
-    `  background: ${iconBackground};`,
-    `  border: 1px solid ${iconBorder};`,
-    ...(backdrop === 'theme' ? [] : [`  box-shadow: ${iconShadow};`]),
-    ...(iconRadius ? [`  border-radius: ${iconRadius};`] : []),
-    '}',
-    '',
-    '.social-card .social-media img {',
-    `  object-fit: ${settings.imageFit || 'cover'};`,
-    `  object-position: calc(50% + ${Number(settings.imageOffsetX) || 0}%) calc(50% + ${Number(settings.imageOffsetY) || 0}%);`,
-    `  transform: scale(${(Number(settings.imageZoom) || 100) / 100});`,
-    '}',
-    '',
-    '.social-card .social-copy {',
-    '  font-family: var(--social-font-family, inherit);',
-    '  animation-duration: var(--social-text-duration, 500ms);',
-    '}',
-    '',
-    '.social-card .social-heading {',
-    '  color: #ffffffa8;',
-    '  font-size: 0.6em;',
-    '  font-weight: 750;',
-    '  letter-spacing: 0.2em;',
-    '  text-transform: uppercase;',
-    '}',
-    '',
-    '.social-card .social-label {',
-    `  color: ${text};`,
-    '  font-size: 1.34em;',
-    '  font-weight: 800;',
-    '}',
-    '',
-    '.social-card .social-handle {',
-    `  color: ${channelColor};`,
-    '  font-size: 0.78em;',
-    '  font-weight: 650;',
-    '}',
-    '',
-    '.social-card .social-heading,',
-    '.social-card .social-label,',
-    '.social-card .social-handle {',
-    `  text-shadow: ${textShadow};`,
-    '}',
-  ];
-
-  if (settings.borderEffect !== 'none') {
-    lines.push(
-      '',
-      '/* Efecto de borde RGB */',
-      '.social-card { border-color: transparent; }',
-      '.social-card::before {',
-      "  content: '';",
-      '  position: absolute;',
-      '  inset: 0;',
-      `  padding: max(2px, ${borderWidth}px);`,
-      '  border-radius: inherit;',
-      '  background: conic-gradient(from 90deg, #ff2d75, #ff9a00, #f4ff00, #2bff88, #00d4ff, #7b5cff, #ff2df7, #ff2d75);',
-      '  animation: social-rgb 6s linear infinite;',
-      '  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);',
-      '  -webkit-mask-composite: xor;',
-      '  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);',
-      '  mask-composite: exclude;',
-      '  pointer-events: none;',
-      '}',
-    );
-  }
-
-  lines.push(
-    '',
-    `/* Tema visual «${style}» y formato «${layout}»: la app añade sus detalles propios. */`,
-    '',
-    '/* ── Modificaciones personalizadas ── */',
-    settings.cssEnabled === false ? '/* CSS personalizado desactivado */' : '',
-    settings.cssEnabled === false ? '' : '',
-    socialCustomCss(settings).trim() || '/* Sin modificaciones */',
-  );
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+  const layout = layoutNames[settings.layout] ?? 'Tarjeta · completa';
+  const css = settings.cssEnabled === false ? '/* CSS personalizado desactivado */' : socialCustomCss(settings).trim();
+  return [
+    `/* Tema visual «${style}» · ${layout} */`,
+    cssDeclarations('.social-card', socialCardProperties(settings, channel)),
+    includeCustom ? css : '',
+  ].filter(Boolean).join('\n\n');
 }

@@ -153,6 +153,12 @@ test('Spotify CSS is live, isolated, saved per skin and can be reset', async t =
   assert.equal(JSON.parse(f.requests.find(r => r.url === '/api/spotify/save').body).customCss.compact,css);
   await click('Restaurar CSS de este diseño'); assert.equal(getEditor().value,'');
   assert.equal(widget(doc).querySelector('[data-spotify-custom-css]').textContent,'');
+  await click('Insertar CSS actual');
+  assert.match(getEditor().value, /\.spotify-now\.player-compact/);
+  assert.doesNotMatch(getEditor().value, /\.player-gallery/);
+  assert.ok(getEditor().value.length <= getEditor().maxLength);
+  assert.equal(widget(doc).querySelector('[data-spotify-custom-css]').textContent, getEditor().value);
+  assert.match(doc.querySelector('.spotify-settings .css-reference').textContent, /--card-background/);
 });
 
 test('Spotify automatically saves actions and recovers pending changes after reload', async t => {

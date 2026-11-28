@@ -117,19 +117,21 @@ test('social card CSS reflects the current design and keeps one snippet per visu
     ...defaultSocial,
     style: 'aurora',
     layout: 'pill',
+    width: 519,
+    radius: 38,
     customCss: { aurora: '.social-card { outline: 2px solid red; }', noir: '.social-card { color: white; }' },
     cssTemplates: [{ id: 'tema', name: 'Tema guardado', css: '.social-card { padding: 2em; }' }],
   });
   const css = socialCardCss(config);
   assert.match(css, /Tema visual «Aurora»/);
-  assert.match(css, /--social-radius: 999px;/);
+  assert.match(css, /--social-radius: 38px;/);
+  assert.match(css, /--social-width: 519px;/);
   assert.match(css, /\.social-card \{ outline: 2px solid red; \}/);
   assert.doesNotMatch(css, /color: white/);
   assert.equal(socialCustomCss({ ...config, style: 'noir' }), '.social-card { color: white; }');
   assert.equal(socialCustomCss({ ...config, style: 'clean' }), '');
   assert.match(socialCardCss({ ...config, cssEnabled: false }), /CSS personalizado desactivado/);
-  const iconCss = socialCardCss({ ...config, showIconBackdrop: false, iconShape: 'circle' });
-  assert.match(iconCss, /\.social-card \.social-icon \{[^}]+background: transparent;[^}]+box-shadow: none;[^}]+border-radius: 50%;/);
+  assert.doesNotMatch(socialCardCss(config, undefined, false), /outline: 2px solid red/);
 });
 
 test('social stores uploaded photos and rejects external image references', t => {

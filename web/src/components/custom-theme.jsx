@@ -7,13 +7,15 @@ import { Palette } from 'lucide-react';
 import { baseThemeCSS, maxCustomThemes, validateThemeCSS } from '../../../shared/custom-themes';
 import baseCSS from './custom-theme-base.css?raw';
 import { readThemeFile, downloadThemeCSS } from '../lib/theme-files';
+import { CssReference } from './css-reference';
+import { ToggleRow } from './fields';
 
 export function CustomThemeSurface({ css, children }) {
   const host=useRef(null),[root,setRoot]=useState(null);
   useLayoutEffect(()=>{setRoot(host.current.shadowRoot||host.current.attachShadow({mode:'open'}));},[]);
   return <div ref={host} className="custom-theme-host">{root&&createPortal(<><style>{baseCSS}</style><style data-custom-css>{css}</style><div className="overlay-root">{children}</div></>,root)}</div>;
 }
-export function ThemeSurface({ theme, children }) { return theme?<CustomThemeSurface css={theme.css}>{children}</CustomThemeSurface>:children; }
+export function ThemeSurface({ theme, children }) { return theme?<CustomThemeSurface css={theme.cssEnabled===false?'':theme.css}>{children}</CustomThemeSurface>:children; }
 
 function ThemeCodeEditor({ theme, update }) {
   const [code,setCode]=useState(theme.css),[error,setError]=useState('');
@@ -33,10 +35,15 @@ function ThemeCodeEditor({ theme, update }) {
     window.addEventListener('beforeunload',protect);
     return ()=>window.removeEventListener('beforeunload',protect);
   },[code,theme.css]);
-  return <div className="theme-code-editor"><label>Nombre del tema<Input maxLength={60} value={theme.name} onChange={e=>update({name:e.target.value||'Mi tema'})}/></label><label>CSS del overlay<textarea className="input css-source" spellCheck={false} value={code} maxLength={20000} onChange={e=>setCode(e.target.value)} rows={22}/></label>
-    {error?<p className="error" role="alert">{error} El CSS con errores no se aplica ni se guarda.</p>:<p className="help">Vista previa en vivo. El CSS válido se guarda automáticamente y se aplica también a la salida.</p>}
+  return <div className="theme-code-editor"><label>Nombre del tema<Input maxLength={60} value={theme.name} onChange={e=>update({name:e.target.value||'Mi tema'})}/></label>
+    <ToggleRow label="Aplicar CSS personalizado" checked={theme.cssEnabled!==false} onCheckedChange={cssEnabled=>update({cssEnabled})}/>
+    <label>CSS del overlay<textarea className="input css-source" spellCheck={false} value={code} maxLength={20000} onChange={e=>setCode(e.target.value)} rows={22}/></label>
+    {error?<p className="error" role="alert">{error} El CSS con errores no se aplica ni se guarda.</p>:<p className="help">El CSS válido se guarda automáticamente.</p>}
     <div className="actions"><DownloadButton onClick={()=>{try{downloadThemeCSS({name:theme.name,css:code});}catch(e){setError(e.message);}}}>Exportar CSS</DownloadButton><Button size="sm" variant="outline" onClick={()=>setCode(baseThemeCSS)}>Restablecer plantilla CSS</Button></div>
-    <details><summary>Selectores disponibles</summary><p className="help">:host · .layout-element · .layout-title · .layout-content · .frame · .taskbar · .layout-icon-row · .row-icon-picture · .row-icon-name. Puedes usar variables CSS, @media, @supports y @keyframes. El CSS queda aislado del panel.</p></details>
+    <CssReference selectors={[':host', '.overlay-root', '.layout-background', '.layout-item', '.layout-element', '.layout-title', '.layout-content', '.frame', '.taskbar', '.layout-icon-row', '.row-shortcut', '.row-icon-picture', '.row-icon-name']}
+      variables={['--accent', '--text', '--title-background']}>
+      <p className="help">Puedes usar <code>@media</code>, <code>@supports</code> y <code>@keyframes</code>.</p>
+    </CssReference>
   </div>;
 }
 
@@ -44,7 +51,7 @@ export function CustomThemeEditor({ document, change, preview }) {
   const [importing,setImporting]=useState(false),[fileMessage,setFileMessage]=useState(''),[fileError,setFileError]=useState('');
   const library=document.customThemes||[],active=library.find(t=>t.id===document.theme);
   const create=source=>{
-    const theme={id:'custom-'+crypto.randomUUID(),name:source?(source.name+' (copia)').slice(0,60):'Mi tema '+(library.length+1),css:source?.css||baseThemeCSS};
+    const theme={...source,id:'custom-'+crypto.randomUUID(),name:source?(source.name+' (copia)').slice(0,60):'Mi tema '+(library.length+1),css:source?.css??baseThemeCSS};
     change({theme:theme.id,customThemes:[...library,theme]});
   };
   const importCSS=async file => {

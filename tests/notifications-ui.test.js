@@ -110,6 +110,11 @@ test('Top likes applies custom CSS inside an isolated output and changes sides l
   assert.ok(window.document.querySelector('.likes-stage.top-left'));
   config.position='bottom-right';publish(state);
   await until(()=>window.document.querySelector('.likes-stage.bottom-right'));
+  config.cssEnabled=false;publish(state);
+  await until(()=>window.document.querySelector('.likes-stage .likes-board'));
+  assert.equal(window.document.querySelector('.likes-css-surface'),null);
+  config.cssEnabled=true;publish(state);
+  await until(()=>window.document.querySelector('.likes-css-surface')?.shadowRoot?.querySelector('.likes-name'));
   config.customCss='';publish(state);
   await until(()=>window.document.querySelector('.likes-board'));
   assert.equal(window.document.querySelector('.likes-css-surface'),null);

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Music2 } from 'lucide-react';
-import { appearanceDefaults, coverFinishes } from '../../../shared/spotify';
+import { appearanceDefaults } from '../../../shared/spotify';
 import { spotifyLabels } from './spotify-labels';
+import { spotifyPlayerTheme } from './spotify-style';
 
 export const demoPlayback = { title:'Tu próxima canción', artist:'Vista previa del widget', duration:210000, progress:72000, playing:true, image:'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=512&h=512&q=80' };
 export function SpotifyVisual({ playback, config = {}, theme }) {
@@ -24,7 +25,7 @@ export function SpotifyVisual({ playback, config = {}, theme }) {
   const time = value => `${Math.floor(value / 60000)}:${String(Math.floor(value / 1000) % 60).padStart(2,'0')}`;
   const artwork = c.coverStyle === 'canvas' && c.canvasUrl && failedVideo !== c.canvasUrl ? <video key={c.canvasUrl} className="spotify-cover" src={c.canvasUrl} poster={playback.image || undefined} autoPlay muted loop playsInline onError={() => setFailedVideo(c.canvasUrl)}/> : playback.image ? <img className="spotify-cover" src={playback.image} alt="Carátula del álbum"/> : <div className="spotify-cover spotify-placeholder"><Music2 size={38}/></div>;
   const cdPlayer = c.playerStyle === 'cd-retro';
-  const playerTheme = c.theme === 'dark' && (cdPlayer || coverFinishes[c.playerStyle]) ? c.playerStyle : c.theme;
+  const playerTheme = spotifyPlayerTheme(c.theme, c.playerStyle);
   if(['shell','amber'].includes(c.playerStyle)) {
     const filled = Math.min(32,Math.max(0,Math.round(playback.duration ? progress / playback.duration * 32 : 0)));
     return <article className={`spotify-now spotify-${playerTheme} player-shell spotify-terminal player-${c.playerStyle}`} style={{'--spotify-accent':color || c.tintColor}}>

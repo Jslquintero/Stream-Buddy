@@ -291,6 +291,16 @@ test('custom CSS themes autosave valid code, isolate styles and retain their lib
   assert.equal(shadow.querySelector('[data-custom-css]').textContent,css);
   assert.equal(f.window.document.querySelector('style[data-custom-css]'),null,'Theme CSS must stay inside its shadow root');
   assert.ok(f.window.document.querySelector('.sidebar'));
+  const toggle=f.window.document.querySelector('.theme-code-editor [role="switch"]');
+  assert.equal(toggle.getAttribute('aria-checked'),'true');
+  toggle.click();
+  await until(()=>shadow.querySelector('[data-custom-css]').textContent==='');
+  await until(()=>requests.at(-1).customThemes[0].cssEnabled===false);
+  assert.equal(requests.at(-1).customThemes[0].css,css);
+  assert.equal(f.window.document.querySelector('.css-source').value,css);
+  toggle.click();
+  await until(()=>shadow.querySelector('[data-custom-css]').textContent===css);
+  await until(()=>requests.at(-1).customThemes[0].cssEnabled===true);
   const count=requests.length;
   await f.input('.css-source','.layout-title { color: red;');
   await until(()=>f.window.document.querySelector('.theme-code-editor [role="alert"]'));

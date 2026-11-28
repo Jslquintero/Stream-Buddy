@@ -1,3 +1,5 @@
+import { boardStyle } from '../lib/widget-css';
+import { WidgetCssEditor } from './css-reference';
 import { downloadFile } from '../lib/download-file';
 import { DownloadButton } from './ui/download-button';
 import { OutputLinks, OutputToolbar } from './output-controls';
@@ -6,7 +8,7 @@ import boardCSS from './auction.css?raw';
 import { validateThemeCSS } from '../../../shared/custom-themes';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Crown, Gavel, Play, RotateCcw, SkipForward, Square, Timer, Trophy } from 'lucide-react';
-import { Badge, Button, Card, Input, Select, Textarea } from './ui';
+import { Badge, Button, Card, Input, Select } from './ui';
 import { Field, NumberSettings, OverlayColors, Toggle } from './fields';
 import { useStudio } from '../hooks/use-studio';
 import { useNotificationSettings } from '../hooks/use-notification-settings';
@@ -43,7 +45,7 @@ function AuctionCSSSurface({ css, children }) {
 
 export function AuctionBoard(props) {
   const config = { ...defaultAuction, ...props.config };
-  let css = ''; try { css = validateThemeCSS(config.customCss); } catch {}
+  let css = ''; try { if (config.cssEnabled) css = validateThemeCSS(config.customCss); } catch {}
   const board = <AuctionBoardContent {...props} config={config}/>;
   return css ? <AuctionCSSSurface css={css}>{board}</AuctionCSSSurface> : board;
 }
@@ -53,9 +55,8 @@ function AuctionBoardContent({ config, ranking = [], total = 0, participants = 0
   const list = useAuctionMotion(JSON.stringify([config.enabled, config.limit, config.width, config.fontSize, config.style, status, round, ranking.map(user => [user.id, user.name, user.diamonds])]));
   if (!config.enabled && !preview) return null;
   const rows = ranking.slice(0, config.limit), top = leader || rows[0] || null;
-  const alpha = value => Math.round(value * 2.55).toString(16).padStart(2, '0');
   return <section className={'auction-board auction-style-' + config.style + (config.rgbNames ? ' auction-rgb-names' : '') + (config.pulseLeader ? ' auction-pulse-leader' : '')} aria-label="Subasta en directo"
-    style={{ '--auction-width': config.width + 'px', '--auction-font-size': config.fontSize + 'px', '--auction-color': config.color, '--auction-background': config.background + alpha(config.opacity), '--auction-border': config.accent + alpha(config.borderOpacity), '--auction-radius': config.radius + 'px', '--auction-accent': config.accent }}>
+    style={boardStyle('auction', config)}>
     {config.showTitle && <header className="auction-head">
       <Gavel aria-hidden="true"/>
       <div><strong className="auction-title">{config.title}</strong><span className="auction-round">{round > 0 ? 'Ronda ' + round : 'Subasta'}</span></div>
@@ -144,7 +145,13 @@ export function AuctionStudio({ tool, api, notice, online, connected }) {
           <Toggle name="rgbNames" label="Reflejo RGB en el título y el ganador" settings={{ ...defaultAuction, ...config }} update={update}/>
           <Toggle name="pulseLeader" label="Corona animada del líder" settings={{ ...defaultAuction, ...config }} update={update}/>
         </div></details>
-        <details className="auction-css-editor auction-design-section"><summary>Editar CSS personalizado</summary><p className="help">Se aplica a la vista previa y a la salida, aislado del panel. Selectores: .auction-board, .auction-title, .auction-lot, .auction-current, .auction-winner, .auction-value, .auction-clock, .auction-avatar, .auction-name y .auction-bid. Borra el CSS para recuperar el estilo.</p><Field label="CSS personalizado">{id => <Textarea id={id} rows={6} spellCheck={false} maxLength={20000} value={config.customCss || ''} placeholder={'.auction-title { color: #ffb020; }'} onChange={event => update('customCss', event.target.value)}/>}</Field><Button variant="outline" size="sm" onClick={() => update('customCss', '')}>Restablecer CSS</Button></details>
+        <details className="auction-css-editor auction-design-section">
+          <summary>CSS personalizado</summary>
+          <WidgetCssEditor css={config.customCss} change={value => update('customCss', value)}
+            enabled={config.cssEnabled} onEnabledChange={value => update('cssEnabled', value)}
+            selector=".auction-board" properties={boardStyle('auction', config)}
+            selectors={['head', 'title', 'round', 'status', 'lot', 'lot-label', 'lot-name', 'current', 'current-crown', 'current-label', 'winner', 'value', 'empty', 'clock', 'sold', 'rank', 'avatar', 'name', 'bid', 'total'].map(name => '.auction-' + name).concat('.auction-board > ol > li')}/>
+        </details>
         <p role="status" className={error ? 'error' : 'help'}>{error || (saving ? 'Guardando…' : dirty ? online ? 'Pendiente de autoguardado' : 'Pendiente de conexión' : 'Configuración guardada')}</p>
       </Card>
       <div className="auction-monitor editor-workspace-monitor">

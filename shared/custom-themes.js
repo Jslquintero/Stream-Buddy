@@ -63,6 +63,8 @@ export function validateCustomThemes(value) {
   return value.map(theme=>{
     if(!theme||typeof theme.id!=='string'||!/^custom-[a-z0-9-]{1,70}$/.test(theme.id)||ids.has(theme.id)||typeof theme.name!=='string'||!theme.name.trim()||theme.name.length>60)throw new Error('Tema personalizado inválido.');
     ids.add(theme.id);
-    return {id:theme.id,name:theme.name,css:validateThemeCSS(theme.css)};
+    const { cssEnabled } = theme;
+    if(cssEnabled!==undefined&&typeof cssEnabled!=='boolean')throw new Error('Estado del CSS personalizado inválido.');
+    return {id:theme.id,name:theme.name,css:validateThemeCSS(theme.css),...(cssEnabled===undefined?{}:{cssEnabled})};
   });
 }

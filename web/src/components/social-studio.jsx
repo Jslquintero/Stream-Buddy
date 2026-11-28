@@ -22,7 +22,6 @@ import { EditorViewSwitch } from './editor-view-switch';
 import { useNotificationSettings } from '../hooks/use-notification-settings';
 import { useStudio } from '../hooks/use-studio';
 import { NotificationFontResource } from './notification-fonts';
-import { googleFontStack } from '../../../shared/google-fonts';
 import {
   defaultSocial,
   validateSocial,
@@ -36,7 +35,7 @@ import {
   resolveSocialLayout,
   resolveSocialDesign,
 } from '../../../modules/social/config';
-import { socialCustomCss } from '../../../modules/social/css';
+import { socialCardProperties, socialCustomCss } from '../../../modules/social/css';
 import { SocialCssEditor } from './social-css-editor';
 import { SocialFormatSettings, SocialIconSettings, SocialImageSettings, SocialQrSettings, SocialStyleSettings, SocialTextSettings, socialPhotoCovers, socialPhotoLayouts } from './social-channel-design';
 import { SocialPlatformIcon } from './social-icons';
@@ -48,10 +47,6 @@ const layoutLabel = id => socialLayouts.find(([value]) => value === id)?.[1] ?? 
 
 function safeColor(value, fallback) {
   return typeof value === 'string' && /^#[a-f0-9]{6}$/i.test(value) ? value : fallback;
-}
-
-function alpha(value, opacity) {
-  return value + Math.round(Math.max(0, Math.min(1, opacity)) * 255).toString(16).padStart(2, '0');
 }
 
 function randomStep(previous, length) {
@@ -196,54 +191,13 @@ export function useSocialRotation(config, { auto = true, requireQrUrl = false } 
 export function SocialCard({ channel, config, cycle = 0, progress = true, textCycle = 0 }) {
   const settings = resolveSocialDesign(config, channel);
   const layout = settings.layout;
-  const meta = socialPlatform(channel.platform);
-  const channelColor = safeColor(channel.color, meta.color);
-  const background = safeColor(settings.background, '#0f1218');
-  const accent = safeColor(settings.accent, '#b9f678');
-  const shadowColor = safeColor(settings.shadowColor, '#000000');
   const flat = Math.max(0, Number(settings.opacity) || 0) <= 0;
   const imageCover = socialPhotoCovers.includes(layout);
   const image = socialPhotoLayouts.includes(layout) && (channel.image || settings.image);
-  const defaultTextShadow = imageCover && image ? '0 2px 12px #000e, 0 0 3px #000b' : 'none';
   const label = channel.label?.trim();
   const qr = channel.platform === 'qr' ? qrUrl(channel) : '';
-  const style = {
-    '--social-config-width': (Number(settings.width) || 460) + 'px',
-    '--social-config-bg': alpha(background, (Number(settings.opacity) || 0) / 100),
-    '--social-config-border': alpha(accent, Math.min(100, Math.max(0, Number(settings.borderOpacity ?? 100))) / 100),
-    '--social-config-border-width': (Number(settings.borderWidth) || 0) + 'px',
-    '--social-config-border-style': settings.borderStyle || 'solid',
-    '--social-config-color': safeColor(settings.color, '#ffffff'),
-    '--social-config-font-family': googleFontStack(settings.fontFamily),
-    '--social-config-text-duration': settings.textAnimationDuration + 'ms',
-    '--social-config-text-shadow': settings.textShadow ? `0 0.1em 0.4em ${alpha(shadowColor, 0.65)}` : defaultTextShadow,
-    '--social-config-accent': accent,
-    '--social-config-channel': channelColor,
-    '--social-config-channel-bg': alpha(channelColor, 0.16),
-    '--social-config-channel-border': alpha(channelColor, 0.5),
-    '--social-config-channel-glow': alpha(channelColor, 0.24),
-    '--social-config-radius': (Number(settings.radius) || 0) + 'px',
-    '--social-config-card-tl': (Number(settings.radiusTL) || 0) + 'px',
-    '--social-config-card-tr': (Number(settings.radiusTR) || 0) + 'px',
-    '--social-config-card-br': (Number(settings.radiusBR) || 0) + 'px',
-    '--social-config-card-bl': (Number(settings.radiusBL) || 0) + 'px',
-    '--social-config-interval': (Number(settings.interval) || 6) + 's',
-    '--social-config-icon-size': (Number(settings.iconSize) || 56) + 'px',
-    '--social-config-image-width': (Number(settings.imageWidth) || 230) + 'px',
-    '--social-config-image-height': (Number(settings.imageHeight) || 250) + 'px',
-    '--social-config-image-gap': (Number(settings.imageGap) || 0) + 'px',
-    '--social-config-custom-height': (Number(settings.customHeight) || 250) + 'px',
-    '--social-config-image-x': settings.imagePositionX + '%',
-    '--social-config-image-y': settings.imagePositionY + '%',
-    '--social-config-image-fit': settings.imageFit || 'cover',
-    '--social-config-image-position': `calc(50% + ${Number(settings.imageOffsetX) || 0}%) calc(50% + ${Number(settings.imageOffsetY) || 0}%)`,
-    '--social-config-image-zoom': (Number(settings.imageZoom) || 100) / 100,
-    '--social-config-image-radius': (Number(settings.imageRadius) || 0) + 'px',
-    '--social-config-image-tl': (Number(settings.imageRadiusTL) || 0) + 'px',
-    '--social-config-image-tr': (Number(settings.imageRadiusTR) || 0) + 'px',
-    '--social-config-image-br': (Number(settings.imageRadiusBR) || 0) + 'px',
-    '--social-config-image-bl': (Number(settings.imageRadiusBL) || 0) + 'px',
-  };
+  const style = Object.fromEntries(Object.entries(socialCardProperties(settings, channel))
+    .map(([name, value]) => [name.replace('--social-', '--social-config-'), value]));
   return <article className={'social-card social-layout-' + layout + ' social-style-' + (settings.style || 'clean') + ' social-corners-' + (settings.cornerStyle || 'auto') + ' social-border-' + (settings.borderEffect || 'none') + ' social-image-corners-' + (settings.imageCorners || 'all') + (settings.imageShadow ? ' social-image-shadow' : '') + ' social-animation-' + (settings.animation || 'pop') + (flat ? ' social-flat' : '')} style={style}
     aria-label={[label, channel.handle].filter(Boolean).join(', ') || undefined} data-cycle={cycle}>
     <NotificationFontResource family={settings.fontFamily}/>

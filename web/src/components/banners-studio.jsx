@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { WidgetCssEditor } from './css-reference';
 import {
   ArrowDown,
   ArrowUp,
@@ -17,7 +18,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { Badge, Button, Card, Dialog, Input, Select, Switch, Textarea } from './ui';
+import { Badge, Button, Card, Dialog, Input, Select, Switch } from './ui';
 import { Field, NumberSettings, OverlayColors, Toggle } from './fields';
 import { OutputLinks, OutputToolbar } from './output-controls';
 import { EditorViewSwitch } from './editor-view-switch';
@@ -171,29 +172,12 @@ export function useBannerRotation(config, { auto = true } = {}) {
   };
 }
 
-export function BannerCard({ ad, config, phase = 'enter', cycle = 0, total = 1, preview = false }) {
-  const settings = { ...defaultBanners, ...config };
-  const [broken, setBroken] = useState(false);
-  const [natural, setNatural] = useState(null);
-  const imageRef = useRef(null);
-  useEffect(() => {
-    setBroken(false);
-    setNatural(null);
-  }, [ad?.image]);
-  useEffect(() => {
-    const image = imageRef.current;
-    if (image?.complete && image.naturalWidth > 0) setNatural({ width: image.naturalWidth, height: image.naturalHeight });
-  }, [ad?.image]);
-  if (!ad) return null;
+function bannerStyle(settings, natural) {
   const background = safeColor(settings.background, '#0b1524');
   const accent = safeColor(settings.accent, '#3b82f6');
-  const flat = Math.max(0, Number(settings.opacity) || 0) <= 0;
-  const animation = phase === 'exit' ? 'bn-exit-' + settings.exitAnimation : 'bn-enter-' + settings.animation;
-  const hasInfo = (settings.showAdvertiser && ad.advertiser) || (settings.showCaption && ad.caption);
-  const autoSize = settings.fitToCreative !== false;
   const framePad = settings.layout === 'frame' ? (Number(settings.padding) || 0) : 0;
   const ratio = natural && natural.height > 0 ? natural.width / natural.height : 3;
-  const style = {
+  return {
     '--bn-width': (Number(settings.width) || 728) + 'px',
     '--bn-height': (Number(settings.height) || 90) + 'px',
     '--bn-bg': alpha(background, (Number(settings.opacity) || 0) / 100),
@@ -209,10 +193,30 @@ export function BannerCard({ ad, config, phase = 'enter', cycle = 0, total = 1, 
     '--bn-ratio': String(ratio),
     '--bn-natural-w': (natural?.width ?? 420) + 'px',
   };
+}
+
+export function BannerCard({ ad, config, phase = 'enter', cycle = 0, total = 1, preview = false }) {
+  const settings = { ...defaultBanners, ...config };
+  const [broken, setBroken] = useState(false);
+  const [natural, setNatural] = useState(null);
+  const imageRef = useRef(null);
+  useEffect(() => {
+    setBroken(false);
+    setNatural(null);
+  }, [ad?.image]);
+  useEffect(() => {
+    const image = imageRef.current;
+    if (image?.complete && image.naturalWidth > 0) setNatural({ width: image.naturalWidth, height: image.naturalHeight });
+  }, [ad?.image]);
+  if (!ad) return null;
+  const flat = Math.max(0, Number(settings.opacity) || 0) <= 0;
+  const animation = phase === 'exit' ? 'bn-exit-' + settings.exitAnimation : 'bn-enter-' + settings.animation;
+  const hasInfo = (settings.showAdvertiser && ad.advertiser) || (settings.showCaption && ad.caption);
+  const autoSize = settings.fitToCreative !== false;
   return <article
     className={['bn-card', 'bn-layout-' + (settings.layout || 'frame'), 'bn-style-' + (settings.style || 'corporate'), animation,
       preview ? 'bn-card-preview' : '', autoSize ? 'bn-autosize' : '', flat ? 'bn-flat' : '', hasInfo ? 'bn-has-info' : '', broken ? 'bn-is-broken' : ''].filter(Boolean).join(' ')}
-    style={style} data-cycle={cycle} data-phase={phase}
+    style={bannerStyle(settings, natural)} data-cycle={cycle} data-phase={phase}
     aria-label={[ad.name, ad.advertiser, settings.showLabel ? settings.labelText : ''].filter(Boolean).join(', ')}>
     <span className="bn-media">
       {broken
@@ -250,7 +254,7 @@ export function BannersOutput() {
   }, []);
 
   return <>
-    <CustomCss value={config?.customCss}/>
+    <CustomCss value={config?.customCss} enabled={config?.cssEnabled}/>
     <div className={'bn-stage ' + (config?.position || 'bottom-center')}>
       {online && config?.enabled && rotation.ad && <BannerCard key={rotation.ad.id + '-' + rotation.cycle}
         ad={rotation.ad} config={config} phase={rotation.phase} cycle={rotation.cycle} total={rotation.count}/>}
@@ -258,8 +262,8 @@ export function BannersOutput() {
   </>;
 }
 
-function CustomCss({ value }) {
-  return value ? <style>{value}</style> : null;
+function CustomCss({ value, enabled }) {
+  return enabled !== false && value ? <style>{value}</style> : null;
 }
 
 function AdRow({ ad, index, count, active, onPreview, onEdit, onMove, onRemove, onToggle }) {
@@ -739,10 +743,12 @@ export function BannersStudio({ tool, api, notice, online }) {
             <ChevronDown className="banner-design-chevron" size={16} aria-hidden="true"/>
           </summary>
           <div className="banner-design-body">
-            <p className="help">Añade reglas que sobreescriban el aspecto del anuncio; se aplican en el directo y en esta vista previa.</p>
-            <Field>{id => <Textarea id={id} className="banner-css-input" value={config.customCss ?? ''} rows={8} spellCheck={false}
-              placeholder={'.bn-card {\n  box-shadow: 0 0 32px #3b82f655;\n}\n\n.bn-tag {\n  letter-spacing: .18em;\n}'}
-              onChange={event => update('customCss', event.target.value)}/>}</Field>
+            <WidgetCssEditor css={config.customCss} change={value => update('customCss', value)} maxLength={4000}
+              enabled={config.cssEnabled} onEnabledChange={value => update('cssEnabled', value)}
+              className="banner-css-input" selector=".bn-card" properties={bannerStyle(config)}
+              dynamicVariables={['--bn-ratio', '--bn-natural-w']}
+              extraVariables={['--bn-avail-w', '--bn-avail-h']}
+              selectors={['.bn-media', '.bn-image', '.bn-broken', '.bn-tag', '.bn-caption', '.bn-progress', '.bn-progress > i']}/>
           </div>
         </details>
 
@@ -764,7 +770,7 @@ export function BannersStudio({ tool, api, notice, online }) {
             <Badge className={config.enabled && rotation.count ? 'success' : ''}>{!config.enabled ? 'Oculto en directo' : rotation.count ? selected + ' / ' + rotation.count : 'Sin anuncios'}</Badge>
           </div>
           <div className="banner-preview" data-position={config.position}>
-            <CustomCss value={config.customCss}/>
+            <CustomCss value={config.customCss} enabled={config.cssEnabled}/>
             {rotation.ad
               ? <BannerCard key={rotation.ad.id + '-' + rotation.cycle} ad={rotation.ad} config={config} phase={rotation.phase} cycle={rotation.cycle} total={rotation.count} preview/>
               : <p className="banner-empty">Sube un anuncio para verlo aquí.</p>}

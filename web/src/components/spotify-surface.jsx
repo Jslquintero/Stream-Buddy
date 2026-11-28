@@ -1,8 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import baseCss from './spotify.css?inline';
-import finishCss from './spotify-cover-finishes.css?inline';
-import skinCss from './spotify-skins.css?inline';
+import { spotifyBaseCss } from './spotify-style';
 import { spotifySize } from '../../../shared/spotify';
 
 const previewHeight = 424;
@@ -23,7 +21,7 @@ export function SpotifySurface({ config = {}, children, preview = false }) {
   const css = config.cssEnabled !== false ? config.customCss?.[config.playerStyle || 'compact'] || '' : '';
   return <div className="spotify-surface-frame" ref={frame} style={{ height:height * scale, width:frameWidth, maxWidth:preview ? '100%' : undefined, marginInline:preview ? 'auto' : undefined }}>
     <div className="spotify-surface" ref={host} style={{width, height, transform:`scale(${scale})`, transformOrigin:'top left'}}>
-      {root && createPortal(<><style>{'@layer spotify-base {\n' + baseCss + '\n' + skinCss + '\n' + finishCss + '\n}'}</style><style data-spotify-custom-css>{css}</style><div className="spotify-widget" style={{width, height}}>{children}</div></>, root)}
+      {root && createPortal(<><style>{'@layer spotify-base {\n' + spotifyBaseCss + '\n}'}</style><style data-spotify-custom-css>{css}</style><div className="spotify-widget" style={{width, height}}>{children}</div></>, root)}
     </div>
   </div>;
 }

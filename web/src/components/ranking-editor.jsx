@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import { boardStyle } from '../lib/widget-css';
+import { WidgetCssEditor } from './css-reference';
 import { AutoFitPreview } from './auto-fit-preview';
 import { ChevronDown, Gift, Heart, MapPin, RotateCcw } from 'lucide-react';
 import { downloadFile } from '../lib/download-file';
 import { DownloadButton } from './ui/download-button';
 import { OutputLinks, OutputToolbar } from './output-controls';
 import { EditorViewSwitch } from './editor-view-switch';
-import { Badge, Button, Card, Input, Select, Textarea } from './ui';
+import { Badge, Button, Card, Input, Select } from './ui';
 import { Field, NumberSettings, OverlayColors, Toggle } from './fields';
 import {
   defaultLikes,
@@ -56,8 +58,6 @@ const variants = {
     resetNotice: 'Conteo de likes reiniciado.',
     eventLabel: 'like',
     eventPlural: 'likes',
-    cssSelectors: '.likes-board, .likes-name, .likes-score, .likes-avatar, .likes-rank y .likes-crown',
-    cssPlaceholder: '.likes-name { color: #ff668e; }',
   },
   gifters: {
     title: 'Top gifters',
@@ -82,8 +82,6 @@ const variants = {
     resetNotice: 'Conteo de regalos reiniciado.',
     eventLabel: 'regalo',
     eventPlural: 'regalos',
-    cssSelectors: '.gifters-board, .gifters-name, .gifters-score, .gifters-avatar, .gifters-rank, .gifters-gift y .gifters-crown',
-    cssPlaceholder: '.gifters-name { color: #f5b942; }',
   },
 };
 
@@ -233,10 +231,11 @@ export function RankingEditor({
         <details className={`ranking-details ranking-css-editor ${variant}-css-editor`}>
           <summary><span>CSS personalizado</span><ChevronDown size={15} aria-hidden="true"/></summary>
           <div className="ranking-details-body">
-            <p className="help">Se aplica a la vista previa y a la salida, aislado del panel. Selectores: {meta.cssSelectors}. Borra el CSS para recuperar el estilo.</p>
-            <Field label="CSS personalizado">{id => <Textarea id={id} rows={6} spellCheck={false} maxLength={20000} value={config.customCss || ''}
-              placeholder={meta.cssPlaceholder} onChange={event => update('customCss', event.target.value)}/>}</Field>
-            <Button variant="outline" size="sm" onClick={() => update('customCss', '')}>Restablecer CSS</Button>
+            <WidgetCssEditor css={config.customCss} change={value => update('customCss', value)}
+              enabled={config.cssEnabled} onEnabledChange={value => update('cssEnabled', value)}
+              selector={`.${variant}-board`} properties={boardStyle(variant, config)}
+              selectors={['rank', 'portrait', 'avatar', 'crown', 'name', 'score', 'empty', variant === 'likes' ? 'heart' : 'gift'].map(name => `.${variant}-${name}`).concat([`.${variant}-board > header`, `.${variant}-board > ol > li`, `.${variant}-board > footer`])}
+              extraVariables={['share', 'name-color', 'name-motion'].map(name => `--${variant}-${name}`)}/>
           </div>
         </details>
 

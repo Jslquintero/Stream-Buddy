@@ -81,6 +81,7 @@ export const defaultBanners = {
   imageMotion: false,
   random: false,
   customCss: '',
+  cssEnabled: true,
 };
 
 export function migrateBanners(input) {
@@ -113,7 +114,7 @@ function oneLine(value) {
 export function validateBanners(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Configuración inválida');
   const value = { ...defaultBanners, ...input }, result = {};
-  for (const key of ['enabled', 'showLabel', 'showProgress', 'showCaption', 'showAdvertiser', 'imageMotion', 'random', 'fitToCreative']) {
+  for (const key of ['enabled', 'cssEnabled', 'showLabel', 'showProgress', 'showCaption', 'showAdvertiser', 'imageMotion', 'random', 'fitToCreative']) {
     if (typeof value[key] !== 'boolean') throw new Error('Estado inválido: ' + key);
     result[key] = value[key];
   }
@@ -145,7 +146,7 @@ export function validateBanners(input) {
   }
   if (!oneLine(value.labelText) || value.labelText.trim().length > 24) throw new Error('La etiqueta debe tener hasta 24 caracteres en una línea');
   result.labelText = value.labelText.trim();
-  if (!oneLine(value.customCss) || value.customCss.length > 4000) throw new Error('CSS personalizado inválido');
+  if (typeof value.customCss !== 'string' || value.customCss.length > 4000) throw new Error('CSS personalizado inválido');
   result.customCss = value.customCss.trim();
   for (const key of ['background', 'color', 'accent']) {
     if (typeof value[key] !== 'string' || !/^#[a-f0-9]{6}$/i.test(value[key])) throw new Error('Color inválido: ' + key);

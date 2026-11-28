@@ -3,23 +3,11 @@ import { Copy, Save, Trash2 } from 'lucide-react';
 import { Button, Input } from './ui';
 import { ToggleRow } from './fields';
 import { resolveSocialDesign, socialLayouts, socialStyles } from '../../../modules/social/config';
-import { socialCardCss, socialCustomCss } from '../../../modules/social/css';
+import { socialCardCss, socialCardProperties, socialCustomCss } from '../../../modules/social/css';
+import { CssReference } from './css-reference';
 
 const styleLabel = id => socialStyles.find(([value]) => value === id)?.[1] ?? 'Limpio';
 const layoutLabel = id => socialLayouts.find(([value]) => value === id)?.[1] ?? 'Tarjeta · completa';
-
-const starter = `/* Este CSS se aplica únicamente a este tema visual. */
-.social-card {
-  --social-radius: 32px;
-  --social-bg: #0f1218e8;
-  --social-border: #b9f678;
-  --social-border-width: 2px;
-}
-
-.social-card .social-label { font-size: 1.6em; }
-.social-card .social-icon { border-radius: 50%; }
-.social-card .social-progress { height: 5px; }
-`;
 
 export function SocialCssEditor({ config, channel, update, notice }) {
   const [templateName, setTemplateName] = useState('');
@@ -78,13 +66,16 @@ export function SocialCssEditor({ config, channel, update, notice }) {
     <p className="help">El CSS se guarda por tema visual. Las plantillas están disponibles en todas las redes.</p>
     <ToggleRow label="Aplicar CSS personalizado" checked={design.cssEnabled} onCheckedChange={value => update('cssEnabled', value)}/>
     <label className="social-css-code-label">Estilos de {styleLabel(style)}
-      <textarea className="social-css-input" aria-label="CSS personalizado" value={css} maxLength={12000} spellCheck={false} autoCapitalize="off" autoComplete="off" placeholder={starter} onChange={event => change(event.target.value)}/>
+      <textarea className="social-css-input" aria-label="CSS personalizado" value={css} maxLength={12000} spellCheck={false} autoCapitalize="off" autoComplete="off" onChange={event => change(event.target.value)}/>
     </label>
     <div className="social-css-editor-actions">
-      <Button type="button" variant="outline" size="sm" disabled={Boolean(css)} onClick={() => change(starter)}>Insertar ejemplo</Button>
+      <Button type="button" variant="outline" size="sm" disabled={Boolean(css)} onClick={() => change(socialCardCss(config, channel, false))}>Insertar CSS actual</Button>
       <Button type="button" variant="outline" size="sm" disabled={!css} onClick={() => change('')}>Restaurar CSS de este tema</Button>
       <span>{css.length.toLocaleString('es')} / 12 000</span>
     </div>
+    <CssReference className="social-css-help"
+      selectors={['.social-stage', '.social-card', '.social-icon', '.social-copy', '.social-heading', '.social-label', '.social-handle', '.social-media', '.social-media img', '.social-media-scrim', '.social-qr', '.social-progress', '.social-progress > i', '.social-glow']}
+      variables={Object.keys(socialCardProperties(design, channel))}/>
     <details className="social-css-reference" open>
       <summary>CSS actual de la tarjeta <small>{styleLabel(style)} · {layoutLabel(design.layout)}</small></summary>
       <div className="social-css-reference-head">
@@ -92,12 +83,6 @@ export function SocialCssEditor({ config, channel, update, notice }) {
         <Button type="button" variant="outline" size="sm" onClick={() => void copyCss()}><Copy size={13}/>Copiar</Button>
       </div>
       <pre className="social-css-current" aria-label="CSS actual de la tarjeta"><code>{currentCss}</code></pre>
-    </details>
-    <details className="social-css-help">
-      <summary>Selectores y variables disponibles</summary>
-      <p>Usa <code>.social-card</code> para la tarjeta, <code>.social-icon</code> para el icono, <code>.social-copy</code> para el bloque de texto, <code>.social-heading</code>, <code>.social-label</code>, <code>.social-handle</code>, <code>.social-progress</code> y <code>.social-glow</code>.</p>
-      <p>Variables: <code>--social-bg</code>, <code>--social-color</code>, <code>--social-accent</code>, <code>--social-border</code>, <code>--social-border-width</code>, <code>--social-border-style</code>, <code>--social-radius</code>, <code>--social-width</code>, <code>--social-icon-size</code>, <code>--social-channel</code>, <code>--social-channel-bg</code>, <code>--social-channel-border</code> y <code>--social-channel-glow</code>.</p>
-      <p>Para el degradado del icono usa <code>.social-icon {'{ background: linear-gradient(135deg, #ff2d75, #7b5cff); }'}</code>. Para el borde RGB, activa el efecto en el panel de diseño o anima un <code>::before</code> propio.</p>
     </details>
     <section className="social-css-templates" aria-labelledby="social-css-templates-title">
       <div className="social-css-templates-head">

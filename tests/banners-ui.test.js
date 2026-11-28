@@ -131,6 +131,32 @@ test('Ad Banner Rotator applies custom CSS to the editor preview', async t => {
   assert.match(doc.querySelector('.banner-preview style').textContent, /border-radius: 24px/);
 });
 
+test('Ad Banner Rotator inserts and saves the current design as multiline CSS', async t => {
+  const { window, requests, publish } = await mount(t, '/banners');
+  publish(stateFor({ ...structuredClone(defaultBanners), width: 654, ads: structuredClone(sampleAds) }));
+  const doc = window.document;
+  await until(() => doc.querySelector('.banner-css-input'));
+  const textarea = doc.querySelector('.banner-css-input');
+  const details = textarea.closest('details');
+  details.open = true;
+  const insert = [...details.querySelectorAll('button')].find(button => button.textContent === 'Insertar CSS actual');
+  insert.click();
+  await until(() => textarea.value.includes('--bn-width: 654px'));
+  assert.match(textarea.value, /\.bn-card \{\n/);
+  assert.match(details.querySelector('.css-reference').textContent, /--bn-ratio/);
+  assert.equal(insert.disabled, true);
+  await until(() => requests.some(request => request.url === '/api/banners/save' && request.body.customCss === textarea.value));
+  const css = textarea.value;
+  const toggle = details.querySelector('[role="switch"]');
+  assert.equal(toggle.getAttribute('aria-checked'), 'true');
+  toggle.click();
+  await until(() => !doc.querySelector('.banner-preview style'));
+  await until(() => requests.some(request => request.url === '/api/banners/save' && request.body.cssEnabled === false && request.body.customCss === css));
+  assert.equal(textarea.value, css);
+  toggle.click();
+  await until(() => doc.querySelector('.banner-preview style')?.textContent === css);
+});
+
 test('Ad Banner Rotator uploads several creatives into the rotation', async t => {
   const { window, requests, publish } = await mount(t, '/banners');
   publish(stateFor({ ...structuredClone(defaultBanners), ads: [] }));
@@ -162,6 +188,15 @@ test('Ad Banner Rotator output stays transparent, keeps the slot and hides when 
   assert.equal(doc.querySelector('.bn-tag').textContent, 'PUBLICIDAD');
   assert.ok(doc.querySelector('.bn-progress'));
   assert.ok(doc.querySelector('.bn-card').classList.contains('bn-autosize'));
+
+  const css = '.bn-card { border-radius: 24px; }';
+  state.tools.banners.config = { ...state.tools.banners.config, customCss: css };
+  publish(state);
+  await until(() => [...doc.querySelectorAll('style')].some(style => style.textContent === css));
+  state.tools.banners.config = { ...state.tools.banners.config, cssEnabled: false };
+  publish(state);
+  await until(() => ![...doc.querySelectorAll('style')].some(style => style.textContent === css));
+  assert.ok(doc.querySelector('.bn-card'));
 
   state.tools.banners.config = { ...state.tools.banners.config, fitToCreative: false };
   publish(state);

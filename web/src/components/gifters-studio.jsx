@@ -1,3 +1,4 @@
+import { boardStyle } from '../lib/widget-css';
 import {createPortal} from 'react-dom';
 import boardCSS from './gifters.css?raw';
 import {validateThemeCSS} from '../../../shared/custom-themes';
@@ -26,7 +27,7 @@ function GiftersCSSSurface({css,children}){
 }
 export function GiftersBoard(props){
   const config={...defaultGifters,...props.config};
-  let css='';try{css=validateThemeCSS(config.customCss);}catch{}
+  let css='';try{if(config.cssEnabled)css=validateThemeCSS(config.customCss);}catch{}
   const board=<GiftersBoardContent {...props} config={config}/>;
   return css?<GiftersCSSSurface css={css}>{board}</GiftersCSSSurface>:board;
 }
@@ -37,7 +38,7 @@ function GiftersBoardContent({config,ranking=[],total=0,preview=false}){
   const unit=unitOf(config);
   const rows=ranking.slice(0,config.limit);
   const peak=Math.max(1,...rows.map(user=>valueOf(config,user)));
-  return <section className={"gifters-board gifters-style-"+config.style+(config.rgbNames?" gifters-rgb-names":"")+(config.animateNames?" gifters-animated-names":"")+(config.pulseGifts?" gifters-pulse-gifts":"")+(Number(config.opacity)<=0?" gifters-flat":"")} aria-label="Clasificación de regalos" style={{'--gifters-width':config.width+'px','--gifters-font-size':config.fontSize+'px','--gifters-color':config.color,'--gifters-background':config.background+alpha(config.opacity),'--gifters-border':config.accent+alpha(config.borderOpacity),'--gifters-radius':config.radius+'px','--gifters-accent':config.accent}}>
+  return <section className={"gifters-board gifters-style-"+config.style+(config.rgbNames?" gifters-rgb-names":"")+(config.animateNames?" gifters-animated-names":"")+(config.pulseGifts?" gifters-pulse-gifts":"")+(Number(config.opacity)<=0?" gifters-flat":"")} aria-label="Clasificación de regalos" style={boardStyle('gifters', config)}>
     {config.showTitle&&<header><Gift aria-hidden="true"/><strong>{config.title}</strong></header>}
     {rows.length?<ol ref={list}>{rows.map((user,index)=>{
       const value=valueOf(config,user);
