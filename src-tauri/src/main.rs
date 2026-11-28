@@ -8,6 +8,7 @@ use std::{fs, net::TcpListener, path::PathBuf, sync::Mutex};
 use tauri::{
     App, AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
     menu::{MenuBuilder, SubmenuBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::NewWindowResponse,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
@@ -90,6 +91,14 @@ fn launch(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn show_panel(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
 fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let executable = std::env::current_exe()?;
     let local = app.path().local_data_dir()?.join("Stream Buddy");
@@ -111,6 +120,22 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         .text("quit", "Salir")
         .build()?;
     app.set_menu(MenuBuilder::new(app).item(&menu).build()?)?;
+    let tray_menu = MenuBuilder::new(app)
+        .text("show", "Abrir Stream Buddy")
+        .separator()
+        .text("quit", "Salir")
+        .build()?;
+    TrayIconBuilder::new()
+        .icon(app.default_window_icon().ok_or("Falta el icono de Stream Buddy")?.clone())
+        .tooltip("Stream Buddy")
+        .menu(&tray_menu)
+        .show_menu_on_left_click(false)
+        .on_tray_icon_event(|tray, event| {
+            if matches!(event, TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. }) {
+                show_panel(tray.app_handle());
+            }
+        })
+        .build(app)?;
     let handle = app.handle().clone();
     std::thread::spawn(move || match launch(&handle) {
         Ok(()) => updates::check(&handle, false),
@@ -130,10 +155,7 @@ fn main() {
     let context = tauri::generate_context!();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            show_panel(app);
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init());
@@ -144,7 +166,17 @@ fn main() {
     };
     builder
         .setup(setup)
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if window.hide().is_ok() {
+                        api.prevent_close();
+                    }
+                }
+            }
+        })
         .on_menu_event(|app, event| match event.id().as_ref() {
+            "show" => show_panel(app),
             "updates" => updates::check(app, true),
             "quit" => app.exit(0),
             _ => {}
