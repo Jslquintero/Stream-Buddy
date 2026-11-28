@@ -10,11 +10,15 @@ export const coverFinishes = {
   "marquee": "Marquesina",
   "amber": "Terminal ámbar",
   "glass": "Vidrio",
-  "editorial": "Editorial"
+  "editorial": "Editorial",
+  "polaroid": "Polaroid",
+  "holographic": "Holográfica",
+  "frame": "Marco",
+  "mosaic": "Mosaico"
 };
-export const playerStyles = ['compact', 'boxy', 'gallery', 'vertical', 'minimal', 'cd-retro', 'macos', 'shell', 'discord', ...Object.keys(coverFinishes)];
+export const playerStyles = ['compact', 'boxy', 'gallery', 'vertical', 'minimal', 'cd-retro', 'macos', 'shell', 'discord', 'ribbon', 'sleeve', 'orbital', 'ticker', 'stacked', ...Object.keys(coverFinishes)];
 export const coverStyles = ['square', 'canvas', 'vinyl', 'none', ...Object.keys(coverFinishes)];
-export const spotifyThemes = ['dark', 'light', 'tinted', 'gradient', 'transparent', 'cd-retro', 'xp', 'wmp', 'winamp', 'ipod', 'vaporwave', 'neon', 'radio', 'cassette', 'marquee', 'amber', 'glass', 'editorial'];
+export const spotifyThemes = ['dark', 'light', 'tinted', 'gradient', 'transparent', 'cd-retro', 'xp', 'wmp', 'winamp', 'ipod', 'vaporwave', 'neon', 'radio', 'cassette', 'marquee', 'amber', 'glass', 'editorial', 'lagoon', 'plum', 'orbital', 'polaroid', 'holographic', 'frame', 'mosaic'];
 export const animationStyles = ['original', 'fade', 'slide-left', 'slide-right', 'slide-top', 'slide-bottom', 'grow', 'shrink', 'swing-left', 'swing-right', 'tilt-right', 'tilt-left'];
 export const appearanceDefaults = { playerStyle: 'compact', coverStyle: 'square', coverGlow: false, coverBlur: false, magicColors: false, tintColor: '#1ed760', idleCover: '', canvasUrl: '', revealAnimation: 'original', exitAnimation: 'original', customCss: {}, cssEnabled: true, outputWidth: 0, outputHeight: 0, hideDelay:0, songChangeOnly:false, visibleDuration:5, hideVisualizer:false };
 export function validateAppearance(value) {
@@ -35,6 +39,11 @@ export function validateAppearance(value) {
 }
 const playerSizes = {
   __proto__: null,
+  ticker: [600, 96],
+  stacked: [360, 300],
+  orbital: [600, 180],
+  ribbon: [600, 124],
+  sleeve: [420, 200],
   compact: [600, 200],
   boxy: [600, 140],
   gallery: [320, 420],

@@ -5,7 +5,7 @@ import { CssReference } from './css-reference';
 import { spotifyCurrentCss } from './spotify-style';
 
 export function SpotifyCssEditor({ config, update }) {
-  const style = config.playerStyle;
+  const style = config.playerStyle || 'compact';
   const css = config.customCss?.[style] || '';
   const change = value => update('customCss', { ...config.customCss, [style]: value });
   return <div className="spotify-form">
@@ -28,8 +28,8 @@ export function SpotifyCssEditor({ config, update }) {
         <Button variant="outline" size="sm" disabled={!css} onClick={() => change('')}>Restaurar CSS de este diseño</Button>
         <span>{css.length.toLocaleString()} / 12 000</span>
       </div>
-      <CssReference selectors={['.spotify-widget', '.spotify-now', '.spotify-art', '.spotify-cover', '.spotify-track', '.spotify-info', '.spotify-title', '.spotify-artist', '.spotify-brand', '.spotify-progress', '.spotify-progress > span', '.spotify-time', '.spotify-equalizer', '.spotify-waveform', '.spotify-terminal-header', '.spotify-terminal-body', '.player-caption']}
-        variables={['--card-background', '--card-text', '--card-muted', '--card-border', '--card-radius', '--spotify-accent', '--cd-bevel', '--cd-caption', '--cd-caption-text', '--cd-display', '--cd-raised', '--motion']}>
+      <CssReference selectors={['.music-widget', '.music-now', '.music-art', '.music-cover', '.music-track', '.music-info', '.music-title', '.music-artist', '.music-brand', '.music-progress', '.music-progress > span', '.music-time', '.music-equalizer', '.music-waveform', '.music-terminal-header', '.music-terminal-body', '.player-caption']}
+        variables={['--card-background', '--card-text', '--card-muted', '--card-border', '--card-radius', '--music-accent', '--cd-bevel', '--cd-caption', '--cd-caption-text', '--cd-display', '--cd-raised', '--motion']}>
         <p className="help">Los selectores de carátula y ventana dependen del diseño. Usa <code>!important</code> para personalizar el acento.</p>
       </CssReference>
     </section>

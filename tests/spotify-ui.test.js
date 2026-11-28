@@ -60,15 +60,15 @@ test('local Spotify panel activates without Client ID or authorization redirect'
 test('Spotify output renders song, hides pauses and clears immediately on connection loss', async t => {
   const f = await setup(t, '/?spotify-output=1'), page = f.window.document;
   const doc = { querySelector: selector => widget(page)?.querySelector(selector), documentElement:page.documentElement };
-  await until(() => doc.querySelector('.spotify-title'));
-  assert.equal(doc.querySelector('.spotify-title').textContent, 'Canción de prueba');
+  await until(() => doc.querySelector('.music-title'));
+  assert.equal(doc.querySelector('.music-title').textContent, 'Canción de prueba');
   assert.ok(doc.documentElement.classList.contains('spotify-output')); assert.equal(doc.querySelector('.sidebar'), null);
-  f.spotify.playback.playing = false; await f.publish(); await until(() => !doc.querySelector('.spotify-now'));
-  f.spotify.config.hideWhenPaused = false; await f.publish(); assert.ok(doc.querySelector('.spotify-now'));
-  f.getStream().onerror(); await pause(); assert.equal(doc.querySelector('.spotify-now'), null);
-  await f.publish(); assert.ok(doc.querySelector('.spotify-now'));
-  f.spotify.error = 'Sin conexión con Spotify'; await f.publish(); assert.equal(doc.querySelector('.spotify-now'), null);
-  f.spotify.error = ''; f.spotify.playback = null; await f.publish(); assert.equal(doc.querySelector('.spotify-now'), null);
+  f.spotify.playback.playing = false; await f.publish(); await until(() => !doc.querySelector('.music-now'));
+  f.spotify.config.hideWhenPaused = false; await f.publish(); assert.ok(doc.querySelector('.music-now'));
+  f.getStream().onerror(); await pause(); assert.equal(doc.querySelector('.music-now'), null);
+  await f.publish(); assert.ok(doc.querySelector('.music-now'));
+  f.spotify.error = 'Sin conexión con Spotify'; await f.publish(); assert.equal(doc.querySelector('.music-now'), null);
+  f.spotify.error = ''; f.spotify.playback = null; await f.publish(); assert.equal(doc.querySelector('.music-now'), null);
 });
 
 for (const source of ['aimp', 'windows']) test(`Local output shows artwork without naming the ${source} source`, async t => {
@@ -77,9 +77,9 @@ for (const source of ['aimp', 'windows']) test(`Local output shows artwork witho
   f.spotify.playback.image = 'data:image/png;base64,aGVsbG8=';
   await f.publish();
   const output = widget(f.window.document);
-  assert.doesNotMatch(output.querySelector('.spotify-now').textContent, /AIMP|Spotify|Windows/i);
-  assert.equal(output.querySelector('.spotify-title').tagName, 'SPAN');
-  assert.equal(output.querySelector('img.spotify-cover').getAttribute('src'), f.spotify.playback.image);
+  assert.doesNotMatch(output.querySelector('.music-now').textContent, /AIMP|Spotify|Windows/i);
+  assert.equal(output.querySelector('.music-title').tagName, 'SPAN');
+  assert.equal(output.querySelector('img.music-cover').getAttribute('src'), f.spotify.playback.image);
 });
 
 test('Spotify vertical design previews, autosaves and uses a portrait canvas in the output', async t => {
@@ -109,7 +109,7 @@ test('Spotify CD Retro is available as both a layout and a theme', async t => {
   const button = [...doc.querySelectorAll('button')].find(button => button.textContent === 'CD Retro');
   const theme = doc.querySelector('option[value="cd-retro"]').closest('select');
   button.click();
-  await until(() => widget(doc)?.querySelector('.player-cd-retro.spotify-cd-retro'));
+  await until(() => widget(doc)?.querySelector('.player-cd-retro.music-cd-retro'));
   theme.value = 'cd-retro';
   theme.dispatchEvent(new panel.window.Event('change', {bubbles:true}));
   await until(() => panel.requests.some(request => request.url === '/api/spotify/save' && JSON.parse(request.body).theme === 'cd-retro'));
@@ -121,12 +121,12 @@ test('Spotify CD Retro is available as both a layout and a theme', async t => {
   output.spotify.config = config;
   await output.publish();
   const shadow = widget(output.window.document);
-  assert.ok(shadow.querySelector('.player-cd-retro.spotify-cd-retro'));
-  assert.deepEqual([...shadow.querySelectorAll('.spotify-cd-label')].map(label => label.textContent), ['Pista', 'Artista']);
+  assert.ok(shadow.querySelector('.player-cd-retro.music-cd-retro'));
+  assert.deepEqual([...shadow.querySelectorAll('.music-cd-label')].map(label => label.textContent), ['Pista', 'Artista']);
   assert.equal(output.window.document.querySelector('.spotify-stage').style.height, '264px');
   output.spotify.config.playerStyle = 'vertical';
   await output.publish();
-  assert.ok(shadow.querySelector('.player-vertical.spotify-cd-retro'));
+  assert.ok(shadow.querySelector('.player-vertical.music-cd-retro'));
 });
 
 test('Spotify CSS is live, isolated, saved per skin and can be reset', async t => {
@@ -135,7 +135,7 @@ test('Spotify CSS is live, isolated, saved per skin and can be reset', async t =
   await until(() => doc.querySelector('textarea[aria-label="CSS personalizado"]'));
   const getEditor = () => doc.querySelector('textarea[aria-label="CSS personalizado"]');
   const editor = getEditor();
-  const css = '.spotify-title { color: rgb(255, 0, 0); } body { display:none; }';
+  const css = '.music-title { color: rgb(255, 0, 0); } body { display:none; }';
   Object.getOwnPropertyDescriptor(f.window.HTMLTextAreaElement.prototype,'value').set.call(editor, css);
   editor.dispatchEvent(new f.window.Event('input',{bubbles:true})); await pause();
   assert.equal(widget(doc).querySelector('[data-spotify-custom-css]').textContent,css);
@@ -154,7 +154,7 @@ test('Spotify CSS is live, isolated, saved per skin and can be reset', async t =
   await click('Restaurar CSS de este diseño'); assert.equal(getEditor().value,'');
   assert.equal(widget(doc).querySelector('[data-spotify-custom-css]').textContent,'');
   await click('Insertar CSS actual');
-  assert.match(getEditor().value, /\.spotify-now\.player-compact/);
+  assert.match(getEditor().value, /\.music-now\.player-compact/);
   assert.doesNotMatch(getEditor().value, /\.player-gallery/);
   assert.ok(getEditor().value.length <= getEditor().maxLength);
   assert.equal(widget(doc).querySelector('[data-spotify-custom-css]').textContent, getEditor().value);
@@ -215,11 +215,11 @@ test('Spotify preview tests both transitions without changing the broadcast sett
   await publish();
   assert.match(preview.textContent, /Canción de ejemplo/);
   button('Probar salida').click();
-  await until(() => widget(doc).querySelector('.spotify-motion.exit'));
-  await until(() => !widget(doc).querySelector('.spotify-now'));
+  await until(() => widget(doc).querySelector('.music-motion.exit'));
+  await until(() => !widget(doc).querySelector('.music-now'));
   assert.equal(button('Probar salida').disabled, true);
   button('Probar entrada').click();
-  await until(() => widget(doc).querySelector('.spotify-motion.enter'));
+  await until(() => widget(doc).querySelector('.music-motion.enter'));
   assert.equal(button('Probar salida').disabled, false);
   assert.equal(requests.some(request => request.url === '/api/spotify/save'), false);
 });

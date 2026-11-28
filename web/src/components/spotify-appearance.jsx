@@ -6,7 +6,8 @@ import { spotifyLabels } from './spotify-labels';
 
 const themeGroups = {
   Básicos: { dark: 'Oscuro', light: 'Claro', tinted: 'Color sólido', gradient: 'Degradado de color', transparent: 'Transparente' },
-  Retro: { 'cd-retro': spotifyLabels['cd-retro'], ...coverFinishes },
+  Naturaleza: { lagoon: 'Laguna', plum: 'Ciruela' },
+  Retro: { orbital: 'Orbital', 'cd-retro': spotifyLabels['cd-retro'], ...coverFinishes },
 };
 const swatches = ['#267493', '#21857e', '#777b25', '#a4832b', '#b56829', '#aa4830', '#a93645', '#a25476', '#7944a1'];
 
@@ -15,7 +16,7 @@ function StyleChoices({ title, field, values, config, update }) {
     <legend>{title}</legend>
     <div>{values.map(value => <button type="button" key={value} aria-pressed={config[field] === value} onClick={() => update(field, value)}>
       {field === 'coverStyle' && coverFinishes[value]
-        ? <span className={'cover-sample cover-' + value} aria-hidden="true"><span className="spotify-art"><i className="spotify-cover"/></span></span>
+        ? <span className={'cover-sample cover-' + value} aria-hidden="true"><span className="music-art"><i className="music-cover"/></span></span>
         : <span className={'spotify-mini mini-' + value} aria-hidden="true"><i/><b/><em/></span>}
       <span>{spotifyLabels[value]}</span>
     </button>)}</div>

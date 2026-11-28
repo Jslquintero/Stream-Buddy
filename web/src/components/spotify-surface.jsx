@@ -21,7 +21,7 @@ export function SpotifySurface({ config = {}, children, preview = false }) {
   const css = config.cssEnabled !== false ? config.customCss?.[config.playerStyle || 'compact'] || '' : '';
   return <div className="spotify-surface-frame" ref={frame} style={{ height:height * scale, width:frameWidth, maxWidth:preview ? '100%' : undefined, marginInline:preview ? 'auto' : undefined }}>
     <div className="spotify-surface" ref={host} style={{width, height, transform:`scale(${scale})`, transformOrigin:'top left'}}>
-      {root && createPortal(<><style>{'@layer spotify-base {\n' + spotifyBaseCss + '\n}'}</style><style data-spotify-custom-css>{css}</style><div className="spotify-widget" style={{width, height}}>{children}</div></>, root)}
+      {root && createPortal(<><style>{'@layer music-base {\n' + spotifyBaseCss + '\n}'}</style><style data-spotify-custom-css>{css.replace(/([.]|--)spotify-/g, '$1music-')}</style><div className="music-widget" style={{width, height}}>{children}</div></>, root)}
     </div>
   </div>;
 }

@@ -2,6 +2,11 @@ import { coverFinishes } from '../../../shared/spotify';
 
 export const spotifyLabels = {
   ...coverFinishes,
+  ticker: 'Ticker',
+  stacked: 'Apilado',
+  orbital: 'Orbital',
+  ribbon: 'Cinta',
+  sleeve: 'Contraportada',
   compact: 'Compact',
   boxy: 'Boxy',
   gallery: 'Gallery',
