@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { boardStyle } from '../lib/widget-css';
 import { WidgetCssEditor } from './css-reference';
 import { downloadFile } from '../lib/download-file';
@@ -93,6 +94,7 @@ export function AuctionOutput() {
 }
 
 export function AuctionStudio({ tool, api, notice, online, connected }) {
+  const outputOrigin = useOutputOrigin();
   const { config, setConfig, dirty, saving, error } = useNotificationSettings(tool.config, tool.revision, api, online, storage);
   const [demo, setDemo] = useState(false), [reset, setReset] = useState(false), [mobileView, setMobileView] = useState('editor');
   const demoRows = useAuctionDemo(demo, sample);
@@ -104,7 +106,7 @@ export function AuctionStudio({ tool, api, notice, online, connected }) {
   const status = tool.status || 'idle';
   const update = (key, value) => setConfig(current => ({ ...current, [key]: value }));
   const act = async (action, message) => { if (await api(action)) notice(message); };
-  const url = new URL(auctionOutputPath, location.origin).href;
+  const url = new URL(auctionOutputPath, outputOrigin).href;
   const ranking = demo ? demoRows : tool.ranking || [];
   const leader = demo ? demoRows[0] : tool.leader;
   const total = demo ? demoTotal : tool.total || 0;

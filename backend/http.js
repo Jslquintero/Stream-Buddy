@@ -1,3 +1,5 @@
+import { networkInterfaces } from 'node:os';
+import dgram from 'node:dgram';
 import http from 'node:http';
 import { viewForPath } from '../shared/routes.js';
 import { layoutOutputId } from '../shared/layout-url.js';
@@ -8,15 +10,50 @@ import { randomBytes } from 'node:crypto';
 const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 const outputTools = new Set(['spotify', 'likes', 'gifters', 'auction', 'notifications', 'commands', 'layout', 'social', 'banners']);
 const outputStreamLifetime = 3000;
+const widgetNames = { layout: 'Escenas', banners: 'Ad Banner Rotator', notifications: 'Notificaciones', likes: 'Top likes', gifters: 'Top gifters', auction: 'Subasta', social: 'Social Media Rotator', commands: 'Comandos de chat', 'commands-list': 'Lista de comandos', spotify: 'Música' };
+const directory = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Widgets · Stream Buddy</title><style>body{font:1rem/1.5 system-ui;background:#17191c;color:#f4f5f6;max-width:44rem;margin:8vh auto;padding:0 1rem}ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.6rem;list-style:none;padding:0}a{display:block;padding:.8rem 1rem;background:#282c30;color:#d5efbd;border-radius:.6rem}a:hover,a:focus-visible{background:#384135}</style>
+<h1>Widgets de Stream Buddy</h1><p>Abre un widget o copia su enlace para usarlo en OBS o TikTok LIVE Studio.</p><ul>${Object.entries(widgetNames).map(([id, name]) => {
+  const path = id === 'layout' ? '/output/layout' : (id.startsWith('commands') ? '/commands' : '/') + '?' + id + '-output=1';
+  return '<li><a href="' + path + '#tiktok.studio">' + name + '</a></li>';
+}).join('')}</ul></html>`;
 
 export function createDashboardServer(center, profiles) {
   let token = randomBytes(32).toString('hex');
+  const addresses = () => Object.values(networkInterfaces()).flat().filter(item =>
+    item?.family === 'IPv4' && !item.internal && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.)/.test(item.address)
+  ).map(item => item.address);
+  let sharedAddress = '';
+  let listener;
+  let sharingBusy = false;
+  async function preferredAddress() {
+    const candidates = addresses();
+    if (!candidates.length) throw new Error('Conecta el equipo a una red Wi-Fi o Ethernet.');
+    if (candidates.length === 1) return candidates[0];
+    const socket = dgram.createSocket('udp4');
+    try {
+      // Consult the OS route without sending a packet.
+      const routed = await new Promise(resolve => {
+        socket.once('error', () => resolve(null));
+        socket.connect(9, '192.0.2.1', () => resolve(socket.address().address));
+      });
+      return candidates.includes(routed) ? routed : candidates[0];
+    } finally { socket.close(); }
+  }
+  async function stopSharing() {
+    if (!listener) return;
+    sharedAddress = '';
+    const closed = new Promise(resolve => listener.close(resolve));
+    listener.closeAllConnections();
+    await closed;
+    listener = null;
+  }
   const clients = new Map();
   const commands = new Set();
   let publishTimer;
   let transition;
   let activeProfileId = profiles?.state().activeId;
-  const snapshot = () => ({ ...center.snapshot(), token, ...(profiles && { profiles: { ...profiles.state(), activeId: activeProfileId } }) });
+  const snapshot = () => ({ ...center.snapshot(), token, network: { address: sharedAddress, port: server.address()?.port }, ...(profiles && { profiles: { ...profiles.state(), activeId: activeProfileId } }) });
   const eventData = output => {
     const data = output ? { tools: { [output]: center.tools[output].state() } } : snapshot();
     return `data: ${JSON.stringify(data)}\n\n`;
@@ -65,12 +102,27 @@ export function createDashboardServer(center, profiles) {
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify(value));
   }
-  const server = http.createServer(async (req, res) => {
-    const host = `127.0.0.1:${server.address().port}`;
+  const handleRequest = async (req, res) => {
+    const address = req.socket.localAddress;
+    const remoteOutput = address !== '127.0.0.1' && address !== '::ffff:127.0.0.1';
+    if (remoteOutput && address !== sharedAddress) return json(res, 403, { error: 'Acceso de red desactivado' });
+    const host = `${remoteOutput ? address : '127.0.0.1'}:${server.address().port}`;
     const origin = `http://${host}`;
     if (req.headers.host !== host || (req.headers.origin && req.headers.origin !== origin)) return json(res, 403, { error: 'Solicitud no autorizada' });
     try {
       const url = new URL(req.url, origin);
+      if (remoteOutput) {
+        if (req.method === 'GET' && url.pathname === '/' && !url.search) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+          return res.end(directory);
+        }
+        const page = (url.pathname === '/' && [...outputTools].some(id => url.searchParams.has(id + '-output')))
+          || (url.pathname === '/commands' && ['commands-output', 'commands-list-output'].some(key => url.searchParams.has(key)));
+        const allowed = page || layoutOutputId(url.pathname) !== undefined
+          || /^\/(assets|notification-assets|notification-fonts|social-assets|banner-assets)\//.test(url.pathname)
+          || (url.pathname === '/api/events' && outputTools.has(url.searchParams.get('output')));
+        if (!allowed || req.method !== 'GET') return json(res, 403, { error: 'Solo se comparten las salidas' });
+      }
       if (req.method === 'GET') {
         if (url.pathname === '/api/spotify/callback') {
           await center.spotify.callback(url.searchParams);
@@ -168,6 +220,26 @@ export function createDashboardServer(center, profiles) {
         try { await transition; } finally { transition = null; }
         return json(res, 200, { ok: true });
       }
+      if (action === 'network/share') {
+        if (typeof body.enabled !== 'boolean') throw new Error('Indica si deseas compartir los widgets.');
+        if (sharingBusy) return json(res, 409, { error: 'Espera a que termine el cambio de red.' });
+        sharingBusy = true;
+        try {
+          if (!body.enabled) await stopSharing();
+          else if (!listener) {
+            const address = await preferredAddress();
+            const next = http.createServer(handleRequest);
+            await new Promise((resolve, reject) => {
+              next.once('error', reject);
+              next.listen(server.address().port, address, resolve);
+            });
+            listener = next;
+            sharedAddress = address;
+          }
+        } finally { sharingBusy = false; }
+        publish();
+        return json(res, 200, { ok: true });
+      }
       const activeCenter = center;
       const command = activeCenter.command(action, body, { origin });
       commands.add(command);
@@ -179,7 +251,8 @@ export function createDashboardServer(center, profiles) {
       if (!res.headersSent) json(res, 400, { error: error.message });
       else res.end();
     }
-  });
+  };
+  const server = http.createServer(handleRequest);
   server.requestTimeout = 15000; server.headersTimeout = 10000;
   const heartbeat = setInterval(() => { for (const [client, output] of clients) if (!output && !client.writableNeedDrain && !client.writableEnded) client.write(': heartbeat\n\n'); }, 15000);
   heartbeat.unref();
@@ -188,6 +261,7 @@ export function createDashboardServer(center, profiles) {
   return {
     server,
     async close() {
+      await stopSharing();
       clearInterval(heartbeat); clearInterval(poller);
       for (const client of clients.keys()) client.end();
       const closed = new Promise(resolve => server.close(resolve));

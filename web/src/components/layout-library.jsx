@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { downloadFile } from '../lib/download-file';
 import { DownloadButton } from './ui/download-button';
 import { FilePicker } from './ui/file-picker';
@@ -12,6 +13,7 @@ import {layoutOutputURL} from '../../../shared/layout-url';
 const themeName = layout => themes[layout.theme] || layout.customThemes?.find(theme => theme.id === layout.theme)?.name || 'Tema personalizado';
 
 export function LayoutLibrary({document,tool,api,notice,open,compositionId,busy,preview}) {
+  const outputOrigin = useOutputOrigin();
   const [name,setName]=useState(''),[working,setWorking]=useState(false);
   const [management, setManagement] = useState(null);
   const current=tool.compositions?.find(item=>item.id===compositionId);
@@ -74,7 +76,7 @@ export function LayoutLibrary({document,tool,api,notice,open,compositionId,busy,
     <div className="library-grid layout-library-grid">{entries.map(item=>{
       const active=(item.id||undefined)===compositionId,layout=active?document:item.document;
       const {width,height}=canvasSize(layout);
-      const url=layoutOutputURL(window.location.href,item.id);
+      const url=layoutOutputURL(outputOrigin,item.id);
       const action = management?.id === item.id ? management.action : null;
       return <article className={'library-composition layout-composition'+(active?' is-active':'')} key={item.id||'principal'}>
         <button type="button" className="layout-composition-open" aria-label={'Editar '+item.name} aria-current={active?'true':undefined} onClick={()=>open?.(item.id?'layout:'+item.id:'layout')}>

@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { useState } from 'react';
 import { boardStyle } from '../lib/widget-css';
 import { WidgetCssEditor } from './css-reference';
@@ -105,12 +106,13 @@ export function RankingEditor({
   stats,
   preview,
 }) {
+  const outputOrigin = useOutputOrigin();
   const meta = variants[variant];
   const Icon = meta.icon;
   const [mobileView, setMobileView] = useState('editor');
   const [reset, setReset] = useState(false);
   const update = (key, value) => setConfig(current => ({ ...current, [key]: value }));
-  const url = new URL(meta.outputPath, location.origin).href;
+  const url = new URL(meta.outputPath, outputOrigin).href;
   const side = (config.position || 'top-right').split('-')[1];
   const defaults = { ...meta.defaults, ...config };
   const styleLabel = meta.styles.find(([id]) => id === config.style)?.[1] ?? '';

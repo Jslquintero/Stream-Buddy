@@ -1,7 +1,8 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Wifi } from 'lucide-react';
 import { layoutOutputURL } from '../../../shared/layout-url';
-import { Button, Card } from './ui';
+import { Button, Card, Switch } from './ui';
 import { CopyLinkButton } from './output-controls';
 import { FirstRun } from './first-run';
 import { widgetStatus, widgetSummary } from '../lib/widget-status';
@@ -21,7 +22,8 @@ function useNow(interval = 10000) {
   return now;
 }
 
-export function Home({ widgets, state, online, open, notice }) {
+export function Home({ api, widgets, state, online, open, notice }) {
+  const outputOrigin = useOutputOrigin();
   const now = useNow();
   const connected = online && !!state?.tts?.connected;
   const [panel, setPanel] = useState('salidas');
@@ -33,8 +35,8 @@ export function Home({ widgets, state, online, open, notice }) {
   }), []);
   const notificationUrl = state?.tools?.notifications?.url;
   const copyTarget = notificationUrl
-    ? { name: 'Notificaciones', url: new URL(notificationUrl, window.location.origin).href }
-    : { name: 'Escenas', url: layoutOutputURL(window.location.href) };
+    ? { name: 'Notificaciones', url: new URL(notificationUrl, outputOrigin).href }
+    : { name: 'Escenas', url: layoutOutputURL(outputOrigin) };
   const guideDone = (connected ? 1 : 0) + ((state?.tts?.connector || connected) ? 1 : 0) + (onboarding.copied ? 1 : 0) + (onboarding.added ? 1 : 0);
   const guideOpen = guideDone < 4 && !onboarding.dismissed && !onboarding.completed;
 
@@ -61,12 +63,35 @@ export function Home({ widgets, state, online, open, notice }) {
     notice?.('Paso completado. La salida está lista para añadirla al directo.');
   }
 
+  const network = state?.network;
+  const legacyNetwork = Array.isArray(network?.addresses);
+  const networkOrigin = network?.address ? outputOrigin : '';
+  function shareWidgets(enabled) {
+    if (legacyNetwork && enabled && !network.addresses.length) {
+      notice('Conecta el equipo a una red Wi-Fi o Ethernet.', { type: 'error' });
+      return;
+    }
+    const body = legacyNetwork ? { address: enabled ? network.addresses[0] : '' } : { enabled };
+    return api('network/share', body);
+  }
   const salidasPanel = <>
     <div className="home-panel-heading">
       <p>Pega la URL en una fuente de enlace de TikTok LIVE Studio o de navegador en OBS.</p>
     </div>
+    {network && <div className="home-network">
+      <Wifi size={20} aria-hidden="true"/>
+      <div><label htmlFor="share-widgets">Acceso desde otros equipos</label>
+        <p>{networkOrigin ? (legacyNetwork ? 'Copia la URL del widget que quieras usar en el otro equipo.' : 'Abre este enlace en otro equipo para elegir un widget.') : 'Comparte tus widgets con equipos de la misma red.'}</p>
+      </div>
+      <Switch id="share-widgets" aria-label="Acceso desde otros equipos" disabled={!online} checked={!!networkOrigin}
+        onCheckedChange={shareWidgets}/>
+      {networkOrigin && !legacyNetwork && <div className="home-network-link">
+        <a href={networkOrigin} target="_blank" rel="noopener noreferrer">{networkOrigin}</a>
+        <CopyLinkButton url={networkOrigin} notice={notice} size="sm"><Copy size={14}/>Copiar enlace</CopyLinkButton>
+      </div>}
+    </div>}
     <Card className="home-widget-list">
-      {widgets.map(module => <WidgetRow key={module.id} module={module} tool={state?.tools[module.id]}
+      {widgets.map(module => <WidgetRow networkOrigin={networkOrigin} key={module.id} module={module} tool={state?.tools[module.id]}
         online={online} open={open} state={state} now={now} onCopied={() => updateOnboarding({ copied: true })}/>)}
     </Card>
   </>;
@@ -105,15 +130,16 @@ export function Home({ widgets, state, online, open, notice }) {
   </div>;
 }
 
-function WidgetRow({ module, tool, online, open, state, now, onCopied }) {
+function WidgetRow({ networkOrigin, module, tool, online, open, state, now, onCopied }) {
   const { id, title, color, icon: Icon } = module;
   const [compositionId, setCompositionId] = useState('');
   const compositions = tool?.compositions ?? [];
   const composition = compositions.find(item => item.id === compositionId);
-  const output = id === 'layout' ? layoutOutputURL(window.location.href, composition?.id)
+  const base = useOutputOrigin();
+  const output = networkOrigin && id === 'ads' ? null : id === 'layout' ? layoutOutputURL(base, composition?.id)
     : id === 'ads' ? adQueueOutputURL(tool?.url)
-    : tool?.url && new URL(tool.url, window.location.origin).href;
-  const listOutput = tool?.listUrl && new URL(tool.listUrl, window.location.origin).href;
+    : tool?.url && new URL(tool.url, base).href;
+  const listOutput = tool?.listUrl && new URL(tool.listUrl, base).href;
   const status = widgetStatus({ id, tool, state, online });
   const meta = tool && online ? widgetSummary({ id, tool, state, now }) : '';
 
@@ -129,6 +155,7 @@ function WidgetRow({ module, tool, online, open, state, now, onCopied }) {
       </div>
     </div>
     <div className="home-widget-controls">
+      {networkOrigin && id === 'ads' && <span>AdQueue solo admite salida local.</span>}
       {output && <WidgetLinks output={output} listOutput={listOutput} title={composition?.name ?? title} onCopied={onCopied}>
         {id === 'layout' && compositions.length > 0 && <select aria-label={`Composición de ${title}`}
           value={composition?.id ?? ''} onChange={event => setCompositionId(event.target.value)}>

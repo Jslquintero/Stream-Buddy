@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { OutputLinks, OutputToolbar } from './output-controls';
 import { useNotificationSettings } from '../hooks/use-notification-settings';
 import { notificationFontStack, NotificationFontResource } from './notification-fonts';
@@ -107,6 +108,7 @@ export function NotificationsOutput() {
 }
 
 export function NotificationsStudio({ tool, api, notice, connected, online }) {
+  const outputOrigin = useOutputOrigin();
   const {config,setConfig,dirty,saving,error:saveError}=useNotificationSettings(tool.config,tool.revision,api,online);
   const [uploading,setUploading] = useState('');
   const [type,setType]=useState('follow'),[preview,setPreview]=useState(0);
@@ -115,7 +117,7 @@ export function NotificationsStudio({ tool, api, notice, connected, online }) {
   const [mediaOpen, setMediaOpen] = useState(false);
   const update=(key,value)=>setConfig(s=>({...s,[key]:value}));
   const updateEvent=(key,value)=>setConfig(s=>({...s,events:{...s.events,[type]:{...s.events[type],[key]:value}}}));
-  const output = new URL(notificationOutputPath, window.location.origin).href;
+  const output = new URL(notificationOutputPath, outputOrigin).href;
   const event = config.events[type];
   const design = notificationDesign(config,type);
   const TypeIcon = icons[type] || Bell;

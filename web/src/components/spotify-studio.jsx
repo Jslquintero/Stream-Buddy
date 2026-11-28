@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { useState } from 'react';
 import { ExternalLink, Music2 } from 'lucide-react';
 import { Badge, Button, Card, Input, Select, Tabs, TabsContent, TabsList, TabsTrigger } from './ui';
@@ -102,10 +103,11 @@ function SpotifySource({ tool, config, setDraft, online, api, notice, save, savi
 }
 
 export function SpotifyStudio({ tool, api, notice, online }) {
+  const outputOrigin = useOutputOrigin();
   const { config: draft, setConfig: setDraft, dirty, saving, error, save } = useNotificationSettings(tool.config, undefined, api, online, spotifyStorage);
   const config = { ...appearanceDefaults, ...draft };
   const update = (key, value) => setDraft(previous => ({ ...previous, [key]: value }));
-  const output = new URL(tool.url, window.location.origin).href;
+  const output = new URL(tool.url, outputOrigin).href;
   const [width, height] = spotifySize(config.playerStyle, config);
   const saveStatus = saving ? 'Guardando…' : dirty
     ? online ? 'Cambios pendientes' : 'Cambios conservados en este navegador'

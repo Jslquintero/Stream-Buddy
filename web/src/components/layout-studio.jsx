@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { FilePicker } from './ui/file-picker';
 import { OutputLinks } from './output-controls';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId } from 'react';
@@ -118,6 +119,7 @@ const elementKind = kind => elementKinds[kind] ?? { label: 'Elemento', Icon: Squ
 const backgroundLabels = { transparent: 'Transparente', color: 'Color', image: 'Imagen' };
 
 export function LayoutStudio({ tool, api, notice, compositionId, open }) {
+  const outputOrigin = useOutputOrigin();
   const [selected,setSelected]=useState('welcome');
   const [guides,setGuides]=useState(false), [templateUndo,setTemplateUndo]=useState('');
   const [customResolution,setCustomResolution]=useState(false);
@@ -223,7 +225,7 @@ export function LayoutStudio({ tool, api, notice, compositionId, open }) {
     if(undo()){setSelected(null);notice?.('Plantilla deshecha.',{type:'info'});}
   };
   const openComposition = view => {setLibraryOpen(false);open?.(view);};
-  const output = layoutOutputURL(window.location.href,compositionId);
+  const output = layoutOutputURL(outputOrigin,compositionId);
   const addMessengerCamera = () => {
     const id=crypto.randomUUID();
     const dimensions=messengerCameraDimensions(Math.min(width,height)*.4,width,height);

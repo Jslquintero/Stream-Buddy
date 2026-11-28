@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { MediaFileField } from './ui/file-picker';
 import { OutputLinks, OutputToolbar } from './output-controls';
 import { useEffect, useRef, useState } from 'react';
@@ -269,6 +270,7 @@ function modelCooldown(value) {
 }
 
 export function CommandsStudio({ tool, api, notice, online, connected }) {
+  const outputOrigin = useOutputOrigin();
   const [config, setConfig] = useState(tool.config);
   const [saved, setSaved] = useState(tool.config);
   const [busy, setBusy] = useState(false);
@@ -300,8 +302,8 @@ export function CommandsStudio({ tool, api, notice, online, connected }) {
   const activeCount = commands.filter(row => row.enabled).length;
   const listCooldown = modelCooldown(config.listCooldown);
   const locked = busy || !online;
-  const url = new URL(commandsOutputPath, location.origin).href;
-  const listUrl = new URL(commandsListOutputPath, location.origin).href;
+  const url = new URL(commandsOutputPath, outputOrigin).href;
+  const listUrl = new URL(commandsListOutputPath, outputOrigin).href;
   const normalizedQuery = query.trim().toLowerCase();
   const visible = commands.filter(row => {
     if (filter === 'active' && !row.enabled) return false;

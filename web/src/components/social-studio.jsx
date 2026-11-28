@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import {
@@ -506,6 +507,7 @@ function NetworkPickerDialog({ open, available, selection, query, remaining, loc
 }
 
 export function SocialStudio({ tool, fonts, api, notice, online }) {
+  const outputOrigin = useOutputOrigin();
   const { config, setConfig, dirty, saving, error, save } = useNotificationSettings(tool.config, tool.revision, api, online, storage);
   const [mobileView, setMobileView] = useState('editor');
   const [autoRotate, setAutoRotate] = useState(true);
@@ -538,7 +540,7 @@ export function SocialStudio({ tool, fonts, api, notice, online }) {
         : channel),
     }));
   }
-  const url = new URL(socialOutputPath, location.origin).href;
+  const url = new URL(socialOutputPath, outputOrigin).href;
   const active = config.channels.filter(channel => channel.enabled).length;
   const selected = rotation.count ? (rotation.index % rotation.count) + 1 : 0;
   const editing = config.channels.find(channel => channel.id === editingId) ?? null;

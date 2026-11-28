@@ -27,7 +27,7 @@ async function setup(t, pathname, mode = 'api', pending = null) {
   const spotify = { running: true, connected: true, config: { mode, enabled: true, clientId: 'a'.repeat(32), hideWhenPaused: true, theme: 'dark' }, url: '/?spotify-output=1#tiktok.studio', playback: { title: 'Canción de prueba', artist: 'Artista', playing: true, progress: 1000, duration: 200000, updatedAt: Date.now() } };
   const state = { token: 'csrf', settings: defaults, tools: { spotify, layout: {}, ads: {} }, tts: { resources: {} }, events: [] };
   const publish = async () => { stream.onmessage({ data: JSON.stringify(state) }); await pause(); };
-  await publish(); return { window, spotify, publish, requests, getStream: () => stream };
+  await publish(); return { window, state, spotify, publish, requests, getStream: () => stream };
 }
 test('Spotify panel preserves draft during updates and saves design; copies output', async t => {
   const f = await setup(t, '/spotify'), doc = f.window.document;
@@ -43,6 +43,12 @@ test('Spotify panel preserves draft during updates and saves design; copies outp
   await until(() => f.requests.some(r => r.url === '/api/spotify/save'));
   assert.equal(JSON.parse(f.requests.find(r => r.url === '/api/spotify/save').body).clientId, 'b'.repeat(32));
   let copied; Object.defineProperty(f.window.navigator, 'clipboard', { value: { writeText: async text => { copied = text; } } });
+  await click('Copiar salida'); assert.equal(copied, 'http://127.0.0.1:17900/?spotify-output=1#tiktok.studio');
+  f.state.network = { address: '192.168.1.30', port: 18001 };
+  await f.publish();
+  await click('Copiar salida'); assert.equal(copied, 'http://192.168.1.30:18001/?spotify-output=1#tiktok.studio');
+  f.state.network.address = '';
+  await f.publish();
   await click('Copiar salida'); assert.equal(copied, 'http://127.0.0.1:17900/?spotify-output=1#tiktok.studio');
   await click('Desconectar Spotify'); assert.ok(f.requests.some(r => r.url === '/api/spotify/disconnect' && r.headers['X-Studio'] === 'csrf'));
 });

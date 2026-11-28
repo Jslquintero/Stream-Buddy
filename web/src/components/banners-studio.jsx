@@ -1,3 +1,4 @@
+import { useOutputOrigin } from '../hooks/use-output-origin';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WidgetCssEditor } from './css-reference';
 import {
@@ -401,6 +402,7 @@ function DeleteAdDialog({ ad, locked, onCancel, onConfirm }) {
 }
 
 export function BannersStudio({ tool, api, notice, online }) {
+  const outputOrigin = useOutputOrigin();
   const { config, setConfig, dirty, saving, error, save } = useNotificationSettings(tool.config ?? defaultBanners, tool.revision, api, online, storage);
   const [mobileView, setMobileView] = useState('editor');
   const [autoRotate, setAutoRotate] = useState(true);
@@ -415,7 +417,7 @@ export function BannersStudio({ tool, api, notice, online }) {
     ...previous,
     ads: previous.ads.map(ad => ad.id === id ? { ...ad, ...patch } : ad),
   }));
-  const url = new URL(bannersOutputPath, location.origin).href;
+  const url = new URL(bannersOutputPath, outputOrigin).href;
   const ads = config.ads;
   const active = ads.filter(ad => ad.enabled).length;
   const selected = rotation.count ? (rotation.index % rotation.count) + 1 : 0;
