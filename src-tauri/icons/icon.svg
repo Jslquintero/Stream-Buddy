@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect x="12" y="12" width="232" height="232" rx="49" fill="#163f91"/>
-  <rect x="48" y="59" width="160" height="111" rx="17" fill="#10285b" stroke="#eff5ff" stroke-width="10"/>
-  <path d="M114 92v45l40-22.5z" fill="#8fcbff" stroke="#8fcbff" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M128 176v22m-29 1h58" fill="none" stroke="#eff5ff" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="196" cy="67" r="15" fill="#f85a65" stroke="#163f91" stroke-width="5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41">
+  <rect x="1.5" width="38" height="41" rx="11" fill="#171716"/>
+  <!-- AudioLines from Lucide, as used in the dashboard. -->
+  <path d="M2 10v3 M6 6v11 M10 3v18 M14 8v7 M18 5v13 M22 10v3"
+        transform="translate(8.5 8.5)" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
 </svg>

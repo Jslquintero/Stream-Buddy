@@ -19,6 +19,7 @@
     "windows": {
       "webviewInstallMode": { "type": "offlineInstaller" },
       "nsis": {
+        "installerIcon": "icons/icon.ico",
         "installMode": "currentUser",
         "languages": ["Spanish"],
         "installerHooks": "windows/install.nsh"
